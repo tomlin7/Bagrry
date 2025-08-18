@@ -1,14 +1,12 @@
 import { OnboardingPanel } from '@/components/onboarding'
 import { PanelGroup } from '@/components/PanelGroup'
 import { SettingsPanel } from '@/components/SettingsPanel'
-import { Toaster } from '@/components/ui/sonner'
 import { useConfig } from '@/contexts/ConfigContext'
 import { useInterviewMode } from '@/hooks/useInterviewMode'
 import { AIService } from '@/services/aiService'
 import { AudioService } from '@/services/audioService'
 import { ConversationSummary } from '@/types/conversation'
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
+import { useEffect, useState, useRef } from 'react'
 import './App.css'
 
 function App() {
@@ -24,6 +22,8 @@ function App() {
   const [conversationSessions, setConversationSessions] = useState<ConversationSummary[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>()
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [attachedScreenshots, setAttachedScreenshots] = useState<string[]>([])
+  const attachedScreenshotsRef = useRef<string[]>([])
 
   // Initialize AI service when API key is available
   useEffect(() => {
@@ -89,6 +89,11 @@ function App() {
       window.electronAPI.onScreenshotCaptured((_, imageData: string) => {
         handleScreenshotAnalysis(imageData)
       })
+
+      // Handle screenshot attachment
+      window.electronAPI.onScreenshotAttached((_, imageData: string) => {
+        handleScreenshotAttachment(imageData)
+      })
     }
 
     setupElectronListeners()
@@ -97,6 +102,7 @@ function App() {
       window.electronAPI.removeAllListeners('toggle-visibility')
       window.electronAPI.removeAllListeners('toggle-interview-mode')
       window.electronAPI.removeAllListeners('screenshot-captured')
+      window.electronAPI.removeAllListeners('screenshot-attached')
     }
   }, [isRecording, aiService])
 
@@ -114,22 +120,34 @@ function App() {
           await audioService.stopSystemAudioCapture()
         }
         setIsRecording(false)
-        toast.success('Recording stopped')
       } else {
         // Start interview mode
         if (!config.apiKey) {
-          toast.error('Please set up your Google API key in settings first')
           return
         }
         await interviewMode.startInterviewMode()
         setIsRecording(true)
-        toast.success('Interview mode started - Live AI active')
       }
     } catch (error) {
       console.error('Error toggling recording mode:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      toast.error(`Failed to toggle recording: ${errorMessage}`)
     }
+  }
+
+  const handleScreenshotAttachment = (imageData: string) => {
+    if (!imageData) {
+      return
+    }
+
+    // Limit to 5 screenshots
+    if (attachedScreenshotsRef.current.length >= 5) {
+      return
+    }
+
+    console.log(`[App] handleScreenshotAttachment called, current count: ${attachedScreenshotsRef.current.length}`)
+    const newArray = [...attachedScreenshotsRef.current, imageData]
+    attachedScreenshotsRef.current = newArray
+    setAttachedScreenshots(newArray)
+    console.log(`[App] Updated attachedScreenshots to ${newArray.length} screenshots`)
   }
 
   const handleScreenshotAnalysis = async (imageData: string) => {
@@ -139,10 +157,26 @@ function App() {
     }
 
     if (!config.apiKey || config.apiKey.length === 0) {
-      toast.error('Please set up your Google API key in settings first')
       return
     }
 
+    // Get the current attached screenshots from ref to avoid stale closure
+    const currentAttachedScreenshots = attachedScreenshotsRef.current
+    console.log(`[App] handleScreenshotAnalysis called with attachedScreenshots.length: ${currentAttachedScreenshots.length}`)
+
+    // If there are attached screenshots, send all of them together
+    if (currentAttachedScreenshots.length > 0) {
+      const allScreenshots = [...currentAttachedScreenshots, imageData]
+      console.log(`[App] Sending ${allScreenshots.length} screenshots (${currentAttachedScreenshots.length} attached + 1 current)`)
+      await handleMultipleScreenshots(allScreenshots)
+      attachedScreenshotsRef.current = [] // Clear ref
+      setAttachedScreenshots([]) // Clear attached screenshots after sending
+      return
+    }
+
+    console.log(`[App] No attached screenshots, proceeding with single screenshot analysis`)
+
+    // Single screenshot analysis (existing behavior)
     if (!aiService) {
       const tempAiService = new AIService(config)
       setAiService(tempAiService)
@@ -151,7 +185,6 @@ function App() {
       setIsLoading(true)
       setResponse('')
       try {
-        // No transcription needed for system audio capture
         await tempAiService.analyzeScreenshotStream(imageData, (partial) => {
           setResponse(partial)
         })
@@ -160,10 +193,8 @@ function App() {
         const currentSession = tempAiService.getCurrentSession()
         setConversationSessions(sessions)
         setCurrentSessionId(currentSession?.id)
-        toast.success('Screenshot analyzed')
       } catch (error) {
         console.error('Error analyzing screenshot:', error)
-        toast.error('Failed to analyze screenshot')
       } finally {
         setIsLoading(false)
       }
@@ -173,7 +204,6 @@ function App() {
     setIsLoading(true)
     setResponse('')
     try {
-      // No transcription needed for system audio capture
       await aiService.analyzeScreenshotStream(imageData, (partial) => {
         setResponse(partial)
       })
@@ -182,10 +212,54 @@ function App() {
       const currentSession = aiService.getCurrentSession()
       setConversationSessions(sessions)
       setCurrentSessionId(currentSession?.id)
-      toast.success('Screenshot analyzed')
     } catch (error) {
       console.error('Error analyzing screenshot:', error)
-      toast.error('Failed to analyze screenshot')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleMultipleScreenshots = async (screenshots: string[]) => {
+    if (!config.apiKey || config.apiKey.length === 0) {
+      return
+    }
+
+    if (!aiService) {
+      const tempAiService = new AIService(config)
+      setAiService(tempAiService)
+
+      setIsLoading(true)
+      setResponse('')
+      try {
+        await tempAiService.analyzeMultipleScreenshotsStream(screenshots, (partial) => {
+          setResponse(partial)
+        })
+        // Update conversation sessions
+        const sessions = tempAiService.getSessionSummaries()
+        const currentSession = tempAiService.getCurrentSession()
+        setConversationSessions(sessions)
+        setCurrentSessionId(currentSession?.id)
+      } catch (error) {
+        console.error('Error analyzing multiple screenshots:', error)
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
+
+    setIsLoading(true)
+    setResponse('')
+    try {
+      await aiService.analyzeMultipleScreenshotsStream(screenshots, (partial) => {
+        setResponse(partial)
+      })
+      // Update conversation sessions
+      const sessions = aiService.getSessionSummaries()
+      const currentSession = aiService.getCurrentSession()
+      setConversationSessions(sessions)
+      setCurrentSessionId(currentSession?.id)
+    } catch (error) {
+      console.error('Error analyzing multiple screenshots:', error)
     } finally {
       setIsLoading(false)
     }
@@ -193,9 +267,6 @@ function App() {
 
   const handleAskQuestion = async (question: string) => {
     if (!question.trim() || !aiService) {
-      if (!aiService) {
-        toast.error('Please set up your Google API key in settings first')
-      }
       return
     }
     setIsLoading(true)
@@ -209,10 +280,8 @@ function App() {
       const currentSession = aiService.getCurrentSession()
       setConversationSessions(sessions)
       setCurrentSessionId(currentSession?.id)
-      toast.success('Question answered')
     } catch (error) {
       console.error('Error asking question:', error)
-      toast.error('Failed to get answer')
     } finally {
       setIsLoading(false)
     }
@@ -229,8 +298,6 @@ function App() {
       setConversationSessions(sessions)
       setCurrentSessionId(currentSession?.id)
     }
-
-    toast.success('Response cleared')
   }
 
   const handleNewSession = () => {
@@ -243,8 +310,6 @@ function App() {
     const sessions = aiService.getSessionSummaries()
     setConversationSessions(sessions)
     setCurrentSessionId(newSession.id)
-
-    toast.success('New conversation started')
   }
 
   const handleSelectSession = (sessionId: string) => {
@@ -253,7 +318,6 @@ function App() {
     aiService.loadSession(sessionId)
     setResponse('')
     setCurrentSessionId(sessionId)
-    toast.success('Conversation loaded')
   }
 
   const handleDeleteSession = (sessionId: string) => {
@@ -267,7 +331,6 @@ function App() {
     setConversationSessions(sessions)
     setCurrentSessionId(currentSession?.id)
 
-    toast.success('Conversation deleted')
   }
 
   const handleToggleSettings = () => {
@@ -291,10 +354,9 @@ function App() {
     setShowOnboarding(false)
   }
 
-  // Show interview mode errors as toasts
+  // Clear interview mode errors
   useEffect(() => {
     if (interviewMode.state.error) {
-      toast.error(interviewMode.state.error)
       interviewMode.clearError()
     }
   }, [interviewMode.state.error, interviewMode.clearError])
@@ -328,6 +390,7 @@ function App() {
             interviewModeTranscription={interviewMode.state.transcription}
             interviewModeResponse={interviewMode.state.response}
             isInterviewModeEnabled={isRecording && interviewMode.state.isActive}
+            attachedScreenshotsCount={attachedScreenshots.length}
           />
 
           {/* Settings Panel - positioned in top right of app */}
@@ -349,18 +412,6 @@ function App() {
           <OnboardingPanel onComplete={handleOnboardingComplete} className="w-[450px]" />
         </div>
       )}
-
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)'
-          }
-        }}
-      />
     </div>
   )
 }

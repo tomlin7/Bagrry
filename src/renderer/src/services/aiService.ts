@@ -1,30 +1,22 @@
 import { AppConfig } from '@/contexts/ConfigContext'
-import { ConversationSession, ConversationSummary } from '@/types/conversation'
-import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
-import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts'
-import { RunnableSequence } from '@langchain/core/runnables'
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
+import { ConversationSession, ConversationSummary, ConversationMessage } from '@/types/conversation'
+import { GoogleGenAI } from '@google/genai'
 
 export class AIService {
-  private model: ChatGoogleGenerativeAI
+  private genAI: GoogleGenAI
   private currentSession: ConversationSession | null = null
   private config: AppConfig
   private readonly SESSIONS_STORAGE_KEY = 'clue-conversation-sessions'
 
   constructor(config: AppConfig) {
     this.config = config
-    this.model = new ChatGoogleGenerativeAI({
-      model: config.aiModel || 'gemini-2.0-flash',
-      maxOutputTokens: 2048,
-      temperature: 0.7,
-      apiKey: config.apiKey
-    })
+    this.genAI = new GoogleGenAI({ apiKey: config.apiKey })
 
     // Always create a new session when app opens
     this.createNewSession()
   }
 
-  private createSystemMessage(): SystemMessage {
+  private createSystemMessage(): { text: string } {
     const selectedMode = this.config.modes.find((m) => m.id === this.config.selectedModeId)
 
     if (!selectedMode?.prompt) {
@@ -33,10 +25,10 @@ export class AIService {
       if (!firstMode?.prompt) {
         throw new Error('No modes available with prompts')
       }
-      return new SystemMessage(firstMode.prompt)
+      return { text: firstMode.prompt }
     }
 
-    return new SystemMessage(selectedMode.prompt)
+    return { text: selectedMode.prompt }
   }
 
   private generateSessionTitle(firstMessage: string): string {
@@ -55,7 +47,7 @@ export class AIService {
     const newSession: ConversationSession = {
       id: 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
       title: 'New Conversation',
-      messages: [this.createSystemMessage()],
+      messages: [{ role: 'user', parts: [this.createSystemMessage()] }],
       createdAt: new Date(),
       lastModified: new Date()
     }
@@ -80,10 +72,7 @@ export class AIService {
    */
   async analyzeResumePdf(resumeText: string): Promise<string> {
     try {
-      const prompt = ChatPromptTemplate.fromMessages([
-        [
-          'system',
-          `You are an expert resume analyst. When given a resume, prepare a concise, structured summary as if it's your resume and you are speaking about yourself:
+      const prompt = `You are an expert resume analyst. When given a resume, prepare a concise, structured summary as if it's your resume and you are speaking about yourself:
 - Short summary
 - Capabilities
 - Industry
@@ -105,16 +94,21 @@ export class AIService {
 
 <output_format>
 - Respond in 1-2 paragraphs, using clear, readable text.
-- Do not include the raw resume text in your response.`
-        ],
-        ['human', `Resume text:\n${resumeText}`]
-      ])
+- Do not include the raw resume text in your response.
 
-      const chain = RunnableSequence.from([prompt, this.model])
-      const response = await chain.invoke({})
+Resume text:
+${resumeText}`
 
-      // Return the text response
-      return (response.content as string).trim()
+      const result = await this.genAI.models.generateContent({
+        model: this.config.aiModel || 'gemini-2.5-pro',
+        contents: [{ parts: [{ text: prompt }] }],
+        config: {
+          maxOutputTokens: 2048,
+          temperature: 0.7,
+        },
+      })
+
+      return result.candidates[0].content.parts[0].text
     } catch (error) {
       console.error('Error analyzing resume text:', error)
       throw new Error('Failed to analyze resume text')
@@ -133,37 +127,36 @@ export class AIService {
         throw new Error('Failed to create session')
       }
 
-      const prompt = ChatPromptTemplate.fromMessages([
-        new MessagesPlaceholder('history'),
-        [
-          'human',
-          [
-            {
-              type: 'text',
-              text: 'Analyze the screen first.'
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: imageData
+      const prompt = 'Analyze the screen first.'
+      const base64Data = imageData.split(',')[1] // Remove data:image/jpeg;base64, prefix
+      
+      const result = await this.genAI.models.generateContent({
+        model: this.config.aiModel || 'gemini-2.5-pro',
+        contents: [{ 
+          parts: [
+            { text: prompt },
+            { 
+              inlineData: {
+                data: base64Data,
+                mimeType: 'image/jpeg'
               }
             }
-          ]
-        ]
-      ])
-
-      const chain = RunnableSequence.from([prompt, this.model])
-
-      const response = await chain.invoke({
-        history: this.currentSession.messages
+          ] 
+        }],
+        config: {
+          maxOutputTokens: 2048,
+          temperature: 0.7,
+        },
       })
 
-      const userMessage = new HumanMessage('Screenshot')
-      const aiMessage = new AIMessage(response.content as string)
+      const responseText = result.candidates[0].content.parts[0].text
+
+      const userMessage = { role: 'user' as const, parts: [{ text: 'Screenshot' }] }
+      const aiMessage = { role: 'model' as const, parts: [{ text: responseText }] }
 
       // Update session title if this is the first non-system message
       if (this.currentSession.messages.length === 1) {
-        this.currentSession.title = this.generateSessionTitle(userMessage.content as string)
+        this.currentSession.title = this.generateSessionTitle(userMessage.parts[0].text)
       }
 
       // Add to conversation history
@@ -179,7 +172,7 @@ export class AIService {
       // Save session
       this.saveSession(this.currentSession!)
 
-      return response.content as string
+      return responseText
     } catch (error) {
       console.error('Error analyzing screenshot:', error)
       throw new Error('Failed to analyze screenshot')
@@ -198,20 +191,19 @@ export class AIService {
         throw new Error('Failed to create session')
       }
 
-      const prompt = ChatPromptTemplate.fromMessages([
-        new MessagesPlaceholder('history'),
-        ['human', '{input}']
-      ])
-
-      const chain = RunnableSequence.from([prompt, this.model])
-
-      const response = await chain.invoke({
-        history: this.currentSession.messages,
-        input: question
+      const result = await this.genAI.models.generateContent({
+        model: this.config.aiModel || 'gemini-2.5-pro',
+        contents: [{ parts: [{ text: question }] }],
+        config: {
+          maxOutputTokens: 2048,
+          temperature: 0.7,
+        },
       })
 
-      const userMessage = new HumanMessage(question)
-      const aiMessage = new AIMessage(response.content as string)
+      const responseText = result.candidates[0].content.parts[0].text
+
+      const userMessage = { role: 'user' as const, parts: [{ text: question }] }
+      const aiMessage = { role: 'model' as const, parts: [{ text: responseText }] }
 
       // Update session title if this is the first non-system message
       if (this.currentSession.messages.length === 1) {
@@ -231,7 +223,7 @@ export class AIService {
       // Save session
       this.saveSession(this.currentSession!)
 
-      return response.content as string
+      return responseText
     } catch (error) {
       console.error('Error asking question:', error)
       throw new Error('Failed to get AI response')
@@ -248,26 +240,48 @@ export class AIService {
     if (!this.currentSession) {
       throw new Error('Failed to create session')
     }
-    // Build messages array: system/history + new human message
-    const messages = [...this.currentSession.messages, new HumanMessage(question)]
+
+    // Build conversation history for the model
+    const history = this.currentSession.messages.slice(1) // Skip system message
+    const historyContents = history.map(msg => ({
+      role: msg.role,
+      parts: msg.parts
+    }))
+
     let fullResponse = ''
     let hadFirstToken = false
-    const stream = await this.model.stream(messages)
+
     try {
-      for await (const chunk of stream) {
-        if (chunk?.content) {
-          fullResponse += chunk.content
+      console.log('[AIService] Starting question stream with model:', this.config.aiModel)
+      const result = await this.genAI.models.generateContentStream({
+        model: this.config.aiModel || 'gemini-2.5-pro',
+        contents: [
+          ...historyContents,
+          { role: 'user', parts: [{ text: question }] }
+        ],
+        config: {
+          maxOutputTokens: 2048,
+          temperature: 0.7,
+        },
+      })
+      
+      for await (const chunk of result) {
+        const chunkText = chunk.text
+        if (chunkText) {
+          fullResponse += chunkText
           onToken(fullResponse)
           hadFirstToken = true
         }
       }
     } catch (err) {
       console.error('[AIService] Streaming error (askQuestionStream):', err)
+      console.error('[AIService] Model being used:', this.config.aiModel)
       if (!hadFirstToken) throw err
     }
+
     // Add to conversation history
-    const userMessage = new HumanMessage(question)
-    const aiMessage = new AIMessage(fullResponse)
+    const userMessage = { role: 'user' as const, parts: [{ text: question }] }
+    const aiMessage = { role: 'model' as const, parts: [{ text: fullResponse }] }
     if (this.currentSession.messages.length === 1) {
       this.currentSession.title = this.generateSessionTitle(question)
     }
@@ -293,41 +307,126 @@ export class AIService {
     if (!this.currentSession) {
       throw new Error('Failed to create session')
     }
-    // Build messages array: history + new human message with image and text
-    const humanMsg = new HumanMessage({
-      content: [
-        {
-          type: 'text',
-          text: 'Analyze the screen first.'
-        },
-        {
-          type: 'image_url',
-          image_url: {
-            url: imageData
-          }
-        }
-      ]
-    })
-    const messages = [...this.currentSession.messages, humanMsg]
+
+    const prompt = 'Analyze the screen first.'
+    const base64Data = imageData.split(',')[1] // Remove data:image/jpeg;base64, prefix
+
     let fullResponse = ''
     let hadFirstToken = false
-    const stream = await this.model.stream(messages)
+
     try {
-      for await (const chunk of stream) {
-        if (chunk?.content) {
-          fullResponse += chunk.content
+      console.log('[AIService] Starting single screenshot analysis with model:', this.config.aiModel)
+      const result = await this.genAI.models.generateContentStream({
+        model: this.config.aiModel || 'gemini-2.5-pro',
+        contents: [{ 
+          parts: [
+            { text: prompt },
+            { 
+              inlineData: {
+                data: base64Data,
+                mimeType: 'image/jpeg'
+              }
+            }
+          ] 
+        }],
+        config: {
+          maxOutputTokens: 2048,
+          temperature: 0.7,
+        },
+      })
+      
+      for await (const chunk of result) {
+        const chunkText = chunk.text
+        if (chunkText) {
+          fullResponse += chunkText
           onToken(fullResponse)
           hadFirstToken = true
         }
       }
     } catch (err) {
       console.error('[AIService] Streaming error (analyzeScreenshotStream):', err)
+      console.error('[AIService] Model being used:', this.config.aiModel)
       if (!hadFirstToken) throw err
     }
-    const userMessage = new HumanMessage('Screenshot')
-    const aiMessage = new AIMessage(fullResponse)
+
+    const userMessage = { role: 'user' as const, parts: [{ text: 'Screenshot' }] }
+    const aiMessage = { role: 'model' as const, parts: [{ text: fullResponse }] }
     if (this.currentSession.messages.length === 1) {
-      this.currentSession.title = this.generateSessionTitle(userMessage.content as string)
+      this.currentSession.title = this.generateSessionTitle(userMessage.parts[0].text)
+    }
+    this.currentSession.messages.push(userMessage, aiMessage)
+    this.currentSession.lastModified = new Date()
+    if (this.currentSession.messages.length > 21) {
+      const systemMsg = this.currentSession.messages[0]
+      this.currentSession.messages = [systemMsg, ...this.currentSession.messages.slice(-20)]
+    }
+    this.saveSession(this.currentSession!)
+  }
+
+  /**
+   * Stream AI response for multiple screenshots analysis, calling onToken with each new chunk.
+   */
+  async analyzeMultipleScreenshotsStream(
+    screenshots: string[],
+    onToken: (partial: string) => void
+  ): Promise<void> {
+    if (!this.currentSession) {
+      this.createNewSession()
+    }
+    if (!this.currentSession) {
+      throw new Error('Failed to create session')
+    }
+
+    // Create parts array with text prompt and all screenshots
+    const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = [
+      { text: `Analyze these ${screenshots.length} screenshots. Please provide a comprehensive analysis of what you see across all images, noting any patterns, relationships, or important details.` }
+    ]
+
+    // Add all screenshots as inlineData parts
+    for (const screenshot of screenshots) {
+      const base64Data = screenshot.split(',')[1] // Remove data:image/jpeg;base64, prefix
+      parts.push({
+        inlineData: {
+          data: base64Data,
+          mimeType: 'image/jpeg'
+        }
+      })
+    }
+
+    console.log(`[AIService] Processing ${screenshots.length} screenshots with ${parts.length} total parts`)
+
+    let fullResponse = ''
+    let hadFirstToken = false
+
+    try {
+      console.log('[AIService] Starting multiple screenshots analysis with model:', this.config.aiModel)
+      const result = await this.genAI.models.generateContentStream({
+        model: this.config.aiModel || 'gemini-2.5-pro',
+        contents: [{ parts }],
+        config: {
+          maxOutputTokens: 2048,
+          temperature: 0.7,
+        },
+      })
+      
+      for await (const chunk of result) {
+        const chunkText = chunk.text
+        if (chunkText) {
+          fullResponse += chunkText
+          onToken(fullResponse)
+          hadFirstToken = true
+        }
+      }
+    } catch (err) {
+      console.error('[AIService] Streaming error (analyzeMultipleScreenshotsStream):', err)
+      console.error('[AIService] Model being used:', this.config.aiModel)
+      if (!hadFirstToken) throw err
+    }
+
+    const userMessage = { role: 'user' as const, parts: [{ text: `Multiple Screenshots (${screenshots.length})` }] }
+    const aiMessage = { role: 'model' as const, parts: [{ text: fullResponse }] }
+    if (this.currentSession.messages.length === 1) {
+      this.currentSession.title = this.generateSessionTitle(userMessage.parts[0].text)
     }
     this.currentSession.messages.push(userMessage, aiMessage)
     this.currentSession.lastModified = new Date()
@@ -340,7 +439,7 @@ export class AIService {
 
   clearHistory(): void {
     if (this.currentSession) {
-      this.currentSession.messages = [this.createSystemMessage()]
+      this.currentSession.messages = [{ role: 'user', parts: [this.createSystemMessage()] }]
       this.currentSession.title = 'New Conversation'
       this.currentSession.lastModified = new Date()
       this.saveSession(this.currentSession!)
@@ -351,7 +450,7 @@ export class AIService {
     return this.currentSession
   }
 
-  getConversationHistory(): BaseMessage[] {
+  getConversationHistory(): any[] {
     return this.currentSession ? [...this.currentSession.messages] : []
   }
 
@@ -364,18 +463,10 @@ export class AIService {
           ...sessionData,
           createdAt: new Date(sessionData.createdAt),
           lastModified: new Date(sessionData.lastModified),
-          messages: sessionData.messages.map((msg: any) => {
-            switch (msg.type) {
-              case 'system':
-                return new SystemMessage(msg.content)
-              case 'human':
-                return new HumanMessage(msg.content)
-              case 'ai':
-                return new AIMessage(msg.content)
-              default:
-                return new HumanMessage(msg.content)
-            }
-          })
+          messages: sessionData.messages.map((msg: any) => ({
+            role: msg.role,
+            parts: msg.parts
+          }))
         }))
       }
       return []
@@ -389,16 +480,16 @@ export class AIService {
     const sessions = this.getAllSessions()
     return sessions
       .map((session) => {
-        const userMessages = session.messages.filter((msg) => msg._getType() === 'human')
+        const userMessages = session.messages.filter((msg) => msg.role === 'user')
         const lastUserMessage = userMessages[userMessages.length - 1]
 
         return {
           id: session.id,
           title: session.title,
           preview: lastUserMessage
-            ? typeof lastUserMessage.content === 'string'
-              ? lastUserMessage.content.slice(0, 100) +
-                (lastUserMessage.content.length > 100 ? '...' : '')
+            ? typeof lastUserMessage.parts[0].text === 'string'
+              ? lastUserMessage.parts[0].text.slice(0, 100) +
+                (lastUserMessage.parts[0].text.length > 100 ? '...' : '')
               : 'Complex message'
             : 'No messages',
           createdAt: session.createdAt,
@@ -437,8 +528,8 @@ export class AIService {
       const sessionsData = sessions.map((session) => ({
         ...session,
         messages: session.messages.map((msg) => ({
-          type: msg._getType(),
-          content: msg.content
+          role: msg.role,
+          parts: msg.parts
         }))
       }))
       localStorage.setItem(this.SESSIONS_STORAGE_KEY, JSON.stringify(sessionsData))
@@ -450,20 +541,13 @@ export class AIService {
   updateConfig(newConfig: AppConfig): void {
     this.config = newConfig
 
-    // Update the model if aiModel changed
-    if (this.model.model !== newConfig.aiModel) {
-      this.model = new ChatGoogleGenerativeAI({
-        model: newConfig.aiModel,
-        maxOutputTokens: 2048,
-        temperature: 0.7,
-        apiKey: newConfig.apiKey
-      })
-    }
+    // Update the genAI instance if apiKey changed
+    this.genAI = new GoogleGenAI({ apiKey: newConfig.apiKey })
 
     // Update current session's system message if mode changed
     if (this.currentSession && this.currentSession.messages.length > 0) {
       const newSystemMessage = this.createSystemMessage()
-      this.currentSession.messages[0] = newSystemMessage
+      this.currentSession.messages[0] = { role: 'user', parts: [newSystemMessage] }
       this.saveSession(this.currentSession!)
     }
   }

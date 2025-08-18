@@ -17,7 +17,7 @@ https://github.com/user-attachments/assets/27a90636-a1a5-4993-bfdb-0ebf08e0a7d7
 - JSON Config:
   ```json
   {
-    "aiModel": "gemini-2.0-flash",
+    "aiModel": "gemini-2.5-pro",
     "apiKey": "",
     "theme": "dark",
     "opacity": 100,

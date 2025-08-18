@@ -126,6 +126,13 @@ function registerGlobalShortcuts(): void {
     }
   })
 
+  // Take screenshot without sending (Ctrl+Space)
+  globalShortcut.register('CommandOrControl+Space', () => {
+    if (isVisible) {
+      captureScreenForAttachment()
+    }
+  })
+
   // Toggle interview mode (Ctrl+])
   globalShortcut.register('CommandOrControl+]', () => {
     if (mainWindow) {
@@ -155,6 +162,32 @@ function registerGlobalShortcuts(): void {
   globalShortcut.register('CommandOrControl+Right', () => {
     if (isVisible && mainWindow) {
       mainWindow.webContents.send('move-panels', 'right')
+    }
+  })
+
+  // Chat scroll shortcuts
+  globalShortcut.register('CommandOrControl+PageUp', () => {
+    if (isVisible && mainWindow) {
+      mainWindow.webContents.send('scroll-chat', 'up')
+    }
+  })
+
+  globalShortcut.register('CommandOrControl+PageDown', () => {
+    if (isVisible && mainWindow) {
+      mainWindow.webContents.send('scroll-chat', 'down')
+    }
+  })
+
+  // Alternative scroll shortcuts (for keyboards without PageUp/PageDown)
+  globalShortcut.register('CommandOrControl+Shift+Up', () => {
+    if (isVisible && mainWindow) {
+      mainWindow.webContents.send('scroll-chat', 'up')
+    }
+  })
+
+  globalShortcut.register('CommandOrControl+Shift+Down', () => {
+    if (isVisible && mainWindow) {
+      mainWindow.webContents.send('scroll-chat', 'down')
     }
   })
 
@@ -199,6 +232,22 @@ async function captureScreen(): Promise<void> {
     }
   } catch (error) {
     console.error('Error capturing screen:', error)
+  }
+}
+
+async function captureScreenForAttachment(): Promise<void> {
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 }
+    })
+
+    if (sources.length > 0 && mainWindow) {
+      const screenshot = sources[0].thumbnail.toDataURL()
+      mainWindow.webContents.send('screenshot-attached', screenshot)
+    }
+  } catch (error) {
+    console.error('Error capturing screen for attachment:', error)
   }
 }
 

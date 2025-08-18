@@ -712,6 +712,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, c
               effectiveTheme === 'dark' ? 'bg-white/10 text-white' : 'bg-white/20 text-zinc-800'
             )}
           >
+            <option value="gemini-2.5-pro">Gemini 2.5 Pro (default)</option>
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
             <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
             <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
             <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
@@ -747,7 +750,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, c
             </div>
             <div className="flex justify-between">
               <span className={cn(effectiveTheme === 'dark' ? 'text-white/70' : 'text-gray-600')}>
-                Take Screenshot
+                Take Screenshot & Send
               </span>
               <Badge
                 variant="secondary"
@@ -760,6 +763,27 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, c
               >
                 Ctrl+Enter
               </Badge>
+            </div>
+            <div className="flex justify-between">
+              <span className={cn(effectiveTheme === 'dark' ? 'text-white/70' : 'text-gray-600')}>
+                Attach Screenshot
+              </span>
+              <Badge
+                variant="secondary"
+                className={cn(
+                  'text-xs border-0',
+                  effectiveTheme === 'dark'
+                    ? 'bg-white/10 text-white/70'
+                    : 'bg-white/30 text-zinc-600'
+                )}
+              >
+                Ctrl+Space
+              </Badge>
+            </div>
+            <div className="text-xs text-center mt-2 opacity-60">
+              <span className={cn(effectiveTheme === 'dark' ? 'text-white/50' : 'text-gray-500')}>
+                Up to 5 screenshots can be attached
+              </span>
             </div>
             <div className="flex justify-between">
               <span className={cn(effectiveTheme === 'dark' ? 'text-white/70' : 'text-gray-600')}>
@@ -776,6 +800,43 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, c
               >
                 Ctrl+]
               </Badge>
+            </div>
+            <div className="flex justify-between">
+              <span className={cn(effectiveTheme === 'dark' ? 'text-white/70' : 'text-gray-600')}>
+                Scroll Chat Up
+              </span>
+              <Badge
+                variant="secondary"
+                className={cn(
+                  'text-xs border-0',
+                  effectiveTheme === 'dark'
+                    ? 'bg-white/10 text-white/70'
+                    : 'bg-white/30 text-zinc-600'
+                )}
+              >
+                Ctrl+PageUp
+              </Badge>
+            </div>
+            <div className="flex justify-between">
+              <span className={cn(effectiveTheme === 'dark' ? 'text-white/70' : 'text-gray-600')}>
+                Scroll Chat Down
+              </span>
+              <Badge
+                variant="secondary"
+                className={cn(
+                  'text-xs border-0',
+                  effectiveTheme === 'dark'
+                    ? 'bg-white/10 text-white/70'
+                    : 'bg-white/30 text-zinc-600'
+                )}
+              >
+                Ctrl+PageDown
+              </Badge>
+            </div>
+            <div className="text-xs text-center mt-2 opacity-60">
+              <span className={cn(effectiveTheme === 'dark' ? 'text-white/50' : 'text-gray-500')}>
+                Alternative: Ctrl+Shift+↑/↓
+              </span>
             </div>
             <div className="flex justify-between">
               <span className={cn(effectiveTheme === 'dark' ? 'text-white/70' : 'text-gray-600')}>

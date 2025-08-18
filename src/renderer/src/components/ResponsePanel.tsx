@@ -14,7 +14,7 @@ import {
   Plus,
   Trash2
 } from 'lucide-react'
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
@@ -48,7 +48,35 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
   const [isMinimized, setIsMinimized] = useState(false)
   const [page, setPage] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const { effectiveTheme } = useTheme()
+
+  // Scroll handler for keyboard shortcuts
+  const handleScroll = (direction: 'up' | 'down') => {
+    if (!scrollContainerRef.current) return
+    
+    const container = scrollContainerRef.current
+    const scrollAmount = 200 // Scroll by 200px each time
+    
+    if (direction === 'up') {
+      container.scrollTop -= scrollAmount
+    } else {
+      container.scrollTop += scrollAmount
+    }
+  }
+
+  // Listen for scroll chat events from main process
+  useEffect(() => {
+    const handleScrollChat = (_: any, direction: string) => {
+      handleScroll(direction as 'up' | 'down')
+    }
+
+    window.electronAPI.onScrollChat(handleScrollChat)
+
+    return () => {
+      window.electronAPI.removeAllListeners('scroll-chat')
+    }
+  }, [])
 
   // Improved pagination logic for interviewModeResponse
   // Paginate by splitting at the nearest newline before the character limit to preserve bullet points and sentence boundaries
@@ -257,7 +285,7 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
 
       {/* Content */}
       {!isMinimized && (
-        <CardContent className="p-4 flex-1 overflow-y-auto relative z-20">
+        <CardContent ref={scrollContainerRef} className="p-4 flex-1 overflow-y-auto relative z-20">
           <div
             ref={contentRef}
             className={cn(

@@ -231,7 +231,7 @@ const defaultInterviewProfiles: InterviewProfile[] = [
 ]
 
 const defaultConfig: AppConfig = {
-  aiModel: 'gemini-2.0-flash',
+  aiModel: 'gemini-2.5-pro',
   apiKey: '',
   theme: 'system',
   opacity: 100,

@@ -27,6 +27,7 @@ interface PanelGroupProps {
   interviewModeTranscription?: string
   interviewModeResponse?: string
   isInterviewModeEnabled?: boolean
+  attachedScreenshotsCount?: number
 }
 
 export const PanelGroup: React.FC<PanelGroupProps> = ({
@@ -49,7 +50,8 @@ export const PanelGroup: React.FC<PanelGroupProps> = ({
   interviewModeStatus,
   interviewModeTranscription,
   interviewModeResponse,
-  isInterviewModeEnabled
+  isInterviewModeEnabled,
+  attachedScreenshotsCount = 0
 }) => {
   const [screenSize, setScreenSize] = useState({ width: 1920, height: 1080 })
   const [isHistoryVisible, setIsHistoryVisible] = useState(false)
@@ -121,6 +123,7 @@ export const PanelGroup: React.FC<PanelGroupProps> = ({
           onToggleRecording={onToggleRecording}
           onOpenSettings={onOpenSettings}
           isSettingsOpen={isSettingsOpen}
+          attachedScreenshotsCount={attachedScreenshotsCount}
           className="animate-in fade-in-0 slide-in-from-top-4 duration-300"
         />
 

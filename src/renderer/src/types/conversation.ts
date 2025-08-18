@@ -1,9 +1,12 @@
-import { BaseMessage } from '@langchain/core/messages'
+export interface ConversationMessage {
+  role: 'user' | 'model'
+  parts: Array<{ text: string }>
+}
 
 export interface ConversationSession {
   id: string
   title: string
-  messages: BaseMessage[]
+  messages: ConversationMessage[]
   createdAt: Date
   lastModified: Date
 }

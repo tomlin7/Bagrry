@@ -82,7 +82,9 @@ export interface ElectronAPI {
   onToggleVisibility: (callback: (event: IpcRendererEvent, visible: boolean) => void) => void
   onToggleInterviewMode: (callback: (event: IpcRendererEvent) => void) => void
   onMovePanels: (callback: (event: IpcRendererEvent, direction: string) => void) => void
+  onScrollChat: (callback: (event: IpcRendererEvent, direction: string) => void) => void
   onScreenshotCaptured: (callback: (event: IpcRendererEvent, imageData: string) => void) => void
+  onScreenshotAttached: (callback: (event: IpcRendererEvent, imageData: string) => void) => void
   onAudioDataReceived: (callback: (event: IpcRendererEvent, audioData: string) => void) => void
 
   // Remove listeners
@@ -134,7 +136,9 @@ const electronAPI: ElectronAPI = {
   onToggleVisibility: (callback) => ipcRenderer.on('toggle-visibility', callback),
   onToggleInterviewMode: (callback) => ipcRenderer.on('toggle-interview-mode', callback),
   onMovePanels: (callback) => ipcRenderer.on('move-panels', callback),
+  onScrollChat: (callback) => ipcRenderer.on('scroll-chat', callback),
   onScreenshotCaptured: (callback) => ipcRenderer.on('screenshot-captured', callback),
+  onScreenshotAttached: (callback) => ipcRenderer.on('screenshot-attached', callback),
   onAudioDataReceived: (callback) => ipcRenderer.on('audio-data-received', callback),
 
   // Remove listeners

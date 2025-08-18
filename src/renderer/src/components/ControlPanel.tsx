@@ -12,6 +12,7 @@ interface ControlPanelProps {
   onOpenSettings: () => void
   isSettingsOpen?: boolean
   className?: string
+  attachedScreenshotsCount?: number
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -21,7 +22,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onToggleRecording,
   onOpenSettings,
   isSettingsOpen = false,
-  className
+  className,
+  attachedScreenshotsCount = 0
 }) => {
   const [recordingTime, setRecordingTime] = useState(0)
   const { effectiveTheme } = useTheme()
@@ -85,6 +87,17 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               )}
             >
               {formatTime(recordingTime)}
+            </Badge>
+          )}
+          {attachedScreenshotsCount > 0 && (
+            <Badge
+              variant="secondary"
+              className={cn(
+                'border-0 text-sm font-normal',
+                effectiveTheme === 'dark' ? 'text-blue-300 bg-blue-900/30' : 'text-blue-600 bg-blue-100/50'
+              )}
+            >
+              📸 {attachedScreenshotsCount}
             </Badge>
           )}
         </div>
