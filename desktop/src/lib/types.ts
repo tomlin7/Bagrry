@@ -30,3 +30,16 @@ export type Template = {
   name: string;
   icon: string | null;
 };
+
+export type RecState = "idle" | "recording" | "paused";
+
+export type RecStatus = {
+  state: RecState;
+  pending_bytes: number;
+  loopback_ok: boolean;
+};
+
+export type VuLevels = {
+  mic: number;
+  system: number;
+};

@@ -15,7 +15,7 @@ The phase-wise product and architecture plan lives here:
 | `desktop/` | Tauri v2 + React 19 + TypeScript + Vite app (`com.bit.bagrry`) |
 | `docs/` | Product and architecture documents |
 
-Phase 0 scaffolding is in place: Tailwind, shadcn/ui, Zustand, TanStack Query, and local SQLite (`rusqlite` + FTS5; optional `sqlite-vec`).
+Phase 0 scaffolding is in place. Phase 1 capture (mic + WASAPI loopback, tray, Win+Shift+R/P, in-memory WAV) is in the desktop app.
 
 ## Desktop app (current scaffold)
 

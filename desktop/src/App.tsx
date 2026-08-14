@@ -1,7 +1,21 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Mic, Plus } from "lucide-react";
+import { listen } from "@tauri-apps/api/event";
+import { Mic, Pause, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createMeeting, dbStatus, listMeetings, listTemplates } from "@/lib/api";
+import { VuMeter } from "@/components/VuMeter";
+import {
+  createMeeting,
+  dbStatus,
+  discardAudio,
+  listMeetings,
+  listTemplates,
+  pauseRecording,
+  recordingStatus,
+  startRecording,
+  stopRecording,
+} from "@/lib/api";
+import type { RecStatus, VuLevels } from "@/lib/types";
 import { useAppStore } from "@/store/app";
 import { cn } from "@/lib/utils";
 
@@ -14,10 +28,34 @@ export default function App() {
   const queryClient = useQueryClient();
   const selectedMeetingId = useAppStore((s) => s.selectedMeetingId);
   const selectMeeting = useAppStore((s) => s.selectMeeting);
+  const recState = useAppStore((s) => s.recState);
+  const pendingBytes = useAppStore((s) => s.pendingBytes);
+  const loopbackOk = useAppStore((s) => s.loopbackOk);
+  const vu = useAppStore((s) => s.vu);
+  const applyRecStatus = useAppStore((s) => s.applyRecStatus);
+  const setVu = useAppStore((s) => s.setVu);
 
   const status = useQuery({ queryKey: ["db-status"], queryFn: dbStatus });
   const meetings = useQuery({ queryKey: ["meetings"], queryFn: listMeetings });
   const templates = useQuery({ queryKey: ["templates"], queryFn: listTemplates });
+
+  useEffect(() => {
+    recordingStatus().then(applyRecStatus).catch(() => undefined);
+    let unlistenState: (() => void) | undefined;
+    let unlistenVu: (() => void) | undefined;
+    listen<RecStatus>("recording-state", (event) => applyRecStatus(event.payload)).then(
+      (fn) => {
+        unlistenState = fn;
+      },
+    );
+    listen<VuLevels>("audio-vu", (event) => setVu(event.payload)).then((fn) => {
+      unlistenVu = fn;
+    });
+    return () => {
+      unlistenState?.();
+      unlistenVu?.();
+    };
+  }, [applyRecStatus, setVu]);
 
   const create = useMutation({
     mutationFn: () => createMeeting("Untitled meeting"),
@@ -27,6 +65,28 @@ export default function App() {
       selectMeeting(meeting.id);
     },
   });
+
+  const live = recState === "recording" || recState === "paused";
+
+  async function onRecord() {
+    try {
+      if (!live && !selectedMeetingId) {
+        await create.mutateAsync();
+      }
+      const next = live ? await stopRecording() : await startRecording();
+      applyRecStatus(next);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function onPause() {
+    try {
+      applyRecStatus(await pauseRecording());
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   const selected = meetings.data?.find((m) => m.id === selectedMeetingId);
 
@@ -39,7 +99,6 @@ export default function App() {
             <p className="text-xs text-muted-foreground">Local notes</p>
           </div>
           <Button size="sm" onClick={() => create.mutate()} disabled={create.isPending}>
-            <Plus />
             New
           </Button>
         </div>
@@ -49,7 +108,7 @@ export default function App() {
           )}
           {meetings.data?.length === 0 && (
             <p className="px-2 py-3 text-xs text-muted-foreground">
-              No meetings yet. Create one to start the scratchpad.
+              No meetings yet. Create one or hit Record.
             </p>
           )}
           <ul className="space-y-0.5">
@@ -79,19 +138,37 @@ export default function App() {
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border px-6 py-3">
+        <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-3">
           <div>
-            <h1 className="text-base font-semibold">
-              {selected?.title ?? "Scratchpad"}
-            </h1>
+            <h1 className="text-base font-semibold">{selected?.title ?? "Scratchpad"}</h1>
             <p className="text-xs text-muted-foreground">
-              {templates.data?.map((t) => t.name).join(" · ") || "Templates seeding…"}
+              Win+Shift+R or Ctrl+Shift+R record · Win+Shift+P or Ctrl+Shift+P pause
+              {loopbackOk ? " · system audio on" : live ? " · mic only" : ""}
+              {pendingBytes > 0 ? ` · ${(pendingBytes / 1024).toFixed(0)} KB in RAM` : ""}
             </p>
           </div>
-          <Button variant="outline" disabled>
-            <Mic />
-            Record
-          </Button>
+          <div className="flex items-center gap-3">
+            <VuMeter mic={vu.mic} system={vu.system} />
+            {live && (
+              <Button variant="outline" size="sm" onClick={onPause}>
+                <Pause />
+                {recState === "paused" ? "Resume" : "Pause"}
+              </Button>
+            )}
+            <Button variant={live ? "destructive" : "default"} onClick={onRecord}>
+              {live ? <Square /> : <Mic />}
+              {live ? "Stop" : "Record"}
+            </Button>
+            {pendingBytes > 0 && recState === "idle" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => applyRecStatus(await discardAudio())}
+              >
+                Discard audio
+              </Button>
+            )}
+          </div>
         </header>
         <section className="grid min-h-0 flex-1 grid-cols-2 gap-px bg-border">
           <div className="bg-background p-6">
@@ -99,7 +176,8 @@ export default function App() {
               My notes
             </p>
             <p className="text-sm text-muted-foreground">
-              Live scratchpad lands here in Phase 3. Storage and the local database are ready.
+              Audio stays in RAM as 16 kHz dual-mono WAV until transcription (Phase 2). Nothing is
+              written to disk.
             </p>
           </div>
           <div className="bg-card p-6">
@@ -107,7 +185,7 @@ export default function App() {
               Enhanced
             </p>
             <p className="text-sm text-muted-foreground">
-              Structured notes with citations will appear after a meeting is transcribed.
+              {templates.data?.map((t) => t.name).join(" · ") || "Templates seeding…"}
             </p>
           </div>
         </section>

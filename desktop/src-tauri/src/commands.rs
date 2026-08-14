@@ -170,3 +170,33 @@ pub fn create_meeting(
     )
     .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn start_recording(app: AppHandle) -> Result<crate::audio::RecStatus, String> {
+    crate::audio::start(&app)
+}
+
+#[tauri::command]
+pub fn stop_recording(app: AppHandle) -> Result<crate::audio::RecStatus, String> {
+    crate::audio::stop(&app)
+}
+
+#[tauri::command]
+pub fn pause_recording(app: AppHandle) -> Result<crate::audio::RecStatus, String> {
+    crate::audio::pause(&app)
+}
+
+#[tauri::command]
+pub fn toggle_recording(app: AppHandle) -> Result<crate::audio::RecStatus, String> {
+    crate::audio::toggle(&app)
+}
+
+#[tauri::command]
+pub fn recording_status(app: AppHandle) -> Result<crate::audio::RecStatus, String> {
+    crate::audio::status(&app)
+}
+
+#[tauri::command]
+pub fn discard_audio(app: AppHandle) -> Result<crate::audio::RecStatus, String> {
+    crate::audio::discard_pending(&app)
+}
