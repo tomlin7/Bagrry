@@ -17,11 +17,15 @@ pub struct TranscriptSeg {
 
 pub fn transcribe_dual_wav(api_key: &str, wav_bytes: &[u8]) -> Result<Vec<TranscriptSeg>, String> {
     let (mic, sys) = wav::split_dual_mono(wav_bytes)?;
-    let mic_res = groq::transcribe_wav(api_key, &mic, "mic.wav")?;
-    let sys_res = groq::transcribe_wav(api_key, &sys, "system.wav")?;
     let mut segs = Vec::new();
-    push_channel(&mut segs, &mic_res, "me");
-    push_channel(&mut segs, &sys_res, "attendees");
+    if wav_has_signal(&mic) {
+        let mic_res = groq::transcribe_wav(api_key, &mic, "mic.wav")?;
+        push_channel(&mut segs, &mic_res, "me");
+    }
+    if wav_has_signal(&sys) {
+        let sys_res = groq::transcribe_wav(api_key, &sys, "system.wav")?;
+        push_channel(&mut segs, &sys_res, "attendees");
+    }
     segs.sort_by_key(|s| s.start_ms);
     for (i, s) in segs.iter_mut().enumerate() {
         s.sentence_index = i as i64;
@@ -29,6 +33,15 @@ pub fn transcribe_dual_wav(api_key: &str, wav_bytes: &[u8]) -> Result<Vec<Transc
         s.id = new_id("seg");
     }
     Ok(segs)
+}
+
+fn wav_has_signal(wav: &[u8]) -> bool {
+    if wav.len() < 46 {
+        return false;
+    }
+    wav[44..]
+        .chunks_exact(2)
+        .any(|c| i16::from_le_bytes([c[0], c[1]]).unsigned_abs() > 8)
 }
 
 fn push_channel(out: &mut Vec<TranscriptSeg>, result: &groq::WhisperVerbose, speaker: &str) {

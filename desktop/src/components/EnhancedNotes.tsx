@@ -21,7 +21,7 @@ export function EnhancedNotes({
   }
 
   return (
-    <div className="relative h-full overflow-y-auto pr-2">
+    <div className="relative h-full min-w-0 overflow-x-hidden overflow-y-auto pr-2 break-words">
       {doc.sections.map((section) => (
         <div key={section.section_title} className="mb-5">
           <h3 className="mb-2 text-sm font-semibold">{section.section_title}</h3>

@@ -82,6 +82,33 @@ pub fn start_mic(
                     err_fn,
                     None,
                 ),
+                SampleFormat::I32 => device.build_input_stream(
+                    &stream_config,
+                    {
+                        let stop = stop.clone();
+                        let paused = paused.clone();
+                        let pcm = pcm.clone();
+                        let level = level.clone();
+                        move |data: &[i32], _| {
+                            if stop.load(Ordering::Relaxed) {
+                                return;
+                            }
+                            let f: Vec<f32> = data.iter().map(|s| *s as f32 / i32::MAX as f32).collect();
+                            ingest_f32(
+                                &f,
+                                channels,
+                                sample_rate,
+                                target_hz,
+                                max_samples,
+                                paused.as_ref(),
+                                &pcm,
+                                &level,
+                            );
+                        }
+                    },
+                    err_fn,
+                    None,
+                ),
                 other => {
                     eprintln!("unsupported mic format: {other}");
                     return;

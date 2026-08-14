@@ -21,10 +21,12 @@ pub enum RecState {
 }
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct RecStatus {
     pub state: RecState,
     pub pending_bytes: usize,
     pub loopback_ok: bool,
+    pub meeting_id: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -37,6 +39,7 @@ pub struct Recorder {
     pub state: Mutex<RecState>,
     pub pending_wav: Mutex<Option<Vec<u8>>>,
     pub loopback_ok: Mutex<bool>,
+    pub meeting_id: Mutex<Option<String>>,
     session: Mutex<Option<LiveSession>>,
 }
 
@@ -56,6 +59,7 @@ impl Recorder {
             state: Mutex::new(RecState::Idle),
             pending_wav: Mutex::new(None),
             loopback_ok: Mutex::new(false),
+            meeting_id: Mutex::new(None),
             session: Mutex::new(None),
         }
     }
@@ -65,7 +69,7 @@ fn recorder_of(app: &AppHandle) -> tauri::State<'_, AppState> {
     app.state::<AppState>()
 }
 
-pub fn start(app: &AppHandle) -> Result<RecStatus, String> {
+pub fn start(app: &AppHandle, meeting_id: Option<String>) -> Result<RecStatus, String> {
     let state = recorder_of(app);
     let recorder = &state.recorder;
     {
@@ -76,6 +80,7 @@ pub fn start(app: &AppHandle) -> Result<RecStatus, String> {
     }
 
     *recorder.pending_wav.lock().map_err(|e| e.to_string())? = None;
+    *recorder.meeting_id.lock().map_err(|e| e.to_string())? = meeting_id;
 
     let stop = Arc::new(AtomicBool::new(false));
     let paused = Arc::new(AtomicBool::new(false));
@@ -202,7 +207,7 @@ pub fn toggle(app: &AppHandle) -> Result<RecStatus, String> {
         flag
     };
     match state_flag {
-        RecState::Idle => start(app),
+        RecState::Idle => start(app, None),
         RecState::Recording | RecState::Paused => stop(app),
     }
 }
@@ -252,6 +257,7 @@ fn status_of(recorder: &Recorder) -> Result<RecStatus, String> {
             .map(|b| b.len())
             .unwrap_or(0),
         loopback_ok: *recorder.loopback_ok.lock().map_err(|e| e.to_string())?,
+        meeting_id: recorder.meeting_id.lock().map_err(|e| e.to_string())?.clone(),
     })
 }
 

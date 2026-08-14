@@ -262,8 +262,8 @@ pub fn save_title(state: State<AppState>, id: String, title: String) -> Result<(
 }
 
 #[tauri::command]
-pub fn start_recording(app: AppHandle) -> Result<audio::RecStatus, String> {
-    audio::start(&app)
+pub fn start_recording(app: AppHandle, meeting_id: Option<String>) -> Result<audio::RecStatus, String> {
+    audio::start(&app, meeting_id)
 }
 
 #[tauri::command]
@@ -293,7 +293,7 @@ pub fn discard_audio(app: AppHandle) -> Result<audio::RecStatus, String> {
 
 #[tauri::command]
 pub fn transcribe_pending(app: AppHandle, state: State<AppState>, meeting_id: String) -> Result<Vec<TranscriptSeg>, String> {
-    let wav = audio::take_pending_wav(&app)?.ok_or_else(|| "no audio in memory".to_string())?;
+    let wav = audio::peek_pending_wav(&app)?.ok_or_else(|| "no audio in memory".to_string())?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let key = secrets::get_secret(&conn, "groq_api_key")?.ok_or_else(|| {
         "Add a Groq API key in Settings to transcribe.".to_string()
@@ -302,6 +302,7 @@ pub fn transcribe_pending(app: AppHandle, state: State<AppState>, meeting_id: St
     let segs = pipeline::transcribe_dual_wav(&key, &wav)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     pipeline::persist_transcript(&conn, &meeting_id, &segs)?;
+    let _ = audio::take_pending_wav(&app);
     Ok(segs)
 }
 

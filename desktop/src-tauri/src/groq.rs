@@ -65,7 +65,13 @@ pub fn transcribe_wav(api_key: &str, wav: &[u8], filename: &str) -> Result<Whisp
             &format!("multipart/form-data; boundary={boundary}"),
         )
         .send_bytes(&body)
-        .map_err(|e| format!("stt request: {e}"))?;
+        .map_err(|e| match e {
+            ureq::Error::Status(code, resp) => {
+                let body = resp.into_string().unwrap_or_default();
+                format!("stt {code}: {body}")
+            }
+            other => format!("stt request: {other}"),
+        })?;
     resp.into_json().map_err(|e| format!("stt json: {e}"))
 }
 
@@ -85,7 +91,13 @@ pub fn chat(api_key: &str, system: &str, user: &str, json_mode: bool) -> Result<
         .set("Authorization", &format!("Bearer {api_key}"))
         .set("Content-Type", "application/json")
         .send_json(body)
-        .map_err(|e| format!("chat request: {e}"))?;
+        .map_err(|e| match e {
+            ureq::Error::Status(code, resp) => {
+                let body = resp.into_string().unwrap_or_default();
+                format!("chat {code}: {body}")
+            }
+            other => format!("chat request: {other}"),
+        })?;
     let v: serde_json::Value = resp.into_json().map_err(|e| format!("chat json: {e}"))?;
     v["choices"][0]["message"]["content"]
         .as_str()
