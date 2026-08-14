@@ -76,7 +76,7 @@ Configure local storage with foreign keys and migrations:
 * Global hotkeys (`Win+Shift+R` to start/stop, `Win+Shift+P` to pause).
 * Real-time audio waveform / VU meter rendered in the React interface via IPC events.
 
-**Status:** Capture engine, in-memory dual-mono WAV, system tray, hotkeys, and VU meter are implemented in `desktop/`. Groq upload is Phase 2.
+**Status:** Implemented.
 
 ---
 

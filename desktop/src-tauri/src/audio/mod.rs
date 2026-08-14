@@ -214,6 +214,26 @@ pub fn discard_pending(app: &AppHandle) -> Result<RecStatus, String> {
     status_of(recorder)
 }
 
+pub fn take_pending_wav(app: &AppHandle) -> Result<Option<Vec<u8>>, String> {
+    let state = recorder_of(app);
+    Ok(state
+        .recorder
+        .pending_wav
+        .lock()
+        .map_err(|e| e.to_string())?
+        .take())
+}
+
+pub fn peek_pending_wav(app: &AppHandle) -> Result<Option<Vec<u8>>, String> {
+    let state = recorder_of(app);
+    Ok(state
+        .recorder
+        .pending_wav
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone())
+}
+
 pub fn status(app: &AppHandle) -> Result<RecStatus, String> {
     let state = recorder_of(app);
     status_of(&state.recorder)

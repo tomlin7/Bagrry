@@ -144,6 +144,89 @@ INSERT OR IGNORE INTO recipes (id, name, prompt_template, structure_json, icon) 
  NULL, 'shield-alert');
 "#;
 
+const V2: &str = r#"
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  start_at TEXT NOT NULL,
+  end_at TEXT,
+  attendees_json TEXT,
+  source TEXT NOT NULL DEFAULT 'local'
+);
+CREATE TABLE IF NOT EXISTS action_items (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  owner TEXT,
+  task TEXT NOT NULL,
+  deadline TEXT
+);
+CREATE TABLE IF NOT EXISTS attachments (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  filename TEXT NOT NULL,
+  mime TEXT,
+  extracted_text TEXT
+);
+CREATE TABLE IF NOT EXISTS shares (
+  token TEXT PRIMARY KEY,
+  meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS webhooks (
+  id TEXT PRIMARY KEY,
+  url TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS chat_logs (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+INSERT OR IGNORE INTO folders (id, parent_id, name, is_shared) VALUES
+ ('folder_sales', NULL, 'Sales', 0),
+ ('folder_research', NULL, 'User Research', 0);
+INSERT OR IGNORE INTO settings(key, value) VALUES
+ ('consent_message', 'Note: Taking notes using Bagrry'),
+ ('consent_enabled', '0'),
+ ('overlay_enabled', '1'),
+ ('api_port', '47821');
+"#;
+
+const SAMPLE: &str = r#"
+INSERT OR IGNORE INTO companies (id, name, domain, first_seen, last_seen)
+VALUES ('co_northwind', 'Northwind Labs', 'northwind.example', datetime('now'), datetime('now'));
+INSERT OR IGNORE INTO attendees (id, name, email, company_id, domain, first_seen, last_seen)
+VALUES ('p_alex', 'Alex Chen', 'alex@northwind.example', 'co_northwind', 'northwind.example', datetime('now'), datetime('now'));
+INSERT OR IGNORE INTO meetings (id, folder_id, title, date, duration_ms, scratchpad_raw, enhanced_notes_json, transcript_json)
+VALUES (
+ 'mtg_sample',
+ 'folder_sales',
+ 'Northwind pricing review',
+ datetime('now', '-2 days'),
+ 1840000,
+ '- $14/user annual
+- quarterly true-ups
+- legal wants DPA by Friday',
+ '{"sections":[{"section_title":"Pricing Discussion","bullet_points":[{"text":"Agreed on $14/user/mo for annual billing with quarterly true-ups.","citations":["s_001","s_002"]}]},{"section_title":"Next Steps","bullet_points":[{"text":"Legal to send DPA by Friday; Alex owns follow-up.","citations":["s_003"]}]}]}',
+ '[{"sentence_id":"s_001","speaker":"attendees","text":"We can do fourteen dollars per user per month if you commit annually."},{"sentence_id":"s_002","speaker":"me","text":"And we will true up seats quarterly."},{"sentence_id":"s_003","speaker":"attendees","text":"Please have legal send the DPA by Friday."}]'
+);
+INSERT OR IGNORE INTO meeting_attendees (meeting_id, attendee_id) VALUES ('mtg_sample', 'p_alex');
+INSERT OR IGNORE INTO transcript_segments (id, meeting_id, speaker, start_ms, end_ms, text, sentence_index, sentence_id) VALUES
+ ('seg_s1', 'mtg_sample', 'attendees', 12000, 18000, 'We can do fourteen dollars per user per month if you commit annually.', 0, 's_001'),
+ ('seg_s2', 'mtg_sample', 'me', 19000, 24000, 'And we will true up seats quarterly.', 1, 's_002'),
+ ('seg_s3', 'mtg_sample', 'attendees', 40000, 46000, 'Please have legal send the DPA by Friday.', 2, 's_003');
+INSERT OR IGNORE INTO action_items (id, meeting_id, owner, task, deadline)
+VALUES ('act_1', 'mtg_sample', 'Alex Chen', 'Send DPA', datetime('now', '+3 days'));
+INSERT OR IGNORE INTO calendar_events (id, title, start_at, end_at, attendees_json, source)
+VALUES ('cal_1', 'Northwind follow-up', datetime('now', '+1 day'), datetime('now', '+1 day', '+30 minutes'), '[{"name":"Alex Chen","email":"alex@northwind.example"}]', 'local');
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -168,6 +251,18 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("record v1: {e}"))?;
+    }
+
+    if current < 2 {
+        conn.execute_batch(V2)
+            .map_err(|e| format!("migration v2: {e}"))?;
+        conn.execute_batch(SAMPLE)
+            .map_err(|e| format!("sample: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (2)",
+            [],
+        )
+        .map_err(|e| format!("record v2: {e}"))?;
     }
 
     if vec_enabled {

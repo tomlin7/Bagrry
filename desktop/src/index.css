@@ -95,3 +95,14 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+.tiptap {
+  min-height: 12rem;
+  outline: none;
+}
+.tiptap p {
+  margin: 0.35rem 0;
+}
+.tiptap:focus {
+  outline: none;
+}
