@@ -1,18 +1,17 @@
 [package]
 name = "bagrry"
 version = "0.1.0"
-description = "A Tauri App"
+description = "Bagrry meeting notes"
 authors = ["you"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "bagrry_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+default = []
+sqlite-vec = ["dep:sqlite-vec"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -22,4 +21,5 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
+rusqlite = { version = "0.32", features = ["bundled"] }
+sqlite-vec = { version = "0.1.6", optional = true }
