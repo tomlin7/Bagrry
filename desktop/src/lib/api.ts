@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  ActionItem,
   CalendarEvent,
   Company,
   DbStatus,
@@ -47,6 +48,7 @@ export const liveAsk = (query: string, liveTranscript: string) =>
 export const searchMeetings = (query: string) => invoke<Meeting[]>("search_meetings", { query });
 export const listPeople = () => invoke<Person[]>("list_people");
 export const listCompanies = () => invoke<Company[]>("list_companies");
+export const listActionItems = () => invoke<ActionItem[]>("list_action_items");
 export const upsertPerson = (name: string, email?: string | null) =>
   invoke<Person>("upsert_person", { name, email: email ?? null });
 export const meetingsForPerson = (personId: string) =>

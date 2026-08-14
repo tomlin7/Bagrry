@@ -13,8 +13,8 @@ export function EnhancedNotes({
 
   if (!doc) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Enhanced notes appear after you run Enhance. They stay anchored to your scratchpad with
+      <p className="ai-text text-sm leading-relaxed">
+        Enhanced notes appear after you run Enhance. Your scratchpad stays in ink; AI additions land in gray with
         sentence citations.
       </p>
     );
@@ -28,7 +28,7 @@ export function EnhancedNotes({
           <ul className="space-y-2">
             {section.bullet_points.map((bp, i) => (
               <li key={i} className="group text-sm leading-relaxed">
-                <span>{bp.text}</span>
+                <span className="ai-text">{bp.text}</span>
                 {bp.citations.length > 0 && (
                   <button
                     type="button"

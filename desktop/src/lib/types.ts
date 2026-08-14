@@ -111,10 +111,24 @@ export type CalendarEvent = {
   attendees_json: string | null;
 };
 
+export type ActionItem = {
+  id: string;
+  meeting_id: string;
+  meeting_title: string;
+  owner: string | null;
+  task: string;
+  deadline: string | null;
+};
+
 export type Page =
+  | "landing"
+  | "dashboard"
   | "notes"
   | "search"
   | "people"
   | "companies"
   | "calendar"
+  | "actions"
+  | "pricing"
+  | "integrations"
   | "settings";

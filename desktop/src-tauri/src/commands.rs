@@ -75,6 +75,16 @@ pub struct Company {
 }
 
 #[derive(Serialize)]
+pub struct ActionItem {
+    pub id: String,
+    pub meeting_id: String,
+    pub meeting_title: String,
+    pub owner: Option<String>,
+    pub task: String,
+    pub deadline: Option<String>,
+}
+
+#[derive(Serialize)]
 pub struct CalendarEvent {
     pub id: String,
     pub title: String,
@@ -572,6 +582,33 @@ pub fn list_companies(state: State<AppState>) -> Result<Vec<Company>, String> {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 domain: row.get(2)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_action_items(state: State<AppState>) -> Result<Vec<ActionItem>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT a.id, a.meeting_id, m.title, a.owner, a.task, a.deadline
+             FROM action_items a
+             JOIN meetings m ON m.id = a.meeting_id
+             ORDER BY ifnull(a.deadline, '9999') ASC",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(ActionItem {
+                id: row.get(0)?,
+                meeting_id: row.get(1)?,
+                meeting_title: row.get(2)?,
+                owner: row.get(3)?,
+                task: row.get(4)?,
+                deadline: row.get(5)?,
             })
         })
         .map_err(|e| e.to_string())?;

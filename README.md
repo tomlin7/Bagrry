@@ -2,6 +2,8 @@
 
 Windows desktop meeting notes: bot-free capture from system and mic audio, local SQLite, Groq Whisper/Llama, and a Tauri + React client.
 
+First launch opens a marketing landing page. Open notepad or Home for the workspace (dashboard, split notes, chat, people, calendar, actions, pricing, integrations).
+
 ## Docs
 
 - **[docs/MASTER_PLAN.md](docs/MASTER_PLAN.md)** — architecture and feature phases.
