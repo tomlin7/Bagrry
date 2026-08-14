@@ -86,6 +86,9 @@ html,
 body,
 #root {
   height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -98,7 +101,15 @@ body {
 
 .tiptap {
   min-height: 12rem;
+  max-width: 100%;
   outline: none;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.tiptap pre,
+.tiptap code {
+  max-width: 100%;
+  overflow-x: auto;
 }
 .tiptap p {
   margin: 0.35rem 0;

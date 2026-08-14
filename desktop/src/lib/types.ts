@@ -48,9 +48,27 @@ export type RecState = "idle" | "recording" | "paused";
 
 export type RecStatus = {
   state: RecState;
-  pending_bytes: number;
-  loopback_ok: boolean;
+  pending_bytes?: number;
+  pendingBytes?: number;
+  loopback_ok?: boolean;
+  loopbackOk?: boolean;
+  meeting_id?: string | null;
+  meetingId?: string | null;
 };
+
+export function normalizeRecStatus(status: RecStatus): {
+  state: RecState;
+  pendingBytes: number;
+  loopbackOk: boolean;
+  meetingId: string | null;
+} {
+  return {
+    state: status.state,
+    pendingBytes: status.pending_bytes ?? status.pendingBytes ?? 0,
+    loopbackOk: status.loopback_ok ?? status.loopbackOk ?? false,
+    meetingId: status.meeting_id ?? status.meetingId ?? null,
+  };
+}
 
 export type VuLevels = {
   mic: number;

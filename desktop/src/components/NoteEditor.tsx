@@ -35,7 +35,7 @@ export function NoteEditor({
 
   if (!editor) return null;
   return (
-    <div className="prose prose-sm max-w-none h-full overflow-y-auto">
+    <div className="prose prose-sm h-full min-w-0 max-w-none overflow-x-hidden overflow-y-auto">
       <EditorContent editor={editor} className="min-h-[12rem] outline-none" />
     </div>
   );

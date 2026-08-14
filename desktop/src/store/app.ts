@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Page, RecState, RecStatus, VuLevels } from "@/lib/types";
+import { normalizeRecStatus } from "@/lib/types";
 
 type AppState = {
   page: Page;
@@ -36,13 +37,15 @@ export const useAppStore = create<AppState>((set) => ({
   setPage: (page) => set({ page }),
   selectMeeting: (id) => set({ selectedMeetingId: id, page: "notes" }),
   setFolderId: (id) => set({ folderId: id }),
-  applyRecStatus: (status) =>
+  applyRecStatus: (status) => {
+    const n = normalizeRecStatus(status);
     set({
-      recState: status.state,
-      pendingBytes: status.pending_bytes,
-      loopbackOk: status.loopback_ok,
-      overlayOn: status.state === "recording",
-    }),
+      recState: n.state,
+      pendingBytes: n.pendingBytes,
+      loopbackOk: n.loopbackOk,
+      overlayOn: n.state === "recording",
+    });
+  },
   setVu: (vu) => set({ vu }),
   setLiveOpen: (liveOpen) => set({ liveOpen }),
   setChatOpen: (chatOpen) => set({ chatOpen }),

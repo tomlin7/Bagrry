@@ -52,10 +52,10 @@ export default function App() {
   }, [applyRecStatus, setVu]);
 
   return (
-    <div className="flex h-full min-h-0 bg-background text-foreground">
+    <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-background text-foreground">
       {overlayOn && recState === "recording" && (
         <div className="pointer-events-none fixed left-1/2 top-3 z-50 -translate-x-1/2 rounded-full bg-destructive px-3 py-1 text-xs font-medium text-destructive-foreground shadow">
-          Bagrry is transcribing audio
+          Bagrry is recording
         </div>
       )}
       <nav className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-border py-3">
@@ -171,11 +171,39 @@ function NotesWorkspace() {
   const [busy, setBusy] = useState<string | null>(null);
   const [scratch, setScratch] = useState("");
   const saveTimer = useRef<number | null>(null);
+  const wasLive = useRef(false);
+  const finishing = useRef(false);
 
   useEffect(() => {
     setScratch(meeting.data?.scratchpad_raw ?? "");
     setRecipeOut("");
   }, [meeting.data?.id, meeting.data?.scratchpad_raw]);
+
+  useEffect(() => {
+    const nowLive = recState === "recording" || recState === "paused";
+    if (wasLive.current && !nowLive && !finishing.current) {
+      const mid = selectedMeetingId;
+      if (mid) {
+        finishing.current = true;
+        setBusy("Transcribing…");
+        void (async () => {
+          try {
+            await api.transcribePending(mid);
+            await api.enhanceMeeting(mid, templateId || null);
+            await queryClient.invalidateQueries({ queryKey: ["meeting", mid] });
+            await queryClient.invalidateQueries({ queryKey: ["segments", mid] });
+            setBusy(null);
+          } catch (e) {
+            const msg = String(e);
+            setBusy(msg.includes("no audio in memory") ? null : msg);
+          } finally {
+            finishing.current = false;
+          }
+        })();
+      }
+    }
+    wasLive.current = nowLive;
+  }, [recState, selectedMeetingId, templateId, queryClient]);
 
   function onScratch(v: string) {
     setScratch(v);
@@ -194,24 +222,9 @@ function NotesWorkspace() {
         id = m.id;
       }
       if (live) {
-        const next = await api.stopRecording();
-        applyRecStatus(next);
-        if (id && next.pending_bytes > 0) {
-          setBusy("Transcribing…");
-          try {
-            await api.transcribePending(id);
-            await api.enhanceMeeting(id, templateId || null);
-            queryClient.invalidateQueries({ queryKey: ["meeting", id] });
-            queryClient.invalidateQueries({ queryKey: ["segments", id] });
-          } catch (e) {
-            console.error(e);
-            setBusy(String(e));
-            return;
-          }
-        }
-        setBusy(null);
+        applyRecStatus(await api.stopRecording());
       } else {
-        applyRecStatus(await api.startRecording());
+        applyRecStatus(await api.startRecording(id));
         setLiveOpen(true);
       }
     } catch (e) {
@@ -277,8 +290,8 @@ function NotesWorkspace() {
           ))}
         </div>
       </aside>
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex min-w-0 items-center justify-between gap-3 border-b border-border px-4 py-2">
           <div className="min-w-0">
             {selected ? (
               <input
@@ -298,10 +311,12 @@ function NotesWorkspace() {
               Ctrl+Shift+R record · Ctrl+Shift+P pause
               {loopbackOk ? " · system audio" : live ? " · mic" : ""}
               {pendingBytes > 0 ? ` · ${(pendingBytes / 1024).toFixed(0)} KB RAM` : ""}
-              {busy ? ` · ${busy}` : ""}
             </p>
+            {busy && (
+              <p className="mt-1 max-w-xl text-xs font-medium text-destructive">{busy}</p>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <VuMeter mic={vu.mic} system={vu.system} />
             {live && (
               <Button variant="outline" size="sm" onClick={async () => applyRecStatus(await api.pauseRecording())}>
@@ -324,7 +339,7 @@ function NotesWorkspace() {
             )}
           </div>
         </header>
-        <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto border-b border-border px-4 py-2">
           <select
             className="rounded-md border border-input bg-background px-2 py-1 text-xs"
             value={templateId}
@@ -387,8 +402,8 @@ function NotesWorkspace() {
             </>
           )}
         </div>
-        <section className="grid min-h-0 flex-1 grid-cols-2 gap-px bg-border">
-          <div className="flex min-h-0 flex-col bg-background p-4">
+        <section className="grid min-h-0 min-w-0 flex-1 grid-cols-2 gap-px overflow-hidden bg-border [grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-background p-4">
             <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               My notes
             </p>
@@ -399,11 +414,25 @@ function NotesWorkspace() {
             />
             <RepromptBar meetingId={selectedMeetingId} scratch={scratch} />
           </div>
-          <div className="min-h-0 bg-card p-4">
+          <div className="min-h-0 min-w-0 overflow-hidden bg-card p-4">
             <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               Enhanced
             </p>
             <EnhancedNotes json={selected?.enhanced_notes_json ?? null} segments={segments.data ?? []} />
+            {(segments.data?.length ?? 0) > 0 && (
+              <div className="mt-4 border-t border-border pt-3">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Transcript
+                </p>
+                <div className="max-h-48 space-y-1 overflow-y-auto text-xs">
+                  {segments.data?.map((s) => (
+                    <p key={s.id}>
+                      <span className="font-medium text-muted-foreground">{s.speaker}</span> {s.text}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
             {recipeOut && (
               <pre className="mt-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-2 text-xs">
                 {recipeOut}
@@ -425,7 +454,7 @@ function RepromptBar({ meetingId, scratch }: { meetingId: string | null; scratch
   return (
     <div className="mt-3 border-t border-border pt-2">
       <p className="mb-1 text-[11px] text-muted-foreground">Rewrite selection / scratchpad</p>
-      <div className="flex gap-1">
+      <div className="flex min-w-0 flex-wrap gap-1">
         {["Make more concise", "Add more quotes", "Rephrase for executives"].map((chip) => (
           <Button
             key={chip}
