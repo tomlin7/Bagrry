@@ -65,6 +65,7 @@ pub fn run() {
             commands::search_meetings,
             commands::list_people,
             commands::list_companies,
+            commands::list_action_items,
             commands::upsert_person,
             commands::meetings_for_person,
             commands::list_calendar,
