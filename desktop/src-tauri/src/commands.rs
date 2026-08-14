@@ -671,24 +671,25 @@ pub fn upsert_calendar_event(
 pub fn pre_meeting_brief(state: State<AppState>, attendees_json: String) -> Result<String, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let mut ctx = String::new();
-    let mut stmt = conn
-        .prepare("SELECT title, scratchpad_raw, ifnull(enhanced_notes_json,'') FROM meetings ORDER BY date DESC LIMIT 12")
-        .map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map([], |row| {
-            Ok(format!(
-                "# {}\n{}\n{}\n",
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?
-            ))
-        })
-        .map_err(|e| e.to_string())?;
-    for r in rows.flatten() {
-        ctx.push_str(&r);
+    {
+        let mut stmt = conn
+            .prepare("SELECT title, scratchpad_raw, ifnull(enhanced_notes_json,'') FROM meetings ORDER BY date DESC LIMIT 12")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(format!(
+                    "# {}\n{}\n{}\n",
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?
+                ))
+            })
+            .map_err(|e| e.to_string())?;
+        for r in rows.flatten() {
+            ctx.push_str(&r);
+        }
     }
     let key = secrets::get_secret(&conn, "groq_api_key")?;
-    drop(conn);
     let system = "Write a short pre-meeting brief: past decisions, open action items, notes on attendees.";
     let user = format!("ATTENDEES: {attendees_json}\n\nHISTORY:\n{ctx}");
     if let Some(k) = key.filter(|s| !s.is_empty()) {

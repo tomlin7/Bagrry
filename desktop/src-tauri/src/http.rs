@@ -16,16 +16,22 @@ pub fn spawn(db_path: std::path::PathBuf, port: u16) {
             }
         };
         eprintln!("Bagrry local API on http://{addr}");
-        for mut req in server.incoming_requests() {
-            let _ = handle(&db_path, &mut req);
+        for req in server.incoming_requests() {
+            let _ = handle(&db_path, req);
         }
     });
 }
 
-fn handle(db_path: &std::path::PathBuf, req: &mut Request) -> Result<(), ()> {
+fn handle(db_path: &std::path::PathBuf, mut req: Request) -> Result<(), ()> {
     let url = req.url().to_string();
     let method = req.method().clone();
-    let auth_ok = authorized(db_path, req);
+    let accept = req
+        .headers()
+        .iter()
+        .find(|h| h.field.as_str() == "Accept")
+        .map(|h| h.value.as_str().to_string())
+        .unwrap_or_default();
+    let auth_ok = authorized(db_path, &req);
     if url.starts_with("/v1/") && !auth_ok {
         let _ = req.respond(json_res(401, json!({"error":"unauthorized"})));
         return Ok(());
@@ -62,7 +68,7 @@ fn handle(db_path: &std::path::PathBuf, req: &mut Request) -> Result<(), ()> {
         return Ok(());
     }
     if method == Method::Post && url.starts_with("/v1/notes/search") {
-        let body = read_body(req);
+        let body = read_body(&mut req);
         let q = body
             .get("query")
             .and_then(|v| v.as_str())
@@ -73,7 +79,7 @@ fn handle(db_path: &std::path::PathBuf, req: &mut Request) -> Result<(), ()> {
         return Ok(());
     }
     if method == Method::Post && url == "/mcp" {
-        let body = read_body(req);
+        let body = read_body(&mut req);
         let result = mcp(&conn, &body);
         let _ = req.respond(json_res(200, result));
         return Ok(());
@@ -82,7 +88,7 @@ fn handle(db_path: &std::path::PathBuf, req: &mut Request) -> Result<(), ()> {
         let token = url.trim_start_matches("/share/");
         match share_payload(&conn, token) {
             Some(v) => {
-                let _ = req.respond(html_or_json(req, v));
+                let _ = req.respond(html_or_json(&accept, v));
             }
             None => {
                 let _ = req.respond(json_res(404, json!({"error":"not found"})));
@@ -130,13 +136,7 @@ fn json_res(code: u16, v: serde_json::Value) -> Response<Cursor<Vec<u8>>> {
     )
 }
 
-fn html_or_json(req: &Request, v: serde_json::Value) -> Response<Cursor<Vec<u8>>> {
-    let accept = req
-        .headers()
-        .iter()
-        .find(|h| h.field.as_str() == "Accept")
-        .map(|h| h.value.as_str().to_string())
-        .unwrap_or_default();
+fn html_or_json(accept: &str, v: serde_json::Value) -> Response<Cursor<Vec<u8>>> {
     if accept.contains("text/html") {
         let title = v["title"].as_str().unwrap_or("Shared note");
         let html = format!(
