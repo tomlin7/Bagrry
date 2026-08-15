@@ -53,14 +53,17 @@ export function CommandPalette() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center bg-[#1c1914]/25 px-4 pt-[12vh] backdrop-blur-[2px]" onClick={() => setOpen(false)}>
+    <div 
+      className="fixed inset-0 z-[80] flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-sm animate-fade-in" 
+      onClick={() => setOpen(false)}
+    >
       <div
-        className="paper-card w-full max-w-xl overflow-hidden rounded-2xl border border-[#e4dfd3]"
+        className="w-full max-w-xl overflow-hidden rounded-xl border border-border bg-card shadow-xl animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <input
           autoFocus
-          className="h-12 w-full border-b border-border bg-transparent px-4 text-sm outline-none"
+          className="h-12 w-full border-b border-border bg-transparent px-4 text-sm outline-none placeholder:text-muted-foreground focus-ring"
           placeholder="Jump, search notes, or ask…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -70,7 +73,7 @@ export function CommandPalette() {
             <button
               key={g.page}
               type="button"
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-accent"
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-ring"
               onClick={() => {
                 setPage(g.page);
                 setOpen(false);
@@ -87,7 +90,7 @@ export function CommandPalette() {
             <button
               key={m.id}
               type="button"
-              className="flex w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-accent"
+              className="flex w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-ring"
               onClick={() => {
                 selectMeeting(m.id);
                 setOpen(false);
@@ -99,7 +102,7 @@ export function CommandPalette() {
           {q.trim() && (
             <button
               type="button"
-              className={cn("mt-1 flex w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-accent")}
+              className={cn("mt-1 flex w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-ring")}
               onClick={() => {
                 setPage("search");
                 setChatOpen(true);

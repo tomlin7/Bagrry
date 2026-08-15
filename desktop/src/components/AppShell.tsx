@@ -33,8 +33,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-full min-h-0 w-full">
-      <aside className="flex w-[4.25rem] shrink-0 flex-col items-center border-r border-sidebar-border bg-sidebar py-4">
-        <button type="button" className="mb-5 px-1" onClick={() => setPage("notes")} title="Notes">
+      <aside className="flex w-[4.25rem] shrink-0 flex-col items-center border-r border-sidebar-border bg-sidebar py-4 transition-colors">
+        <button 
+          type="button" 
+          className="mb-5 px-1 transition-colors hover:text-ring focus-ring rounded-lg" 
+          onClick={() => setPage("notes")} 
+          title="Notes"
+        >
           <span className="font-display text-lg italic leading-none">B</span>
         </button>
         {ITEMS.map((item) => (
@@ -44,15 +49,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             title={item.label}
             onClick={() => setPage(item.page)}
             className={cn(
-              "mb-1 flex h-10 w-10 items-center justify-center rounded-xl transition",
-              page === item.page ? "bg-accent text-primary" : "text-muted-foreground hover:bg-accent/70",
+              "mb-1 flex h-10 w-10 items-center justify-center rounded-xl transition-all focus-ring",
+              page === item.page 
+                ? "bg-accent text-accent-foreground shadow-sm" 
+                : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground",
             )}
           >
             {item.icon}
           </button>
         ))}
         <div className="flex-1" />
-        {recState === "recording" && <span className="mb-2 h-2 w-2 rounded-full bg-destructive" title="Recording" />}
+        {recState === "recording" && (
+          <div className="mb-2 flex h-2 w-2 animate-pulse rounded-full bg-destructive shadow-sm" title="Recording" />
+        )}
         <NavTiny page="workspace" current={page} onClick={setPage} icon={<Shield className="h-4 w-4" />} label="Workspace" />
         <NavTiny page="settings" current={page} onClick={setPage} icon={<Settings className="h-4 w-4" />} label="Settings" />
       </aside>
@@ -82,8 +91,10 @@ function NavTiny({
       title={label}
       onClick={() => onClick(page)}
       className={cn(
-        "mb-1 flex h-10 w-10 items-center justify-center rounded-xl",
-        current === page ? "bg-accent text-primary" : "text-muted-foreground hover:bg-accent/70",
+        "mb-1 flex h-10 w-10 items-center justify-center rounded-xl transition-all focus-ring",
+        current === page 
+          ? "bg-accent text-accent-foreground shadow-sm" 
+          : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground",
       )}
     >
       {icon}

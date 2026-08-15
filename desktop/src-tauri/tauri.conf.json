@@ -4,17 +4,22 @@
   "version": "0.1.0",
   "identifier": "com.bit.bagrry",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
         "title": "Bagrry",
-        "width": 1100,
-        "height": 720
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "center": true,
+        "decorations": false,
+        "titleBarStyle": "Overlay"
       }
     ],
     "security": {
