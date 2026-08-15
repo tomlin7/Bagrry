@@ -871,3 +871,166 @@ pub fn save_custom_template(
     .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+#[derive(Serialize)]
+pub struct Attachment {
+    pub id: String,
+    pub meeting_id: String,
+    pub filename: String,
+    pub extracted_text: Option<String>,
+}
+
+#[tauri::command]
+pub fn delete_meeting(state: State<AppState>, id: String) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM meetings WHERE id=?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn move_meeting(
+    state: State<AppState>,
+    id: String,
+    folder_id: Option<String>,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE meetings SET folder_id=?1, updated_at=datetime('now') WHERE id=?2",
+        params![folder_id, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_folder_shared(
+    state: State<AppState>,
+    id: String,
+    is_shared: bool,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE folders SET is_shared=?1 WHERE id=?2",
+        params![if is_shared { 1 } else { 0 }, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_meeting_attendees(
+    state: State<AppState>,
+    meeting_id: String,
+) -> Result<Vec<Person>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT a.id, a.name, a.email, a.domain, a.company_id
+             FROM attendees a
+             JOIN meeting_attendees ma ON ma.attendee_id = a.id
+             WHERE ma.meeting_id=?1
+             ORDER BY a.name",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![meeting_id], |row| {
+            Ok(Person {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                email: row.get(2)?,
+                domain: row.get(3)?,
+                company_id: row.get(4)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn add_meeting_attendee(
+    state: State<AppState>,
+    meeting_id: String,
+    person_id: String,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT OR IGNORE INTO meeting_attendees (meeting_id, attendee_id) VALUES (?1,?2)",
+        params![meeting_id, person_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_attachments(
+    state: State<AppState>,
+    meeting_id: String,
+) -> Result<Vec<Attachment>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, meeting_id, filename, extracted_text FROM attachments WHERE meeting_id=?1 ORDER BY filename",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![meeting_id], |row| {
+            Ok(Attachment {
+                id: row.get(0)?,
+                meeting_id: row.get(1)?,
+                filename: row.get(2)?,
+                extracted_text: row.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn save_custom_recipe(
+    state: State<AppState>,
+    name: String,
+    prompt_template: String,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO recipes (id, name, prompt_template, icon) VALUES (?1,?2,?3,'sparkles')",
+        params![new_id("rcp"), name, prompt_template],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn add_action_item(
+    state: State<AppState>,
+    meeting_id: String,
+    task: String,
+    owner: Option<String>,
+    deadline: Option<String>,
+) -> Result<ActionItem, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let id = new_id("act");
+    conn.execute(
+        "INSERT INTO action_items (id, meeting_id, owner, task, deadline) VALUES (?1,?2,?3,?4,?5)",
+        params![id, meeting_id, owner, task, deadline],
+    )
+    .map_err(|e| e.to_string())?;
+    let meeting_title: String = conn
+        .query_row(
+            "SELECT title FROM meetings WHERE id=?1",
+            params![meeting_id],
+            |row| row.get(0),
+        )
+        .unwrap_or_else(|_| "Meeting".into());
+    Ok(ActionItem {
+        id,
+        meeting_id,
+        meeting_title,
+        owner,
+        task,
+        deadline,
+    })
+}

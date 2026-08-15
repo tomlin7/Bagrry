@@ -44,6 +44,17 @@ export function NotesWorkspace() {
     queryFn: () => api.listSegments(selectedMeetingId!),
     enabled: !!selectedMeetingId,
   });
+  const people = useQuery({ queryKey: ["people"], queryFn: api.listPeople });
+  const attendees = useQuery({
+    queryKey: ["attendees", selectedMeetingId],
+    queryFn: () => api.listMeetingAttendees(selectedMeetingId!),
+    enabled: !!selectedMeetingId,
+  });
+  const attachments = useQuery({
+    queryKey: ["attachments", selectedMeetingId],
+    queryFn: () => api.listAttachments(selectedMeetingId!),
+    enabled: !!selectedMeetingId,
+  });
 
   const create = useMutation({
     mutationFn: () => api.createMeeting("Untitled meeting", folderId),
@@ -59,6 +70,7 @@ export function NotesWorkspace() {
   const [busy, setBusy] = useState<string | null>(null);
   const [scratch, setScratch] = useState("");
   const [folderName, setFolderName] = useState("");
+  const [pane, setPane] = useState<"enhanced" | "transcript">("enhanced");
   const saveTimer = useRef<number | null>(null);
   const wasLive = useRef(false);
   const finishing = useRef(false);
@@ -150,6 +162,7 @@ export function NotesWorkspace() {
             New note
           </Button>
         </div>
+        <p className="px-4 pb-2 text-[10px] text-muted-foreground">Ctrl+K command palette</p>
         <div className="px-3 pb-2">
           <select
             className="w-full rounded-xl border border-input bg-background px-2 py-1.5 text-xs"
@@ -160,9 +173,24 @@ export function NotesWorkspace() {
             {folders.data?.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name}
+                {f.is_shared ? " · shared" : ""}
               </option>
             ))}
           </select>
+          {folderId && (
+            <button
+              type="button"
+              className="mt-1 text-[11px] text-primary"
+              onClick={async () => {
+                const f = folders.data?.find((x) => x.id === folderId);
+                if (!f) return;
+                await api.setFolderShared(folderId, !f.is_shared);
+                queryClient.invalidateQueries({ queryKey: ["folders"] });
+              }}
+            >
+              {folders.data?.find((x) => x.id === folderId)?.is_shared ? "Make private" : "Share folder with team"}
+            </button>
+          )}
           <div className="mt-2 flex gap-1">
             <input
               className="h-8 flex-1 rounded-lg border border-input bg-background px-2 text-xs"
@@ -231,6 +259,61 @@ export function NotesWorkspace() {
               {pendingBytes > 0 ? ` · ${(pendingBytes / 1024).toFixed(0)} KB in RAM` : ""}
             </p>
             {busy && <p className="mt-1 max-w-xl text-xs font-medium text-destructive">{busy}</p>}
+            {selected && (
+              <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1">
+                {attendees.data?.map((p) => (
+                  <span key={p.id} className="rounded-full bg-accent px-2 py-0.5 text-[11px]">
+                    {p.name}
+                  </span>
+                ))}
+                <select
+                  className="h-7 rounded-full border border-input bg-background px-2 text-[11px]"
+                  defaultValue=""
+                  onChange={async (e) => {
+                    const pid = e.target.value;
+                    e.target.value = "";
+                    if (!pid) return;
+                    await api.addMeetingAttendee(selected.id, pid);
+                    queryClient.invalidateQueries({ queryKey: ["attendees", selected.id] });
+                  }}
+                >
+                  <option value="">Add attendee</option>
+                  {people.data?.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="h-7 rounded-full border border-input bg-background px-2 text-[11px]"
+                  value={selected.folder_id ?? ""}
+                  onChange={async (e) => {
+                    await api.moveMeeting(selected.id, e.target.value || null);
+                    queryClient.invalidateQueries({ queryKey: ["meeting", selected.id] });
+                    queryClient.invalidateQueries({ queryKey: ["meetings"] });
+                  }}
+                >
+                  <option value="">Inbox</option>
+                  {folders.data?.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-full text-destructive"
+                  onClick={async () => {
+                    await api.deleteMeeting(selected.id);
+                    selectMeeting(null);
+                    queryClient.invalidateQueries({ queryKey: ["meetings"] });
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
+            )}
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <VuMeter mic={vu.mic} system={vu.system} />
@@ -341,37 +424,73 @@ export function NotesWorkspace() {
           )}
         </div>
         <section className="grid min-h-0 min-w-0 flex-1 grid-cols-2 overflow-hidden [grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]">
-          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-border p-6">
+          <div
+            className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-border p-6"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={async (e) => {
+              e.preventDefault();
+              if (!selectedMeetingId) return;
+              const file = e.dataTransfer.files[0];
+              if (!file) return;
+              try {
+                const text = await file.text();
+                await api.saveAttachmentText(selectedMeetingId, file.name, text.slice(0, 20000));
+                queryClient.invalidateQueries({ queryKey: ["attachments", selectedMeetingId] });
+                setBusy(`Attached ${file.name}`);
+              } catch (err) {
+                setBusy(String(err));
+              }
+            }}
+          >
             <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               My notes
             </p>
             <NoteEditor value={scratch} onChange={onScratch} placeholder="Keywords, decisions, numbers…" />
+            {(attachments.data?.length ?? 0) > 0 && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Context: {attachments.data?.map((a) => a.filename).join(", ")}
+              </p>
+            )}
+            <p className="mt-1 text-[10px] text-muted-foreground">Drop a .txt, .md, or .csv for extra context.</p>
             <RepromptBar meetingId={selectedMeetingId} scratch={scratch} />
           </div>
-          <div className="min-h-0 min-w-0 overflow-hidden bg-[#fbfaf5] p-6">
-            <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Enhanced
-            </p>
-            <EnhancedNotes json={selected?.enhanced_notes_json ?? null} segments={segments.data ?? []} />
-            {(segments.data?.length ?? 0) > 0 && (
-              <div className="mt-6 border-t border-border pt-4">
-                <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  Transcript
-                </p>
-                <div className="max-h-48 space-y-2 overflow-y-auto text-xs">
-                  {segments.data?.map((s) => (
-                    <p key={s.id} className="leading-relaxed">
-                      <span className="font-medium text-muted-foreground">{s.speaker}</span>{" "}
-                      <span className={s.speaker === "me" ? "" : "ai-text"}>{s.text}</span>
-                    </p>
-                  ))}
-                </div>
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-[#fbfaf5] p-6">
+            <div className="mb-3 flex gap-2">
+              {(["enhanced", "transcript"] as const).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setPane(id)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-[10px] font-medium uppercase tracking-[0.16em]",
+                    pane === id ? "bg-accent text-primary" : "text-muted-foreground",
+                  )}
+                >
+                  {id}
+                </button>
+              ))}
+            </div>
+            {pane === "enhanced" ? (
+              <div className="min-h-0 flex-1 overflow-auto">
+                <EnhancedNotes json={selected?.enhanced_notes_json ?? null} segments={segments.data ?? []} />
+                {recipeOut && (
+                  <pre className="mt-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl bg-muted/70 p-3 text-xs">
+                    {recipeOut}
+                  </pre>
+                )}
               </div>
-            )}
-            {recipeOut && (
-              <pre className="mt-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl bg-muted/70 p-3 text-xs">
-                {recipeOut}
-              </pre>
+            ) : (
+              <div className="min-h-0 flex-1 space-y-2 overflow-auto text-xs">
+                {(segments.data?.length ?? 0) === 0 && (
+                  <p className="text-sm text-muted-foreground">Transcript appears after you stop recording.</p>
+                )}
+                {segments.data?.map((s) => (
+                  <p key={s.id} className="leading-relaxed">
+                    <span className="font-medium text-muted-foreground">{s.speaker}</span>{" "}
+                    <span className={s.speaker === "me" ? "" : "ai-text"}>{s.text}</span>
+                  </p>
+                ))}
+              </div>
             )}
           </div>
         </section>

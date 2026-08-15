@@ -2,6 +2,8 @@ import { create } from "zustand";
 import type { Page, RecState, RecStatus, VuLevels } from "@/lib/types";
 import { normalizeRecStatus } from "@/lib/types";
 
+const ONBOARD_KEY = "bagrry.onboarded";
+
 type AppState = {
   page: Page;
   selectedMeetingId: string | null;
@@ -13,6 +15,8 @@ type AppState = {
   liveOpen: boolean;
   chatOpen: boolean;
   overlayOn: boolean;
+  paletteOpen: boolean;
+  onboardingOpen: boolean;
   setPage: (page: Page) => void;
   selectMeeting: (id: string | null) => void;
   setFolderId: (id: string | null) => void;
@@ -21,6 +25,8 @@ type AppState = {
   setLiveOpen: (v: boolean) => void;
   setChatOpen: (v: boolean) => void;
   setOverlayOn: (v: boolean) => void;
+  setPaletteOpen: (v: boolean) => void;
+  finishOnboarding: () => void;
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -34,6 +40,14 @@ export const useAppStore = create<AppState>((set) => ({
   liveOpen: false,
   chatOpen: false,
   overlayOn: false,
+  paletteOpen: false,
+  onboardingOpen: (() => {
+    try {
+      return localStorage.getItem(ONBOARD_KEY) !== "1";
+    } catch {
+      return false;
+    }
+  })(),
   setPage: (page) => set({ page }),
   selectMeeting: (id) => set({ selectedMeetingId: id, page: "notes" }),
   setFolderId: (id) => set({ folderId: id }),
@@ -50,4 +64,13 @@ export const useAppStore = create<AppState>((set) => ({
   setLiveOpen: (liveOpen) => set({ liveOpen }),
   setChatOpen: (chatOpen) => set({ chatOpen }),
   setOverlayOn: (overlayOn) => set({ overlayOn }),
+  setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+  finishOnboarding: () => {
+    try {
+      localStorage.setItem(ONBOARD_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    set({ onboardingOpen: false });
+  },
 }));

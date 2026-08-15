@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   ActionItem,
+  Attachment,
   CalendarEvent,
   Company,
   DbStatus,
@@ -74,3 +75,28 @@ export const saveAttachmentText = (meetingId: string, filename: string, extracte
 export const createFolder = (name: string) => invoke<Folder>("create_folder", { name });
 export const saveCustomTemplate = (name: string, promptTemplate: string, structureJson: string) =>
   invoke<void>("save_custom_template", { name, promptTemplate, structureJson });
+export const deleteMeeting = (id: string) => invoke<void>("delete_meeting", { id });
+export const moveMeeting = (id: string, folderId?: string | null) =>
+  invoke<void>("move_meeting", { id, folderId: folderId ?? null });
+export const setFolderShared = (id: string, isShared: boolean) =>
+  invoke<void>("set_folder_shared", { id, isShared });
+export const listMeetingAttendees = (meetingId: string) =>
+  invoke<Person[]>("list_meeting_attendees", { meetingId });
+export const addMeetingAttendee = (meetingId: string, personId: string) =>
+  invoke<void>("add_meeting_attendee", { meetingId, personId });
+export const listAttachments = (meetingId: string) =>
+  invoke<Attachment[]>("list_attachments", { meetingId });
+export const saveCustomRecipe = (name: string, promptTemplate: string) =>
+  invoke<void>("save_custom_recipe", { name, promptTemplate });
+export const addActionItem = (
+  meetingId: string,
+  task: string,
+  owner?: string | null,
+  deadline?: string | null,
+) =>
+  invoke<ActionItem>("add_action_item", {
+    meetingId,
+    task,
+    owner: owner ?? null,
+    deadline: deadline ?? null,
+  });

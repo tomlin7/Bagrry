@@ -3,6 +3,8 @@ import { listen } from "@tauri-apps/api/event";
 import { AppShell } from "@/components/AppShell";
 import { Dashboard } from "@/components/Dashboard";
 import { NotesWorkspace } from "@/components/NotesWorkspace";
+import { CommandPalette } from "@/components/CommandPalette";
+import { Onboarding } from "@/components/Onboarding";
 import {
   ActionsPage,
   CalendarPage,
@@ -10,6 +12,8 @@ import {
   PeoplePage,
   SearchPage,
   SettingsPage,
+  TemplatesPage,
+  WorkspacePage,
 } from "@/components/pages";
 import * as api from "@/lib/api";
 import type { RecStatus, VuLevels } from "@/lib/types";
@@ -45,6 +49,8 @@ export default function App() {
           Bagrry is recording
         </div>
       )}
+      <CommandPalette />
+      <Onboarding />
       <AppShell>
         {page === "dashboard" && <Dashboard />}
         {page === "notes" && (
@@ -57,6 +63,8 @@ export default function App() {
         {page === "companies" && <CompaniesPage />}
         {page === "calendar" && <CalendarPage />}
         {page === "actions" && <ActionsPage />}
+        {page === "templates" && <TemplatesPage />}
+        {page === "workspace" && <WorkspacePage />}
         {page === "settings" && <SettingsPage />}
       </AppShell>
     </div>

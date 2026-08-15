@@ -120,6 +120,13 @@ export type ActionItem = {
   deadline: string | null;
 };
 
+export type Attachment = {
+  id: string;
+  meeting_id: string;
+  filename: string;
+  extracted_text: string | null;
+};
+
 export type Page =
   | "dashboard"
   | "notes"
@@ -128,4 +135,6 @@ export type Page =
   | "companies"
   | "calendar"
   | "actions"
+  | "templates"
+  | "workspace"
   | "settings";
