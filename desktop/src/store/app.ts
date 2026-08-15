@@ -2,16 +2,6 @@ import { create } from "zustand";
 import type { Page, RecState, RecStatus, VuLevels } from "@/lib/types";
 import { normalizeRecStatus } from "@/lib/types";
 
-const ENTERED_KEY = "bagrry.entered";
-
-function initialPage(): Page {
-  try {
-    return localStorage.getItem(ENTERED_KEY) === "1" ? "dashboard" : "landing";
-  } catch {
-    return "landing";
-  }
-}
-
 type AppState = {
   page: Page;
   selectedMeetingId: string | null;
@@ -24,7 +14,6 @@ type AppState = {
   chatOpen: boolean;
   overlayOn: boolean;
   setPage: (page: Page) => void;
-  enterWorkspace: (page?: Page) => void;
   selectMeeting: (id: string | null) => void;
   setFolderId: (id: string | null) => void;
   applyRecStatus: (status: RecStatus) => void;
@@ -35,7 +24,7 @@ type AppState = {
 };
 
 export const useAppStore = create<AppState>((set) => ({
-  page: initialPage(),
+  page: "notes",
   selectedMeetingId: null,
   folderId: null,
   recState: "idle",
@@ -46,14 +35,6 @@ export const useAppStore = create<AppState>((set) => ({
   chatOpen: false,
   overlayOn: false,
   setPage: (page) => set({ page }),
-  enterWorkspace: (page = "dashboard") => {
-    try {
-      localStorage.setItem(ENTERED_KEY, "1");
-    } catch {
-      /* ignore */
-    }
-    set({ page });
-  },
   selectMeeting: (id) => set({ selectedMeetingId: id, page: "notes" }),
   setFolderId: (id) => set({ folderId: id }),
   applyRecStatus: (status) => {

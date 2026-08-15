@@ -121,7 +121,6 @@ export type ActionItem = {
 };
 
 export type Page =
-  | "landing"
   | "dashboard"
   | "notes"
   | "search"
@@ -129,6 +128,4 @@ export type Page =
   | "companies"
   | "calendar"
   | "actions"
-  | "pricing"
-  | "integrations"
   | "settings";

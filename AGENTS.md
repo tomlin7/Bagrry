@@ -2,14 +2,18 @@
 
 ## Cursor Cloud specific instructions
 
-Bagrry is a single product: a **Tauri v2 + React 19 desktop app** living in `desktop/`. There is no separate backend server — the Rust side (`desktop/src-tauri`) hosts an embedded SQLite DB, audio capture, tray, and global hotkeys, and the React frontend talks to it over Tauri IPC. Standard scripts live in `desktop/package.json`; run everything from `desktop/`.
+Bagrry is two packages in one repo:
+
+- **`desktop/`** — Tauri v2 + React 19 notepad. The Rust side (`desktop/src-tauri`) hosts embedded SQLite, audio capture, tray, and global hotkeys. The React frontend talks to it over Tauri IPC. This window is the product — it must not host the marketing site.
+- **`web/`** — Next.js App Router marketing site (landing, pricing, integrations, download). Run separately with `npm run dev` from `web/`.
 
 ### Running / building / linting
 
-- Package manager is **Bun** (`bun.lock`). JS deps are refreshed by the startup update script (`bun install --cwd desktop`).
-- Run the full app in dev: `bun run tauri dev` (starts Vite on `http://localhost:1420`, then compiles and launches the native window). The first Rust build takes ~1 min; subsequent runs are incremental.
-- Frontend typecheck + build (doubles as the lint/typecheck gate): `bun run build` (runs `tsc && vite build`).
-- Rust check/build: `cd src-tauri && cargo check` (or `cargo build`). There is no separate JS linter (no ESLint config).
+- Package manager is **npm** (or Bun in `desktop/` via `bun.lock`). JS deps for the desktop app: `npm install` / `bun install --cwd desktop`.
+- Desktop: `cd desktop && bun run tauri dev` (Vite on `http://localhost:1420`, then native window). First Rust build ~1 min.
+- Desktop frontend gate: `cd desktop && npm run build` (`tsc && vite build`).
+- Website: `cd web && npm run dev` (Next on `http://localhost:3000`). Gate: `cd web && npm run build`.
+- Rust: `cd desktop/src-tauri && cargo check`.
 
 ### Non-obvious gotchas
 

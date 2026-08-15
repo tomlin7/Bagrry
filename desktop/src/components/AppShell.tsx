@@ -3,9 +3,7 @@ import {
   Building2,
   Calendar,
   CheckSquare,
-  CreditCard,
   LayoutDashboard,
-  Link2,
   MessageSquare,
   NotebookPen,
   Settings,
@@ -33,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-full min-h-0 w-full">
       <aside className="flex w-[4.25rem] shrink-0 flex-col items-center border-r border-sidebar-border bg-sidebar py-4">
-        <button type="button" className="mb-5 px-1" onClick={() => setPage("landing")} title="Marketing">
+        <button type="button" className="mb-5 px-1" onClick={() => setPage("notes")} title="Notes">
           <span className="font-display text-lg italic leading-none">B</span>
         </button>
         {ITEMS.map((item) => (
@@ -52,8 +50,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         ))}
         <div className="flex-1" />
         {recState === "recording" && <span className="mb-2 h-2 w-2 rounded-full bg-destructive" title="Recording" />}
-        <NavTiny page="pricing" current={page} onClick={setPage} icon={<CreditCard className="h-4 w-4" />} label="Pricing" />
-        <NavTiny page="integrations" current={page} onClick={setPage} icon={<Link2 className="h-4 w-4" />} label="Integrations" />
         <NavTiny page="settings" current={page} onClick={setPage} icon={<Settings className="h-4 w-4" />} label="Settings" />
       </aside>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">

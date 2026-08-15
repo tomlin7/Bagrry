@@ -218,103 +218,8 @@ export function ActionsPage() {
   );
 }
 
-export function PricingPage() {
-  const enter = useAppStore((s) => s.enterWorkspace);
-  const plans = [
-    {
-      name: "Basic",
-      price: "$0",
-      pitch: "A free taste of Bagrry",
-      items: [
-        "AI meeting notes",
-        "Last 30 days in the app",
-        "Chat within and across meetings",
-        "Shared folders & templates",
-        "Recipes and MCP on this machine",
-      ],
-    },
-    {
-      name: "Business",
-      price: "$14",
-      pitch: "For people who live in meetings",
-      items: [
-        "Unlimited history",
-        "Advanced chat models",
-        "Notion, Slack, HubSpot, Attio, Zapier",
-        "Centralized billing",
-        "MCP in every AI app",
-      ],
-    },
-    {
-      name: "Enterprise",
-      price: "$35",
-      pitch: "For larger companies",
-      items: [
-        "SSO and admin controls",
-        "Priority support & analytics",
-        "Org-wide auto-deletion",
-        "Sharing & API governance",
-        "Org-wide training opt-out",
-      ],
-    },
-  ];
-  return (
-    <PageFrame kicker="Plans" title="Unlimited notes. Upgrade for history." subtitle="Take as many notes as you like. Business keeps every conversation searchable forever.">
-      <div className="grid gap-4 md:grid-cols-3">
-        {plans.map((p) => (
-          <article key={p.name} className="paper-card rounded-2xl border border-border p-6">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{p.name}</p>
-            <p className="font-display mt-2 text-4xl">
-              {p.price}
-              <span className="text-base font-sans text-muted-foreground"> / user / mo</span>
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">{p.pitch}</p>
-            <ul className="mt-4 space-y-2 text-sm">
-              {p.items.map((item) => (
-                <li key={item}>· {item}</li>
-              ))}
-            </ul>
-            <Button className="mt-6 w-full rounded-full" variant={p.name === "Business" ? "default" : "outline"} onClick={() => enter("dashboard")}>
-              {p.name === "Basic" ? "Start free" : "Continue"}
-            </Button>
-          </article>
-        ))}
-      </div>
-    </PageFrame>
-  );
-}
-
-export function IntegrationsPage() {
-  const tools = [
-    ["Notion", "Push structured notes into a database."],
-    ["Slack", "Send recaps and action items to a channel."],
-    ["HubSpot", "Attach call notes to contacts and deals."],
-    ["Attio", "Keep CRM records in sync with meetings."],
-    ["Zapier", "Fan out webhooks to the rest of your stack."],
-    ["MCP", "Claude, ChatGPT, and Cursor query local notes."],
-  ];
-  return (
-    <PageFrame
-      kicker="Connect"
-      title="Use your notes anywhere"
-      subtitle="No more copy-pasting transcripts into other AI tools. Local MCP is already running; CRM sync uses your webhook."
-    >
-      <div className="grid gap-3 md:grid-cols-2">
-        {tools.map(([name, body]) => (
-          <article key={name} className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="font-display text-xl">{name}</h3>
-            <p className="mt-2 text-sm text-muted-foreground">{body}</p>
-            <p className="mt-3 text-xs text-primary">Available on Business · configure in Settings</p>
-          </article>
-        ))}
-      </div>
-    </PageFrame>
-  );
-}
-
 export function SettingsPage() {
   const status = useQuery({ queryKey: ["db-status"], queryFn: api.dbStatus });
-  const setPage = useAppStore((s) => s.setPage);
   const [groq, setGroq] = useState("");
   const [webhook, setWebhook] = useState("");
   const [msg, setMsg] = useState("");
@@ -327,11 +232,6 @@ export function SettingsPage() {
       kicker="Workspace"
       title="Settings"
       subtitle="Keys stay in the OS credential store when available, otherwise in local SQLite."
-      actions={
-        <Button variant="outline" className="rounded-full" onClick={() => setPage("landing")}>
-          View landing
-        </Button>
-      }
     >
       <div className="max-w-lg space-y-4">
         <label className="block text-xs font-medium">Groq API key (BYOK)</label>
