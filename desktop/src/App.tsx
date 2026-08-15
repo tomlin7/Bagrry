@@ -5,10 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme";
 import { Toaster } from "@/components/ui/toast";
 import { TitleBar } from "@/components/TitleBar";
-import { AppShell } from "@/components/AppShell";
-import { Dashboard } from "@/components/Dashboard";
+import { EnhancedAppShell } from "@/components/EnhancedAppShell";
+import { EnhancedDashboard } from "@/components/EnhancedDashboard";
 import { NotesWorkspace } from "@/components/NotesWorkspace";
-import { CommandPalette } from "@/components/CommandPalette";
+import { EnhancedCommandPalette } from "@/components/EnhancedCommandPalette";
 import { Onboarding } from "@/components/Onboarding";
 import {
   ActionsPage,
@@ -64,11 +64,11 @@ function AppContent() {
           Bagrry is recording
         </div>
       )}
-      <CommandPalette />
+      <EnhancedCommandPalette />
       <Onboarding />
       <div className="flex min-h-0 flex-1">
-        <AppShell>
-        {page === "dashboard" && <Dashboard />}
+        <EnhancedAppShell>
+        {page === "dashboard" && <EnhancedDashboard />}
         {page === "notes" && (
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
             <NotesWorkspace />
@@ -82,7 +82,7 @@ function AppContent() {
         {page === "templates" && <TemplatesPage />}
         {page === "workspace" && <WorkspacePage />}
         {page === "settings" && <SettingsPage />}
-        </AppShell>
+        </EnhancedAppShell>
       </div>
     </div>
   );
