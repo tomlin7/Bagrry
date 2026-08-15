@@ -227,6 +227,80 @@ INSERT OR IGNORE INTO calendar_events (id, title, start_at, end_at, attendees_js
 VALUES ('cal_1', 'Northwind follow-up', datetime('now', '+1 day'), datetime('now', '+1 day', '+30 minutes'), '[{"name":"Alex Chen","email":"alex@northwind.example"}]', 'local');
 "#;
 
+/// v3 adds persisted chat threads (the sidebar's Chat section), a user profile,
+/// and indexes for the lookups the UI does on every navigation.
+const V3: &str = r#"
+CREATE TABLE IF NOT EXISTS chat_sessions (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL DEFAULT 'New chat',
+  space_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated ON chat_sessions(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_meetings_folder_date ON meetings(folder_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_meetings_date ON meetings(date DESC);
+CREATE INDEX IF NOT EXISTS idx_segments_meeting ON transcript_segments(meeting_id, sentence_index);
+CREATE INDEX IF NOT EXISTS idx_action_items_meeting ON action_items(meeting_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_meeting ON attachments(meeting_id);
+
+INSERT OR IGNORE INTO settings(key, value) VALUES
+ ('profile_name', 'You'),
+ ('profile_email', ''),
+ ('workspace_name', 'My workspace'),
+ ('theme', 'system'),
+ ('live_indicator', '1'),
+ ('default_link_sharing', 'workspace');
+"#;
+
+/// The v1 FTS table only indexed `title` and `scratchpad_raw`, and search never
+/// used it. Rebuild it over the columns users actually search, then backfill.
+const V4: &str = r#"
+DROP TRIGGER IF EXISTS meetings_ai;
+DROP TRIGGER IF EXISTS meetings_ad;
+DROP TRIGGER IF EXISTS meetings_au;
+DROP TABLE IF EXISTS meetings_fts;
+
+CREATE VIRTUAL TABLE meetings_fts USING fts5(
+  title,
+  scratchpad_raw,
+  enhanced_notes_json,
+  content='meetings',
+  content_rowid='rowid',
+  tokenize='porter unicode61'
+);
+
+CREATE TRIGGER meetings_ai AFTER INSERT ON meetings BEGIN
+  INSERT INTO meetings_fts(rowid, title, scratchpad_raw, enhanced_notes_json)
+  VALUES (new.rowid, new.title, new.scratchpad_raw, ifnull(new.enhanced_notes_json, ''));
+END;
+
+CREATE TRIGGER meetings_ad AFTER DELETE ON meetings BEGIN
+  INSERT INTO meetings_fts(meetings_fts, rowid, title, scratchpad_raw, enhanced_notes_json)
+  VALUES('delete', old.rowid, old.title, old.scratchpad_raw, ifnull(old.enhanced_notes_json, ''));
+END;
+
+CREATE TRIGGER meetings_au AFTER UPDATE ON meetings BEGIN
+  INSERT INTO meetings_fts(meetings_fts, rowid, title, scratchpad_raw, enhanced_notes_json)
+  VALUES('delete', old.rowid, old.title, old.scratchpad_raw, ifnull(old.enhanced_notes_json, ''));
+  INSERT INTO meetings_fts(rowid, title, scratchpad_raw, enhanced_notes_json)
+  VALUES (new.rowid, new.title, new.scratchpad_raw, ifnull(new.enhanced_notes_json, ''));
+END;
+
+INSERT INTO meetings_fts(rowid, title, scratchpad_raw, enhanced_notes_json)
+SELECT rowid, title, scratchpad_raw, ifnull(enhanced_notes_json, '') FROM meetings;
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -263,6 +337,26 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("record v2: {e}"))?;
+    }
+
+    if current < 3 {
+        conn.execute_batch(V3)
+            .map_err(|e| format!("migration v3: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (3)",
+            [],
+        )
+        .map_err(|e| format!("record v3: {e}"))?;
+    }
+
+    if current < 4 {
+        conn.execute_batch(V4)
+            .map_err(|e| format!("migration v4: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (4)",
+            [],
+        )
+        .map_err(|e| format!("record v4: {e}"))?;
     }
 
     if vec_enabled {

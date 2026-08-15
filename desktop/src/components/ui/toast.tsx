@@ -1,25 +1,45 @@
-// Export sonner toast for use throughout app
-export { toast } from "sonner";
-
-// Re-export Toaster from sonner with default styling
-import { Toaster as SonnerToaster } from "sonner";
-import { useTheme } from "@/components/theme";
+import { Toaster as SonnerToaster, toast as sonnerToast } from "sonner";
+import { useAppStore } from "@/store/app";
 
 export function Toaster() {
-  const { resolvedTheme } = useTheme();
-
+  const theme = useAppStore((s) => s.resolvedTheme);
   return (
     <SonnerToaster
-      theme={resolvedTheme}
-      className="toaster group"
+      theme={theme}
+      position="bottom-right"
+      offset={16}
+      gap={8}
+      duration={4000}
       toastOptions={{
         classNames: {
-          toast: "group toast group-[.toaster]:bg-card group-[.toaster]:text-card-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+          toast:
+            "!rounded-xl !border !border-[color:var(--border)] !bg-[color:var(--elevated)] !text-[color:var(--text)] !shadow-lg !font-sans !text-[13px]",
+          description: "!text-[color:var(--text-muted)] !text-xs",
+          actionButton: "!bg-[color:var(--solid)] !text-[color:var(--solid-fg)] !rounded-full",
+          cancelButton: "!bg-[color:var(--hover)] !text-[color:var(--text-muted)] !rounded-full",
+          error: "!text-[color:var(--danger)]",
         },
       }}
     />
   );
 }
+
+/** Normalises the `string` errors Tauri commands reject with. */
+export function errorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return "Something went wrong";
+}
+
+export const toast = {
+  success: (message: string, description?: string) => sonnerToast.success(message, { description }),
+  error: (error: unknown, description?: string) =>
+    sonnerToast.error(errorMessage(error), { description }),
+  info: (message: string, description?: string) => sonnerToast(message, { description }),
+  loading: (message: string) => sonnerToast.loading(message),
+  dismiss: (id?: string | number) => sonnerToast.dismiss(id),
+  promise: sonnerToast.promise,
+};

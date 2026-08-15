@@ -2,26 +2,45 @@ import * as React from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { cn } from "@/lib/utils";
 
-const TooltipProvider = TooltipPrimitive.Provider;
+export const TooltipProvider = TooltipPrimitive.Provider;
 
-const Tooltip = TooltipPrimitive.Root;
-
-const TooltipTrigger = TooltipPrimitive.Trigger;
-
-const TooltipContent = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
-  <TooltipPrimitive.Content
-    ref={ref}
-    sideOffset={sideOffset}
-    className={cn(
-      "z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-scale-in data-[state=closed]:animate-fadeOut",
-      className,
-    )}
-    {...props}
-  />
-));
-TooltipContent.displayName = TooltipPrimitive.Content.displayName;
-
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
+/**
+ * Convenience wrapper: `<Tooltip label="Search">{trigger}</Tooltip>`.
+ * `shortcut` renders a dimmed key hint after the label, matching the reference UI.
+ */
+export function Tooltip({
+  label,
+  shortcut,
+  side = "bottom",
+  align = "center",
+  delay,
+  children,
+}: {
+  label: React.ReactNode;
+  shortcut?: string;
+  side?: "top" | "right" | "bottom" | "left";
+  align?: "start" | "center" | "end";
+  delay?: number;
+  children: React.ReactNode;
+}) {
+  if (!label) return <>{children}</>;
+  return (
+    <TooltipPrimitive.Root delayDuration={delay ?? 350}>
+      <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side={side}
+          align={align}
+          sideOffset={6}
+          className={cn(
+            "z-[60] flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2 py-1 text-[11px] font-medium text-text shadow-md",
+            "animate-pop-in",
+          )}
+        >
+          {label}
+          {shortcut && <span className="text-subtle">{shortcut}</span>}
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
+  );
+}

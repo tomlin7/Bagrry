@@ -1,54 +1,140 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { KeyRound, Mic, Sparkles } from "lucide-react";
+import * as api from "@/lib/api";
 import { useAppStore } from "@/store/app";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
 
 const STEPS = [
   {
-    title: "No bot joins the call",
-    body: "Bagrry listens to your mic and system audio on this machine. Grant capture when Windows asks, then record with Ctrl+Shift+R.",
+    icon: Mic,
+    title: "Capture every meeting",
+    body: "Bagrry records your mic and your system audio, then turns the conversation into a searchable transcript. Nothing leaves your machine except the audio you choose to transcribe.",
   },
   {
-    title: "Your notes stay yours",
-    body: "Jot shorthand during the meeting. After you stop, Enhance expands it in gray, with citations back to the transcript.",
+    icon: Sparkles,
+    title: "Notes that write themselves",
+    body: "Jot rough notes while you talk. When the call ends, Bagrry merges them with the transcript into a structured summary — with citations back to what was actually said.",
   },
-  {
-    title: "Bring your own Groq key",
-    body: "Whisper and Llama run through your key. Without one, search and heuristic enhance still work offline.",
-  },
-];
+] as const;
 
 export function Onboarding() {
   const open = useAppStore((s) => s.onboardingOpen);
   const finish = useAppStore((s) => s.finishOnboarding);
-  const setPage = useAppStore((s) => s.setPage);
+  const queryClient = useQueryClient();
+
   const [step, setStep] = useState(0);
-  if (!open) return null;
-  const s = STEPS[step];
-  const last = step === STEPS.length - 1;
+  const [name, setName] = useState("");
+  const [groqKey, setGroqKey] = useState("");
+
+  const complete = useMutation({
+    mutationFn: async () => {
+      if (name.trim()) await api.setProfile(name.trim(), "", `${name.trim().split(" ")[0]}'s`);
+      if (groqKey.trim()) await api.setSecret("groq_api_key", groqKey.trim());
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: api.qk.profile() });
+      void queryClient.invalidateQueries({ queryKey: api.qk.dbStatus() });
+      finish();
+    },
+    onError: (error) => {
+      toast.error(error);
+      finish();
+    },
+  });
+
+  const isLastStep = step === STEPS.length;
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#1c1914]/30 px-4 backdrop-blur-[2px]">
-      <div className="paper-card w-full max-w-md rounded-2xl border border-[#e4dfd3] p-7">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          {step + 1} / {STEPS.length}
-        </p>
-        <h2 className="font-display mt-2 text-3xl">{s.title}</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
-        <div className="mt-6 flex justify-between">
-          <Button variant="ghost" className="rounded-full" onClick={finish}>
+    <Dialog open={open} onOpenChange={(next) => !next && finish()}>
+      <DialogContent showClose={false} className="max-w-[420px]">
+        {isLastStep ? (
+          <div>
+            <div className="mb-4 grid size-9 place-items-center rounded-xl bg-accent-subtle text-accent">
+              <KeyRound className="size-4" />
+            </div>
+            <h2 className="font-display text-xl font-semibold text-text">Almost there</h2>
+            <p className="mt-1 text-[13px] text-muted">
+              Transcription and summaries run through Groq. You can add the key later in Settings.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <Input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input
+                type="password"
+                placeholder="Groq API key (optional)"
+                value={groqKey}
+                onChange={(e) => setGroqKey(e.target.value)}
+              />
+            </div>
+
+            <div className="mt-5 flex items-center justify-between">
+              <Button variant="ghost" size="md" onClick={finish}>
+                Skip
+              </Button>
+              <Button
+                variant="solid"
+                size="md"
+                loading={complete.isPending}
+                onClick={() => complete.mutate()}
+              >
+                Start using Bagrry
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Step
+            index={step}
+            onNext={() => setStep((s) => s + 1)}
+            onSkip={finish}
+            total={STEPS.length}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Step({
+  index,
+  total,
+  onNext,
+  onSkip,
+}: {
+  index: number;
+  total: number;
+  onNext: () => void;
+  onSkip: () => void;
+}) {
+  const step = STEPS[index];
+  const Icon = step.icon;
+
+  return (
+    <div>
+      <div className="mb-4 grid size-9 place-items-center rounded-xl bg-accent-subtle text-accent">
+        <Icon className="size-4" />
+      </div>
+      <h2 className="font-display text-xl font-semibold text-text">{step.title}</h2>
+      <p className="mt-1 text-[13px] leading-relaxed text-muted">{step.body}</p>
+
+      <div className="mt-5 flex items-center justify-between">
+        <div className="flex gap-1.5">
+          {Array.from({ length: total + 1 }, (_, i) => (
+            <span
+              key={i}
+              className={i === index ? "h-1 w-4 rounded-full bg-accent" : "size-1 rounded-full bg-border-strong"}
+            />
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="md" onClick={onSkip}>
             Skip
           </Button>
-          <Button
-            className="rounded-full"
-            onClick={() => {
-              if (last) {
-                finish();
-                setPage("notes");
-              } else {
-                setStep(step + 1);
-              }
-            }}
-          >
-            {last ? "Open notepad" : "Next"}
+          <Button variant="solid" size="md" onClick={onNext}>
+            Continue
           </Button>
         </div>
       </div>

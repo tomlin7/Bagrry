@@ -1,32 +1,42 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-ring disabled:pointer-events-none disabled:opacity-50 hover-lift [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "relative inline-flex shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-medium outline-none transition-[background-color,color,border-color,box-shadow,opacity] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
-        secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        outline: "border border-border bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-        link: "text-foreground underline-offset-4 hover:underline hover:text-ring",
+        /** High-emphasis neutral pill — the "New note" / "Start now" button. */
+        solid: "bg-solid text-solid-fg shadow-xs hover:bg-solid-hover",
+        /** Brand action. */
+        accent: "bg-accent text-accent-fg hover:bg-accent-hover",
+        /** Default surface button with a hairline border. */
+        outline: "border border-border bg-surface text-text hover:bg-hover hover:border-border-strong",
+        /** Chip / secondary fill with no border. */
+        subtle: "bg-hover text-text hover:bg-active",
+        /** Toolbar and icon affordances. */
+        ghost: "text-muted hover:bg-hover hover:text-text",
+        danger: "bg-danger text-danger-fg hover:opacity-90",
+        link: "text-accent underline-offset-4 hover:underline rounded-sm",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 px-3 text-xs",
-        lg: "h-11 px-6",
-        icon: "h-9 w-9",
+        xs: "h-6 px-2 text-[11px] [&_svg]:size-3",
+        sm: "h-7 px-2.5 text-xs [&_svg]:size-3.5",
+        md: "h-8 px-3.5 text-[13px] [&_svg]:size-4",
+        lg: "h-10 px-5 text-sm [&_svg]:size-4",
+        icon: "size-8 [&_svg]:size-4",
+        "icon-sm": "size-7 [&_svg]:size-3.5",
+        "icon-xs": "size-6 [&_svg]:size-3",
+      },
+      shape: {
+        pill: "",
+        square: "rounded-md",
       },
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
+    defaultVariants: { variant: "outline", size: "md", shape: "pill" },
   },
 );
 
@@ -34,20 +44,32 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  loading?: boolean;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    );
-  },
-);
-Button.displayName = "Button";
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { className, variant, size, shape, asChild = false, loading = false, children, disabled, ...props },
+  ref,
+) {
+  const Comp = asChild ? Slot : "button";
+  return (
+    <Comp
+      ref={ref}
+      className={cn(buttonVariants({ variant, size, shape }), className)}
+      disabled={disabled || loading}
+      data-loading={loading || undefined}
+      {...props}
+    >
+      {loading ? (
+        <>
+          <Loader2 className="animate-spin-slow" aria-hidden />
+          <span className="contents">{children}</span>
+        </>
+      ) : (
+        children
+      )}
+    </Comp>
+  );
+});
 
-export { Button, buttonVariants };
+export { buttonVariants };
