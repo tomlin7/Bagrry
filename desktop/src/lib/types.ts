@@ -46,6 +46,7 @@ export type Recipe = {
 
 export type RecState = "idle" | "recording" | "paused";
 
+/** Rust emits snake_case; older builds emitted camelCase. Read through `normalizeRecStatus`. */
 export type RecStatus = {
   state: RecState;
   pending_bytes?: number;
@@ -56,12 +57,14 @@ export type RecStatus = {
   meetingId?: string | null;
 };
 
-export function normalizeRecStatus(status: RecStatus): {
+export type NormalizedRecStatus = {
   state: RecState;
   pendingBytes: number;
   loopbackOk: boolean;
   meetingId: string | null;
-} {
+};
+
+export function normalizeRecStatus(status: RecStatus): NormalizedRecStatus {
   return {
     state: status.state,
     pendingBytes: status.pending_bytes ?? status.pendingBytes ?? 0,
@@ -127,14 +130,69 @@ export type Attachment = {
   extracted_text: string | null;
 };
 
-export type Page =
-  | "dashboard"
-  | "notes"
-  | "search"
-  | "people"
-  | "companies"
+export type ChatSession = {
+  id: string;
+  title: string;
+  space_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChatRole = "user" | "assistant";
+
+export type ChatMessage = {
+  id: string;
+  session_id: string;
+  role: ChatRole;
+  content: string;
+  created_at: string;
+};
+
+export type Profile = {
+  name: string;
+  email: string;
+  workspace: string;
+};
+
+/* ------------------------------------------------------------------ */
+/* Navigation                                                          */
+/* ------------------------------------------------------------------ */
+
+export const MY_NOTES_SPACE = "my-notes";
+export const TEAM_SPACE = "team";
+
+export type SettingsTab =
+  | "preferences"
+  | "profile"
   | "calendar"
-  | "actions"
-  | "templates"
-  | "workspace"
-  | "settings";
+  | "notifications"
+  | "connectors"
+  | "help"
+  | "workspace-general"
+  | "members"
+  | "spaces"
+  | "analytics"
+  | "billing";
+
+export type Route =
+  | { kind: "home" }
+  | { kind: "shared" }
+  | { kind: "chat"; sessionId: string | null }
+  | { kind: "space"; spaceId: string }
+  | { kind: "note"; noteId: string }
+  | { kind: "settings"; tab: SettingsTab };
+
+export function routeKey(route: Route): string {
+  switch (route.kind) {
+    case "chat":
+      return `chat:${route.sessionId ?? "new"}`;
+    case "space":
+      return `space:${route.spaceId}`;
+    case "note":
+      return `note:${route.noteId}`;
+    case "settings":
+      return `settings:${route.tab}`;
+    default:
+      return route.kind;
+  }
+}
