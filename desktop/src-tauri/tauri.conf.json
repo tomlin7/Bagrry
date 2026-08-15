@@ -1,29 +1,42 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "bagrry",
+  "productName": "Bagrry",
   "version": "0.1.0",
   "identifier": "com.bit.bagrry",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Bagrry",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 900,
-        "minHeight": 600,
-        "center": true,
+        "width": 1180,
+        "height": 780,
+        "minWidth": 720,
+        "minHeight": 520,
         "decorations": false,
-        "titleBarStyle": "Overlay"
+        "resizable": true,
+        "center": true,
+        "visible": false,
+        "dragDropEnabled": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": "'self' data:",
+        "img-src": "'self' data: blob: asset: http://asset.localhost https:",
+        "connect-src": "'self' ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "frame-ancestors": "'none'"
+      }
     }
   },
   "bundle": {

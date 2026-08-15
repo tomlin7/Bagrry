@@ -17,6 +17,24 @@ export default defineConfig(async () => ({
     },
   },
   clearScreen: false,
+  build: {
+    target: "chrome110",
+    sourcemap: false,
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        // The editor is the heaviest dependency and isn't needed until a note
+        // is opened, so keep it out of the initial parse. Matching on module
+        // ids rather than package names covers `@tiptap/pm`, which only
+        // publishes subpath exports and can't be named directly.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("@tiptap") || id.includes("prosemirror")) return "editor";
+          if (/node_modules[\\/]react(-dom)?[\\/]/.test(id)) return "react";
+        },
+      },
+    },
+  },
   server: {
     port: 1420,
     strictPort: true,
