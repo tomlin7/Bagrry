@@ -3,6 +3,7 @@ import type { Page, RecState, RecStatus, VuLevels } from "@/lib/types";
 import { normalizeRecStatus } from "@/lib/types";
 
 const ENTERED_KEY = "bagrry.entered";
+const ONBOARD_KEY = "bagrry.onboarded";
 
 function initialPage(): Page {
   try {
@@ -23,6 +24,8 @@ type AppState = {
   liveOpen: boolean;
   chatOpen: boolean;
   overlayOn: boolean;
+  paletteOpen: boolean;
+  onboardingOpen: boolean;
   setPage: (page: Page) => void;
   enterWorkspace: (page?: Page) => void;
   selectMeeting: (id: string | null) => void;
@@ -32,6 +35,8 @@ type AppState = {
   setLiveOpen: (v: boolean) => void;
   setChatOpen: (v: boolean) => void;
   setOverlayOn: (v: boolean) => void;
+  setPaletteOpen: (v: boolean) => void;
+  finishOnboarding: () => void;
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -45,14 +50,24 @@ export const useAppStore = create<AppState>((set) => ({
   liveOpen: false,
   chatOpen: false,
   overlayOn: false,
+  paletteOpen: false,
+  onboardingOpen: (() => {
+    try {
+      return localStorage.getItem(ENTERED_KEY) === "1" && localStorage.getItem(ONBOARD_KEY) !== "1";
+    } catch {
+      return false;
+    }
+  })(),
   setPage: (page) => set({ page }),
   enterWorkspace: (page = "dashboard") => {
+    let showOnboard = false;
     try {
       localStorage.setItem(ENTERED_KEY, "1");
+      showOnboard = localStorage.getItem(ONBOARD_KEY) !== "1";
     } catch {
       /* ignore */
     }
-    set({ page });
+    set({ page, onboardingOpen: showOnboard });
   },
   selectMeeting: (id) => set({ selectedMeetingId: id, page: "notes" }),
   setFolderId: (id) => set({ folderId: id }),
@@ -69,4 +84,13 @@ export const useAppStore = create<AppState>((set) => ({
   setLiveOpen: (liveOpen) => set({ liveOpen }),
   setChatOpen: (chatOpen) => set({ chatOpen }),
   setOverlayOn: (overlayOn) => set({ overlayOn }),
+  setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+  finishOnboarding: () => {
+    try {
+      localStorage.setItem(ONBOARD_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    set({ onboardingOpen: false });
+  },
 }));

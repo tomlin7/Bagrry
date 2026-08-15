@@ -167,6 +167,23 @@ export function LandingPage() {
           Open your dashboard
         </Button>
       </section>
+
+      <section className="relative mx-auto max-w-3xl px-6 pb-24">
+        <h2 className="font-display text-center text-3xl">Things worth noting</h2>
+        <div className="mt-8 space-y-3">
+          {[
+            ["Do you train models on my meetings?", "No. Audio never leaves RAM after transcription. Chat and enhance use your Groq key. Opt out of any provider training in Workspace."],
+            ["How do others know I’m taking notes?", "Copy a one-line consent message into Meet or Teams chat. Optional recording watermark sits at the top of the window."],
+            ["What’s on Basic vs Business?", "Basic is free with 30-day history in the app. Business is $14/user/mo for unlimited history, CRM connectors, and advanced chat."],
+            ["Where does data live?", "SQLite on this machine. Share links are local. MCP and the REST API bind to 127.0.0.1."],
+          ].map(([q, a]) => (
+            <details key={q} className="rounded-2xl border border-[#e4dfd3] bg-white/50 px-5 py-4">
+              <summary className="cursor-pointer font-medium">{q}</summary>
+              <p className="mt-2 text-sm leading-relaxed text-[#5c574f]">{a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

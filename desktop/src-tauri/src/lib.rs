@@ -81,6 +81,14 @@ pub fn run() {
             commands::save_attachment_text,
             commands::create_folder,
             commands::save_custom_template,
+            commands::delete_meeting,
+            commands::move_meeting,
+            commands::set_folder_shared,
+            commands::list_meeting_attendees,
+            commands::add_meeting_attendee,
+            commands::list_attachments,
+            commands::save_custom_recipe,
+            commands::add_action_item,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

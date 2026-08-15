@@ -4,6 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { Dashboard } from "@/components/Dashboard";
 import { LandingPage } from "@/components/LandingPage";
 import { NotesWorkspace } from "@/components/NotesWorkspace";
+import { CommandPalette } from "@/components/CommandPalette";
+import { Onboarding } from "@/components/Onboarding";
 import {
   ActionsPage,
   CalendarPage,
@@ -13,6 +15,8 @@ import {
   PricingPage,
   SearchPage,
   SettingsPage,
+  TemplatesPage,
+  WorkspacePage,
 } from "@/components/pages";
 import * as api from "@/lib/api";
 import type { RecStatus, VuLevels } from "@/lib/types";
@@ -45,6 +49,7 @@ export default function App() {
     return (
       <div className="h-full bg-[#f7f7f2] text-foreground">
         {overlayOn && recState === "recording" && <RecBadge />}
+        <CommandPalette />
         <LandingPage />
       </div>
     );
@@ -53,6 +58,8 @@ export default function App() {
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-background text-foreground">
       {overlayOn && recState === "recording" && <RecBadge />}
+      <CommandPalette />
+      <Onboarding />
       <AppShell>
         {page === "dashboard" && <Dashboard />}
         {page === "notes" && (
@@ -65,6 +72,8 @@ export default function App() {
         {page === "companies" && <CompaniesPage />}
         {page === "calendar" && <CalendarPage />}
         {page === "actions" && <ActionsPage />}
+        {page === "templates" && <TemplatesPage />}
+        {page === "workspace" && <WorkspacePage />}
         {page === "pricing" && <PricingPage />}
         {page === "integrations" && <IntegrationsPage />}
         {page === "settings" && <SettingsPage />}

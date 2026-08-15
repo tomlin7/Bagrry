@@ -5,10 +5,12 @@ import {
   CheckSquare,
   CreditCard,
   LayoutDashboard,
+  LayoutTemplate,
   Link2,
   MessageSquare,
   NotebookPen,
   Settings,
+  Shield,
   Users,
 } from "lucide-react";
 import type { Page } from "@/lib/types";
@@ -23,6 +25,7 @@ const ITEMS: { page: Page; label: string; icon: ReactNode }[] = [
   { page: "actions", label: "Actions", icon: <CheckSquare className="h-4 w-4" /> },
   { page: "people", label: "People", icon: <Users className="h-4 w-4" /> },
   { page: "companies", label: "Companies", icon: <Building2 className="h-4 w-4" /> },
+  { page: "templates", label: "Templates", icon: <LayoutTemplate className="h-4 w-4" /> },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -52,6 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ))}
         <div className="flex-1" />
         {recState === "recording" && <span className="mb-2 h-2 w-2 rounded-full bg-destructive" title="Recording" />}
+        <NavTiny page="workspace" current={page} onClick={setPage} icon={<Shield className="h-4 w-4" />} label="Workspace" />
         <NavTiny page="pricing" current={page} onClick={setPage} icon={<CreditCard className="h-4 w-4" />} label="Pricing" />
         <NavTiny page="integrations" current={page} onClick={setPage} icon={<Link2 className="h-4 w-4" />} label="Integrations" />
         <NavTiny page="settings" current={page} onClick={setPage} icon={<Settings className="h-4 w-4" />} label="Settings" />

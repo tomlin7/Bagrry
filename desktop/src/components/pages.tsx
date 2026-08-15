@@ -192,9 +192,38 @@ export function CalendarPage() {
 
 export function ActionsPage() {
   const actions = useQuery({ queryKey: ["actions"], queryFn: api.listActionItems });
+  const meetings = useQuery({ queryKey: ["meetings", null], queryFn: () => api.listMeetings(null) });
   const selectMeeting = useAppStore((s) => s.selectMeeting);
+  const qc = useQueryClient();
+  const [task, setTask] = useState("");
+  const [owner, setOwner] = useState("");
+  const [meetingId, setMeetingId] = useState("");
   return (
     <PageFrame kicker="Follow-through" title="Action items" subtitle="Owners, deadlines, and the meeting they came from.">
+      <div className="mb-6 flex flex-wrap gap-2">
+        <input className="h-9 flex-1 rounded-full border px-3 text-sm" placeholder="Task" value={task} onChange={(e) => setTask(e.target.value)} />
+        <input className="h-9 w-40 rounded-full border px-3 text-sm" placeholder="Owner" value={owner} onChange={(e) => setOwner(e.target.value)} />
+        <select className="h-9 rounded-full border px-3 text-sm" value={meetingId} onChange={(e) => setMeetingId(e.target.value)}>
+          <option value="">Meeting</option>
+          {meetings.data?.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.title}
+            </option>
+          ))}
+        </select>
+        <Button
+          size="sm"
+          className="rounded-full"
+          onClick={async () => {
+            if (!task || !meetingId) return;
+            await api.addActionItem(meetingId, task, owner || null);
+            setTask("");
+            qc.invalidateQueries({ queryKey: ["actions"] });
+          }}
+        >
+          Add
+        </Button>
+      </div>
       <ul className="space-y-2">
         {(actions.data ?? []).map((a) => (
           <li key={a.id}>
@@ -214,6 +243,145 @@ export function ActionsPage() {
           </li>
         ))}
       </ul>
+    </PageFrame>
+  );
+}
+
+export function TemplatesPage() {
+  const templates = useQuery({ queryKey: ["templates"], queryFn: api.listTemplates });
+  const recipes = useQuery({ queryKey: ["recipes"], queryFn: api.listRecipes });
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [sections, setSections] = useState("Wins, Challenges, Next Steps");
+  const [rname, setRname] = useState("");
+  const [rprompt, setRprompt] = useState("");
+  return (
+    <PageFrame
+      kicker="Enhance"
+      title="Templates & recipes"
+      subtitle="1-on-1s, discovery, research, retros — or write your own structure. Recipes run after the call."
+    >
+      <div className="grid gap-3 md:grid-cols-2">
+        {templates.data?.map((t) => (
+          <article key={t.id} className="rounded-2xl border border-border bg-card p-5">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Template</p>
+            <h3 className="font-display mt-1 text-xl">{t.name}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">{t.prompt_template}</p>
+          </article>
+        ))}
+      </div>
+      <div className="paper-card mt-8 rounded-2xl border border-border p-5">
+        <h3 className="font-display text-xl">Custom template</h3>
+        <div className="mt-3 grid gap-2">
+          <input className="h-9 rounded-full border px-3 text-sm" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="h-9 rounded-full border px-3 text-sm" placeholder="Sections, comma separated" value={sections} onChange={(e) => setSections(e.target.value)} />
+          <textarea className="min-h-20 rounded-xl border p-3 text-sm" placeholder="Enhancement instructions" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+          <Button
+            className="w-fit rounded-full"
+            onClick={async () => {
+              if (!name || !prompt) return;
+              const structure = JSON.stringify({
+                sections: sections.split(",").map((s) => s.trim()).filter(Boolean),
+              });
+              await api.saveCustomTemplate(name, prompt, structure);
+              setName("");
+              setPrompt("");
+              qc.invalidateQueries({ queryKey: ["templates"] });
+            }}
+          >
+            Save template
+          </Button>
+        </div>
+      </div>
+      <h3 className="font-display mt-10 text-2xl">Recipes</h3>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {recipes.data?.map((r) => (
+          <article key={r.id} className="rounded-2xl border border-border bg-card p-5">
+            <h4 className="font-medium">{r.name}</h4>
+            <p className="mt-1 text-sm text-muted-foreground">{r.prompt_template}</p>
+          </article>
+        ))}
+      </div>
+      <div className="mt-4 grid gap-2">
+        <input className="h-9 rounded-full border px-3 text-sm" placeholder="Recipe name" value={rname} onChange={(e) => setRname(e.target.value)} />
+        <textarea className="min-h-16 rounded-xl border p-3 text-sm" placeholder="What should it produce?" value={rprompt} onChange={(e) => setRprompt(e.target.value)} />
+        <Button
+          className="w-fit rounded-full"
+          variant="outline"
+          onClick={async () => {
+            if (!rname || !rprompt) return;
+            await api.saveCustomRecipe(rname, rprompt);
+            setRname("");
+            setRprompt("");
+            qc.invalidateQueries({ queryKey: ["recipes"] });
+          }}
+        >
+          Save recipe
+        </Button>
+      </div>
+    </PageFrame>
+  );
+}
+
+export function WorkspacePage() {
+  const [name, setName] = useState("Personal");
+  const [plan, setPlan] = useState("basic");
+  const [optOut, setOptOut] = useState(true);
+  const [overlay, setOverlay] = useState(true);
+  const [lang, setLang] = useState("en");
+  const [saved, setSaved] = useState("");
+  useEffect(() => {
+    api.getSetting("workspace_name").then((v) => v && setName(v)).catch(() => undefined);
+    api.getSetting("plan").then((v) => v && setPlan(v)).catch(() => undefined);
+    api.getSetting("training_opt_out").then((v) => setOptOut(v !== "0")).catch(() => undefined);
+    api.getSetting("overlay_enabled").then((v) => setOverlay(v !== "0")).catch(() => undefined);
+    api.getSetting("language").then((v) => v && setLang(v)).catch(() => undefined);
+  }, []);
+  async function save() {
+    await api.setSetting("workspace_name", name);
+    await api.setSetting("plan", plan);
+    await api.setSetting("training_opt_out", optOut ? "1" : "0");
+    await api.setSetting("overlay_enabled", overlay ? "1" : "0");
+    await api.setSetting("language", lang);
+    setSaved("Saved on this machine");
+  }
+  return (
+    <PageFrame
+      kicker="Account"
+      title="Workspace"
+      subtitle="Plan, privacy, and how Bagrry shows up in the room. Everything here is local."
+    >
+      <div className="max-w-lg space-y-4">
+        <label className="block text-xs font-medium">Workspace name</label>
+        <input className="h-10 w-full rounded-full border px-4 text-sm" value={name} onChange={(e) => setName(e.target.value)} />
+        <label className="block text-xs font-medium">Plan</label>
+        <select className="h-10 w-full rounded-full border px-4 text-sm" value={plan} onChange={(e) => setPlan(e.target.value)}>
+          <option value="basic">Basic — $0</option>
+          <option value="business">Business — $14</option>
+          <option value="enterprise">Enterprise — $35</option>
+        </select>
+        <label className="block text-xs font-medium">Note language</label>
+        <select className="h-10 w-full rounded-full border px-4 text-sm" value={lang} onChange={(e) => setLang(e.target.value)}>
+          <option value="en">English</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="ja">Japanese</option>
+        </select>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={optOut} onChange={(e) => setOptOut(e.target.checked)} />
+          Opt out of model training
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={overlay} onChange={(e) => setOverlay(e.target.checked)} />
+          Show “Bagrry is recording” watermark
+        </label>
+        <Button className="rounded-full" onClick={save}>
+          Save workspace
+        </Button>
+        {saved && <p className="text-xs text-primary">{saved}</p>}
+      </div>
     </PageFrame>
   );
 }
