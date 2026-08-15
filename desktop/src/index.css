@@ -317,6 +317,11 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes slide-in-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes pulse-ring {
   0% { box-shadow: 0 0 0 0 rgba(229, 89, 91, 0.5); }
   70% { box-shadow: 0 0 0 7px rgba(229, 89, 91, 0); }
@@ -335,10 +340,18 @@
 @layer utilities {
   .animate-fade-in { animation: fade-in 140ms ease-out both; }
   .animate-pop-in { animation: pop-in 160ms var(--ease-out-quint) both; }
-  .animate-slide-up { animation: slide-up 200ms var(--ease-out-quint) both; }
-  .animate-slide-in-right { animation: slide-in-right 220ms var(--ease-out-quint) both; }
+  .animate-slide-up { animation: slide-up 180ms var(--ease-out-quint) both; }
+  .animate-slide-in-right { animation: slide-in-right 180ms var(--ease-out-quint) both; }
+  .animate-slide-in-down { animation: slide-in-down 160ms var(--ease-out-quint) both; }
   .animate-pulse-ring { animation: pulse-ring 1.8s ease-out infinite; }
   .animate-spin-slow { animation: spin 900ms linear infinite; }
+
+  .hover-lift {
+    transition: transform 140ms var(--ease-out-quint), box-shadow 140ms var(--ease-out-quint);
+  }
+  .hover-lift:hover {
+    transform: translateY(-1px);
+  }
 
   .skeleton {
     background-image: linear-gradient(90deg, var(--hover) 25%, var(--active) 37%, var(--hover) 63%);

@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import * as api from "@/lib/api";
 import { currentWindow, isTauri } from "@/lib/tauri";
 import { watchSystemTheme } from "@/lib/theme";
-import type { RecStatus, VuLevels } from "@/lib/types";
+import { routeKey, type RecStatus, type VuLevels } from "@/lib/types";
 import { useAppStore } from "@/store/app";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -19,6 +20,8 @@ import { SpacePage } from "@/components/pages/SpacePage";
 import { SharedPage } from "@/components/pages/SharedPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
 
+const SNAPPY = { duration: 0.14, ease: [0.22, 1, 0.36, 1] as const };
+
 export default function App() {
   const route = useAppStore((s) => s.route);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
@@ -29,29 +32,51 @@ export default function App() {
   useShowWindowWhenReady();
 
   return (
-    <TooltipProvider delayDuration={350} skipDelayDuration={200}>
-      <div className="flex h-full w-full overflow-hidden bg-bg text-text">
-        {sidebarOpen && <Sidebar />}
-
-        <div className="flex min-w-0 flex-1 flex-col bg-bg">
-          <TitleBar />
-          <main className="relative min-h-0 flex-1 overflow-hidden">
-            {route.kind === "home" && <HomePage />}
-            {route.kind === "shared" && <SharedPage />}
-            {route.kind === "space" && <SpacePage key={route.spaceId} spaceId={route.spaceId} />}
-            {route.kind === "note" && <NotePage key={route.noteId} noteId={route.noteId} />}
-            {route.kind === "chat" && (
-              <ChatPage key={route.sessionId ?? "new"} sessionId={route.sessionId} />
+    <MotionConfig reducedMotion="user" transition={SNAPPY}>
+      <TooltipProvider delayDuration={350} skipDelayDuration={200}>
+        <div className="flex h-full w-full overflow-hidden bg-bg text-text">
+          <AnimatePresence initial={false}>
+            {sidebarOpen && (
+              <motion.div
+                key="sidebar"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="h-full"
+              >
+                <Sidebar />
+              </motion.div>
             )}
-            {route.kind === "settings" && <SettingsPage tab={route.tab} />}
-          </main>
-        </div>
+          </AnimatePresence>
 
-        <CommandPalette />
-        <Onboarding />
-        <Toaster />
-      </div>
-    </TooltipProvider>
+          <div className="flex min-w-0 flex-1 flex-col bg-bg">
+            <TitleBar />
+            <main className="relative min-h-0 flex-1 overflow-hidden">
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.div
+                  key={routeKey(route)}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  className="h-full min-h-0"
+                >
+                  {route.kind === "home" && <HomePage />}
+                  {route.kind === "shared" && <SharedPage />}
+                  {route.kind === "space" && <SpacePage spaceId={route.spaceId} />}
+                  {route.kind === "note" && <NotePage noteId={route.noteId} />}
+                  {route.kind === "chat" && <ChatPage sessionId={route.sessionId} />}
+                  {route.kind === "settings" && <SettingsPage tab={route.tab} />}
+                </motion.div>
+              </AnimatePresence>
+            </main>
+          </div>
+
+          <CommandPalette />
+          <Onboarding />
+          <Toaster />
+        </div>
+      </TooltipProvider>
+    </MotionConfig>
   );
 }
 

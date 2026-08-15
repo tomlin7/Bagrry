@@ -47,9 +47,9 @@ export function ComingUp() {
 
   return (
     <section>
-      <h1 className="font-display mb-3 text-[26px] font-semibold text-text">Coming up</h1>
+      <h1 className="font-display mb-3 animate-slide-up text-[26px] font-semibold text-text">Coming up</h1>
 
-      <div className="flex overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="flex animate-slide-up overflow-hidden rounded-xl border border-border bg-surface">
         <div className="w-[150px] shrink-0 border-r border-border p-4">
           <div className="flex items-baseline gap-2">
             <span className="font-display text-[26px] font-semibold leading-none text-text">
