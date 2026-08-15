@@ -1,14 +1,11 @@
-import { useAppStore } from "@/store/app";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { SiteFooter, SiteHeader } from "./components/SiteChrome";
 
 const LOGOS = ["Linear", "Vercel", "a16z", "Menlo", "Northwind", "Bit Labs", "Attio", "Notion"];
 
-export function LandingPage() {
-  const enter = useAppStore((s) => s.enterWorkspace);
-  const setPage = useAppStore((s) => s.setPage);
-
+export default function HomePage() {
   return (
-    <div className="relative h-full overflow-y-auto bg-[#f7f7f2] text-[#1c1914]">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#f7f7f2] text-[#1c1914]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="orb absolute -left-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-[#cdd4a0]/50 blur-3xl" />
         <div className="orb absolute right-[-8rem] top-40 h-[22rem] w-[22rem] rounded-full bg-[#e8d9b0]/60 blur-3xl [animation-delay:-4s]" />
@@ -16,28 +13,7 @@ export function LandingPage() {
         <div className="grain absolute inset-0 opacity-[0.07] mix-blend-multiply" />
       </div>
 
-      <header className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 backdrop-blur-md">
-        <Mark />
-        <nav className="hidden items-center gap-6 text-sm text-[#5c574f] md:flex">
-          <button type="button" onClick={() => document.getElementById("product")?.scrollIntoView({ behavior: "smooth" })}>
-            Product
-          </button>
-          <button type="button" onClick={() => setPage("pricing")}>
-            Pricing
-          </button>
-          <button type="button" onClick={() => setPage("integrations")}>
-            Integrations
-          </button>
-        </nav>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" onClick={() => enter("dashboard")}>
-            Sign in
-          </Button>
-          <Button className="rounded-full bg-[#5b6f00] px-5 text-[#f7f7f2] hover:bg-[#4a5a00]" onClick={() => enter("notes")}>
-            Open notepad
-          </Button>
-        </div>
-      </header>
+      <SiteHeader />
 
       <section className="relative mx-auto max-w-5xl px-6 pb-16 pt-10 text-center">
         <p className="mb-4 text-xs font-medium uppercase tracking-[0.22em] text-[#5b6f00]">
@@ -51,16 +27,18 @@ export function LandingPage() {
           turns it into notes that still sound like you.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Button
-            size="lg"
-            className="rounded-full bg-[#5b6f00] px-7 text-[#f7f7f2] hover:bg-[#4a5a00]"
-            onClick={() => enter("notes")}
+          <Link
+            href="/download"
+            className="rounded-full bg-[#5b6f00] px-7 py-3 text-[#f7f7f2] hover:bg-[#4a5a00]"
           >
-            Start taking notes
-          </Button>
-          <Button size="lg" variant="outline" className="rounded-full border-[#cfc8b8] bg-white/50" onClick={() => setPage("pricing")}>
+            Download for Windows
+          </Link>
+          <Link
+            href="/pricing"
+            className="rounded-full border border-[#cfc8b8] bg-white/50 px-7 py-3"
+          >
             View pricing
-          </Button>
+          </Link>
         </div>
         <p className="mt-4 text-xs text-[#8a847a]">macOS · Windows · iOS · Android · unlimited notes on Basic</p>
 
@@ -71,7 +49,7 @@ export function LandingPage() {
             <span className="h-2.5 w-2.5 rounded-full bg-[#e4dfd3]" />
             <span className="ml-2 text-[11px] tracking-wide text-[#8a847a]">Northwind pricing review</span>
           </div>
-          <div className="grid min-h-[280px] grid-cols-2 text-left">
+          <div className="grid min-h-[280px] grid-cols-1 text-left md:grid-cols-2">
             <div className="border-r border-[#ece7db] p-6">
               <p className="mb-3 text-[10px] font-medium uppercase tracking-widest text-[#8a847a]">My notes</p>
               <p className="text-sm leading-7">
@@ -96,7 +74,9 @@ export function LandingPage() {
       </section>
 
       <section className="relative border-y border-[#ece7db] py-8">
-        <p className="mb-4 text-center text-[11px] uppercase tracking-[0.2em] text-[#8a847a]">Trusted by teams we admire</p>
+        <p className="mb-4 text-center text-[11px] uppercase tracking-[0.2em] text-[#8a847a]">
+          Trusted by teams we admire
+        </p>
         <div className="overflow-hidden">
           <div className="marquee-track flex w-max gap-16 px-8 text-lg text-[#8a847a]">
             {[...LOGOS, ...LOGOS].map((name, i) => (
@@ -130,7 +110,10 @@ export function LandingPage() {
               body: "Notes, action items, and follow-up recipes are ready the moment you hit stop.",
             },
           ].map((card) => (
-            <article key={card.title} className="paper-card rounded-2xl border border-[#e4dfd3] p-6 transition hover:-translate-y-0.5">
+            <article
+              key={card.title}
+              className="paper-card rounded-2xl border border-[#e4dfd3] p-6 transition hover:-translate-y-0.5"
+            >
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#5b6f00]">{card.kicker}</p>
               <h3 className="font-display mt-2 text-2xl">{card.title}</h3>
               <p className="mt-3 text-sm leading-relaxed text-[#5c574f]">{card.body}</p>
@@ -155,27 +138,39 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="relative mx-auto max-w-3xl px-6 pb-24 text-center">
+      <section className="relative mx-auto max-w-3xl px-6 pb-16 text-center">
         <blockquote className="font-display text-3xl leading-snug font-medium">
           “It clicked instantly. Seamless, purpose-built, and calm enough for a packed calendar.”
         </blockquote>
         <p className="mt-4 text-sm text-[#8a847a]">Product teams who live in meetings</p>
-        <Button
-          className="mt-8 rounded-full bg-[#5b6f00] px-7 text-[#f7f7f2] hover:bg-[#4a5a00]"
-          onClick={() => enter("dashboard")}
+        <Link
+          href="/download"
+          className="mt-8 inline-block rounded-full bg-[#5b6f00] px-7 py-3 text-[#f7f7f2] hover:bg-[#4a5a00]"
         >
-          Open your dashboard
-        </Button>
+          Get the desktop app
+        </Link>
       </section>
 
       <section className="relative mx-auto max-w-3xl px-6 pb-24">
         <h2 className="font-display text-center text-3xl">Things worth noting</h2>
         <div className="mt-8 space-y-3">
           {[
-            ["Do you train models on my meetings?", "No. Audio never leaves RAM after transcription. Chat and enhance use your Groq key. Opt out of any provider training in Workspace."],
-            ["How do others know I’m taking notes?", "Copy a one-line consent message into Meet or Teams chat. Optional recording watermark sits at the top of the window."],
-            ["What’s on Basic vs Business?", "Basic is free with 30-day history in the app. Business is $14/user/mo for unlimited history, CRM connectors, and advanced chat."],
-            ["Where does data live?", "SQLite on this machine. Share links are local. MCP and the REST API bind to 127.0.0.1."],
+            [
+              "Do you train models on my meetings?",
+              "No. Audio never leaves RAM after transcription. Chat and enhance use your Groq key. Opt out of any provider training in Settings.",
+            ],
+            [
+              "How do others know I’m taking notes?",
+              "Copy a one-line consent message into Meet or Teams chat. Optional recording watermark sits at the top of the window.",
+            ],
+            [
+              "What’s on Basic vs Business?",
+              "Basic is free with 30-day history in the app. Business is $14/user/mo for unlimited history, CRM connectors, and advanced chat.",
+            ],
+            [
+              "Where does data live?",
+              "SQLite on this machine. Share links are local. MCP and the REST API bind to 127.0.0.1.",
+            ],
           ].map(([q, a]) => (
             <details key={q} className="rounded-2xl border border-[#e4dfd3] bg-white/50 px-5 py-4">
               <summary className="cursor-pointer font-medium">{q}</summary>
@@ -184,14 +179,8 @@ export function LandingPage() {
           ))}
         </div>
       </section>
-    </div>
-  );
-}
 
-export function Mark() {
-  return (
-    <span className="font-display text-xl italic tracking-tight">
-      Bagrry
-    </span>
+      <SiteFooter />
+    </div>
   );
 }

@@ -128,7 +128,6 @@ export type Attachment = {
 };
 
 export type Page =
-  | "landing"
   | "dashboard"
   | "notes"
   | "search"
@@ -138,6 +137,4 @@ export type Page =
   | "actions"
   | "templates"
   | "workspace"
-  | "pricing"
-  | "integrations"
   | "settings";

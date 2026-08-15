@@ -2,16 +2,7 @@ import { create } from "zustand";
 import type { Page, RecState, RecStatus, VuLevels } from "@/lib/types";
 import { normalizeRecStatus } from "@/lib/types";
 
-const ENTERED_KEY = "bagrry.entered";
 const ONBOARD_KEY = "bagrry.onboarded";
-
-function initialPage(): Page {
-  try {
-    return localStorage.getItem(ENTERED_KEY) === "1" ? "dashboard" : "landing";
-  } catch {
-    return "landing";
-  }
-}
 
 type AppState = {
   page: Page;
@@ -27,7 +18,6 @@ type AppState = {
   paletteOpen: boolean;
   onboardingOpen: boolean;
   setPage: (page: Page) => void;
-  enterWorkspace: (page?: Page) => void;
   selectMeeting: (id: string | null) => void;
   setFolderId: (id: string | null) => void;
   applyRecStatus: (status: RecStatus) => void;
@@ -40,7 +30,7 @@ type AppState = {
 };
 
 export const useAppStore = create<AppState>((set) => ({
-  page: initialPage(),
+  page: "notes",
   selectedMeetingId: null,
   folderId: null,
   recState: "idle",
@@ -53,22 +43,12 @@ export const useAppStore = create<AppState>((set) => ({
   paletteOpen: false,
   onboardingOpen: (() => {
     try {
-      return localStorage.getItem(ENTERED_KEY) === "1" && localStorage.getItem(ONBOARD_KEY) !== "1";
+      return localStorage.getItem(ONBOARD_KEY) !== "1";
     } catch {
       return false;
     }
   })(),
   setPage: (page) => set({ page }),
-  enterWorkspace: (page = "dashboard") => {
-    let showOnboard = false;
-    try {
-      localStorage.setItem(ENTERED_KEY, "1");
-      showOnboard = localStorage.getItem(ONBOARD_KEY) !== "1";
-    } catch {
-      /* ignore */
-    }
-    set({ page, onboardingOpen: showOnboard });
-  },
   selectMeeting: (id) => set({ selectedMeetingId: id, page: "notes" }),
   setFolderId: (id) => set({ folderId: id }),
   applyRecStatus: (status) => {

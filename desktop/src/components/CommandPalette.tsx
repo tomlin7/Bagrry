@@ -15,10 +15,7 @@ const GO: { page: Page; label: string; hint: string }[] = [
   { page: "companies", label: "Companies", hint: "Accounts" },
   { page: "templates", label: "Templates & recipes", hint: "Enhance" },
   { page: "workspace", label: "Workspace", hint: "Plan & privacy" },
-  { page: "pricing", label: "Pricing", hint: "Plans" },
-  { page: "integrations", label: "Integrations", hint: "MCP & CRM" },
   { page: "settings", label: "Settings", hint: "Keys" },
-  { page: "landing", label: "Marketing site", hint: "Landing" },
 ];
 
 export function CommandPalette() {
