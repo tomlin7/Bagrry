@@ -10,7 +10,7 @@ export const DropdownMenuSub = Primitive.Sub;
 export const DropdownMenuRadioGroup = Primitive.RadioGroup;
 
 const panelClass =
-  "z-50 min-w-[11rem] overflow-hidden rounded-xl border border-border bg-elevated p-1 text-[13px] shadow-lg animate-pop-in";
+  "ui-pop z-50 min-w-[11rem] overflow-hidden rounded-xl border border-border bg-elevated p-1 text-[13px] shadow-lg";
 
 export const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof Primitive.Content>,

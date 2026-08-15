@@ -10,6 +10,11 @@
 
 :root {
   color-scheme: light;
+  --motion-fast: 120ms;
+  --motion: 160ms;
+  --motion-layout: 200ms;
+  --motion-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-in: cubic-bezier(0.4, 0, 1, 1);
 
   /* Surfaces, from furthest back to closest to the user */
   --bg: #f6f5f2;
@@ -302,23 +307,45 @@
   to { opacity: 1; }
 }
 
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 @keyframes pop-in {
-  from { opacity: 0; transform: scale(0.96) translateY(4px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pop-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.98); }
+}
+
+/* Dialogs are centered with the CSS `translate` property so scale animations
+   don't fight the centering transform. */
+@keyframes dialog-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes dialog-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.98); }
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slide-in-right {
-  from { opacity: 0; transform: translateX(16px); }
+  from { opacity: 0; transform: translateX(8px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes slide-in-down {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -338,16 +365,16 @@
 }
 
 @layer utilities {
-  .animate-fade-in { animation: fade-in 140ms ease-out both; }
-  .animate-pop-in { animation: pop-in 160ms var(--ease-out-quint) both; }
-  .animate-slide-up { animation: slide-up 180ms var(--ease-out-quint) both; }
-  .animate-slide-in-right { animation: slide-in-right 180ms var(--ease-out-quint) both; }
-  .animate-slide-in-down { animation: slide-in-down 160ms var(--ease-out-quint) both; }
+  .animate-fade-in { animation: fade-in var(--motion-fast) ease-out both; }
+  .animate-pop-in { animation: pop-in var(--motion) var(--ease-out-quint) both; }
+  .animate-slide-up { animation: slide-up var(--motion) var(--ease-out-quint) both; }
+  .animate-slide-in-right { animation: slide-in-right var(--motion) var(--ease-out-quint) both; }
+  .animate-slide-in-down { animation: slide-in-down var(--motion) var(--ease-out-quint) both; }
   .animate-pulse-ring { animation: pulse-ring 1.8s ease-out infinite; }
   .animate-spin-slow { animation: spin 900ms linear infinite; }
 
   .hover-lift {
-    transition: transform 140ms var(--ease-out-quint), box-shadow 140ms var(--ease-out-quint);
+    transition: transform var(--motion-fast) var(--ease-out-quint), box-shadow var(--motion-fast) var(--ease-out-quint);
   }
   .hover-lift:hover {
     transform: translateY(-1px);
@@ -358,6 +385,34 @@
     background-size: 400% 100%;
     animation: shimmer 1.4s ease-in-out infinite;
   }
+}
+
+/* Radix surfaces: enter AND exit. Presence waits for the closed animation. */
+.ui-overlay[data-state="open"] {
+  animation: fade-in var(--motion-fast) ease-out both;
+}
+.ui-overlay[data-state="closed"] {
+  animation: fade-out var(--motion-fast) var(--motion-in) both;
+}
+
+.ui-pop {
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin, center top);
+}
+.ui-pop[data-state="open"] {
+  animation: pop-in var(--motion) var(--motion-out) both;
+}
+.ui-pop[data-state="closed"] {
+  animation: pop-out var(--motion-fast) var(--motion-in) both;
+}
+
+.ui-dialog {
+  translate: -50% -50%;
+}
+.ui-dialog[data-state="open"] {
+  animation: dialog-in var(--motion) var(--motion-out) both;
+}
+.ui-dialog[data-state="closed"] {
+  animation: dialog-out var(--motion-fast) var(--motion-in) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -17,11 +17,11 @@ export const DialogContent = React.forwardRef<
 >(function DialogContent({ className, children, showClose = true, bare = false, ...props }, ref) {
   return (
     <Primitive.Portal>
-      <Primitive.Overlay className="fixed inset-0 z-50 bg-overlay backdrop-blur-[2px] animate-fade-in" />
+      <Primitive.Overlay className="ui-overlay fixed inset-0 z-50 bg-overlay backdrop-blur-[2px]" />
       <Primitive.Content
         ref={ref}
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 outline-none animate-pop-in",
+          "ui-dialog fixed left-1/2 top-1/2 z-50 w-full max-w-lg outline-none",
           !bare && "rounded-2xl border border-border bg-elevated p-5 shadow-xl",
           className,
         )}

@@ -8,6 +8,8 @@ import { useAppStore } from "@/store/app";
 import { toast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { RecordingControls } from "./RecordingControls";
+import { AnimatePresence, motion } from "framer-motion";
+import { snappy } from "@/lib/motion";
 
 /**
  * The floating transcript card that sits over the editor while a note is live.
@@ -52,119 +54,133 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
     }
   };
 
-  if (minimized) {
-    return (
-      <div className="pointer-events-auto mx-auto w-full max-w-[576px]">
-        <div className="flex items-center gap-2 rounded-full border border-border bg-surface-2 px-3 py-1.5 shadow-lg">
-          <RecordingControls noteId={noteId} compact />
-          <button
-            type="button"
-            onClick={() => setMinimized(false)}
-            className="flex-1 truncate text-left text-xs text-muted transition-colors hover:text-text"
-          >
-            {recState === "recording" ? "Transcribing…" : "Transcript"}
-            {startedAt && recState !== "idle" && (
-              <span className="ml-2 tabular text-subtle">
-                <Elapsed startedAt={startedAt} />
-              </span>
-            )}
-          </button>
-          <Tooltip label="Close">
-            <button
-              type="button"
-              aria-label="Close transcript"
-              onClick={() => setOpen(false)}
-              className="grid size-5 place-items-center rounded text-subtle transition-colors hover:bg-hover hover:text-text"
-            >
-              <X className="size-3.5" />
-            </button>
-          </Tooltip>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="pointer-events-auto mx-auto w-full max-w-[576px]">
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface-2 shadow-xl">
-        <div className="flex items-center gap-2 px-3 py-2">
-          {searching ? (
-            <input
-              autoFocus
-              value={query}
-              placeholder="Search transcript"
-              onChange={(e) => setQuery(e.target.value)}
-              onBlur={() => !query && setSearching(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setQuery("");
-                  setSearching(false);
-                }
-              }}
-              className="h-6 flex-1 bg-transparent text-xs text-text outline-none placeholder:text-subtle"
-            />
-          ) : (
-            <>
+      <AnimatePresence mode="wait" initial={false}>
+        {minimized ? (
+          <motion.div
+            key="minimized"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={snappy}
+          >
+            <div className="flex items-center gap-2 rounded-full border border-border bg-surface-2 px-3 py-1.5 shadow-lg">
+              <RecordingControls noteId={noteId} compact />
               <button
                 type="button"
-                aria-label="Search transcript"
-                onClick={() => setSearching(true)}
-                className="grid size-5 place-items-center rounded text-subtle transition-colors hover:bg-hover hover:text-text"
+                onClick={() => setMinimized(false)}
+                className="flex-1 truncate text-left text-xs text-muted transition-colors hover:text-text"
               >
-                <Search className="size-3.5" />
-              </button>
-              <div className="flex-1" />
-            </>
-          )}
-
-          <PanelAction label="Report a problem" icon={ThumbsDown} onClick={() => toast.info("Thanks — feedback noted")} />
-          <PanelAction label="Copy transcript" icon={Copy} onClick={() => void copyAll()} />
-          <PanelAction label="Minimise" icon={Minus} onClick={() => setMinimized(true)} />
-        </div>
-
-        <div ref={scrollRef} className="h-[240px] overflow-y-auto px-4">
-          {filtered.length === 0 ? (
-            <div className="grid h-full place-items-center text-center">
-              <p className="text-[13px] text-subtle">
-                {query
-                  ? "No matching lines"
-                  : recState === "recording"
-                    ? "Transcript starting…"
-                    : "Nothing transcribed yet"}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2 py-2">
-              {filtered.map((segment) => (
-                <div key={segment.id} className="flex gap-2 text-[13px] leading-relaxed">
-                  <span
-                    className={cn(
-                      "shrink-0 pt-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                      segment.speaker === "me" ? "text-accent" : "text-subtle",
-                    )}
-                  >
-                    {segment.speaker === "me" ? "Me" : "Them"}
+                {recState === "recording" ? "Transcribing…" : "Transcript"}
+                {startedAt && recState !== "idle" && (
+                  <span className="ml-2 tabular text-subtle">
+                    <Elapsed startedAt={startedAt} />
                   </span>
-                  <span className="text-text">{segment.text}</span>
-                </div>
-              ))}
+                )}
+              </button>
+              <Tooltip label="Close">
+                <button
+                  type="button"
+                  aria-label="Close transcript"
+                  onClick={() => setOpen(false)}
+                  className="grid size-5 place-items-center rounded text-subtle transition-colors hover:bg-hover hover:text-text"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </Tooltip>
             </div>
-          )}
-        </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="expanded"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={snappy}
+          >
+            <div className="overflow-hidden rounded-2xl border border-border bg-surface-2 shadow-xl">
+              <div className="flex items-center gap-2 px-3 py-2">
+                {searching ? (
+                  <input
+                    autoFocus
+                    value={query}
+                    placeholder="Search transcript"
+                    onChange={(e) => setQuery(e.target.value)}
+                    onBlur={() => !query && setSearching(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setQuery("");
+                        setSearching(false);
+                      }
+                    }}
+                    className="h-6 flex-1 bg-transparent text-xs text-text outline-none placeholder:text-subtle"
+                  />
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Search transcript"
+                      onClick={() => setSearching(true)}
+                      className="grid size-5 place-items-center rounded text-subtle transition-colors hover:bg-hover hover:text-text"
+                    >
+                      <Search className="size-3.5" />
+                    </button>
+                    <div className="flex-1" />
+                  </>
+                )}
 
-        <div className="mx-3 mb-2 rounded-lg bg-hover px-3 py-1.5 text-center text-[11px] text-subtle">
-          Always get consent when transcribing others.{" "}
-          <button type="button" className="text-muted underline-offset-2 hover:underline">
-            Learn more
-          </button>
-        </div>
+                <PanelAction label="Report a problem" icon={ThumbsDown} onClick={() => toast.info("Thanks — feedback noted")} />
+                <PanelAction label="Copy transcript" icon={Copy} onClick={() => void copyAll()} />
+                <PanelAction label="Minimise" icon={Minus} onClick={() => setMinimized(true)} />
+              </div>
 
-        <div className="border-t border-border px-3 py-2">
-          <RecordingControls noteId={noteId} />
-        </div>
-      </div>
+              <div ref={scrollRef} className="h-[240px] overflow-y-auto px-4">
+                {filtered.length === 0 ? (
+                  <div className="grid h-full place-items-center text-center">
+                    <p className="text-[13px] text-subtle">
+                      {query
+                        ? "No matching lines"
+                        : recState === "recording"
+                          ? "Transcript starting…"
+                          : "Nothing transcribed yet"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 py-2">
+                    {filtered.map((segment) => (
+                      <div key={segment.id} className="flex gap-2 text-[13px] leading-relaxed">
+                        <span
+                          className={cn(
+                            "shrink-0 pt-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                            segment.speaker === "me" ? "text-accent" : "text-subtle",
+                          )}
+                        >
+                          {segment.speaker === "me" ? "Me" : "Them"}
+                        </span>
+                        <span className="text-text">{segment.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-      <p className="mt-2 text-center text-[11px] text-subtle">Bagrry uses AI and can make mistakes.</p>
+              <div className="mx-3 mb-2 rounded-lg bg-hover px-3 py-1.5 text-center text-[11px] text-subtle">
+                Always get consent when transcribing others.{" "}
+                <button type="button" className="text-muted underline-offset-2 hover:underline">
+                  Learn more
+                </button>
+              </div>
+
+              <div className="border-t border-border px-3 py-2">
+                <RecordingControls noteId={noteId} />
+              </div>
+            </div>
+
+            <p className="mt-2 text-center text-[11px] text-subtle">Bagrry uses AI and can make mistakes.</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

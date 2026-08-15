@@ -45,6 +45,8 @@ import {
   Switch,
 } from "@/components/ui/controls";
 import { toast } from "@/components/ui/toast";
+import { AnimatePresence, motion } from "framer-motion";
+import { snappy } from "@/lib/motion";
 
 type NavEntry = { tab: SettingsTab; label: string; icon: LucideIcon };
 
@@ -93,19 +95,28 @@ export function SettingsPage({ tab }: { tab: SettingsTab }) {
       </nav>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[620px] px-8 pb-16 pt-6">
-          {tab === "preferences" && <PreferencesTab />}
-          {tab === "profile" && <ProfileTab />}
-          {tab === "calendar" && <CalendarTab />}
-          {tab === "notifications" && <NotificationsTab />}
-          {tab === "connectors" && <ConnectorsTab />}
-          {tab === "help" && <HelpTab />}
-          {tab === "workspace-general" && <WorkspaceGeneralTab />}
-          {tab === "members" && <MembersTab />}
-          {tab === "spaces" && <SpacesTab />}
-          {tab === "analytics" && <AnalyticsTab />}
-          {tab === "billing" && <BillingTab />}
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={snappy}
+            className="mx-auto w-full max-w-[620px] px-8 pb-16 pt-6"
+          >
+            {tab === "preferences" && <PreferencesTab />}
+            {tab === "profile" && <ProfileTab />}
+            {tab === "calendar" && <CalendarTab />}
+            {tab === "notifications" && <NotificationsTab />}
+            {tab === "connectors" && <ConnectorsTab />}
+            {tab === "help" && <HelpTab />}
+            {tab === "workspace-general" && <WorkspaceGeneralTab />}
+            {tab === "members" && <MembersTab />}
+            {tab === "spaces" && <SpacesTab />}
+            {tab === "analytics" && <AnalyticsTab />}
+            {tab === "billing" && <BillingTab />}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );

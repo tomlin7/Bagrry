@@ -32,6 +32,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AnimatePresence, motion } from "framer-motion";
+import { snappy } from "@/lib/motion";
 
 type Tab = "notes" | "enhanced";
 
@@ -256,44 +258,73 @@ export function NotePage({ noteId }: { noteId: string }) {
           </div>
 
           <div className="mt-5">
-            {tab === "enhanced" && hasEnhanced ? (
-              <EnhancedNotes noteId={noteId} json={note.enhanced_notes_json} />
-            ) : (
-              <NoteEditor
-                noteId={noteId}
-                initialContent={note.scratchpad_raw}
-                onSave={(html) => saveBody.mutate(html)}
-                onSelectionChange={setSelection}
-              />
-            )}
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={tab === "enhanced" && hasEnhanced ? "enhanced" : "notes"}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={snappy}
+              >
+                {tab === "enhanced" && hasEnhanced ? (
+                  <EnhancedNotes noteId={noteId} json={note.enhanced_notes_json} />
+                ) : (
+                  <NoteEditor
+                    noteId={noteId}
+                    initialContent={note.scratchpad_raw}
+                    onSave={(html) => saveBody.mutate(html)}
+                    onSelectionChange={setSelection}
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>
 
-      {selection && tab === "notes" && (
-        <SelectionToolbar
-          busy={reprompt.isPending}
-          onInstruction={(instruction) => reprompt.mutate(instruction)}
-        />
-      )}
+      <AnimatePresence>
+        {selection && tab === "notes" && (
+          <SelectionToolbar
+            busy={reprompt.isPending}
+            onInstruction={(instruction) => reprompt.mutate(instruction)}
+          />
+        )}
+      </AnimatePresence>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-4">
-        {transcriptOpen ? (
-          <TranscriptPanel noteId={noteId} />
-        ) : (
-          <div className="pointer-events-auto mx-auto flex w-full max-w-[640px] items-center gap-2">
-            <div className="rounded-full border border-border bg-surface px-2.5 py-1.5 shadow-md">
-              <RecordingControls noteId={noteId} compact />
-            </div>
-            <AskBar
-              className="flex-1"
-              placeholder="Ask anything"
-              showModel={false}
-              busy={ask.isPending}
-              onSubmit={(value) => ask.mutate(value)}
-            />
-          </div>
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          {transcriptOpen ? (
+            <motion.div
+              key="transcript"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={snappy}
+            >
+              <TranscriptPanel noteId={noteId} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="askbar"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={snappy}
+              className="pointer-events-auto mx-auto flex w-full max-w-[640px] items-center gap-2"
+            >
+              <div className="rounded-full border border-border bg-surface px-2.5 py-1.5 shadow-md">
+                <RecordingControls noteId={noteId} compact />
+              </div>
+              <AskBar
+                className="flex-1"
+                placeholder="Ask anything"
+                showModel={false}
+                busy={ask.isPending}
+                onSubmit={(value) => ask.mutate(value)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -410,8 +441,14 @@ function SelectionToolbar({
   onInstruction: (instruction: string) => void;
 }) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-elevated px-1.5 py-1 shadow-lg animate-slide-up">
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={snappy}
+      className="pointer-events-none absolute inset-x-0 top-3 flex justify-center"
+    >
+      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-elevated px-1.5 py-1 shadow-lg">
         <Sparkles className="ml-1 size-3.5 text-accent" />
         {REWRITE_ACTIONS.map((action) => (
           <Button
@@ -425,6 +462,6 @@ function SelectionToolbar({
           </Button>
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }
