@@ -7,6 +7,14 @@
     "core:default",
     "opener:default",
     "core:tray:default",
-    "global-shortcut:default"
+    "global-shortcut:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
   ]
 }

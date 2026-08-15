@@ -1,117 +1,154 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Command } from "cmdk";
+import {
+  FileText,
+  Home,
+  MessageSquare,
+  Mic,
+  Plus,
+  Search,
+  Settings,
+  Users,
+} from "lucide-react";
 import * as api from "@/lib/api";
-import type { Page } from "@/lib/types";
+import { formatDayLabel } from "@/lib/format";
+import { MY_NOTES_SPACE } from "@/lib/types";
 import { useAppStore } from "@/store/app";
-import { cn } from "@/lib/utils";
-
-const GO: { page: Page; label: string; hint: string }[] = [
-  { page: "dashboard", label: "Go to Home", hint: "Dashboard" },
-  { page: "notes", label: "Go to Notes", hint: "Notepad" },
-  { page: "search", label: "Ask across meetings", hint: "Chat" },
-  { page: "calendar", label: "Calendar & briefs", hint: "Prep" },
-  { page: "actions", label: "Action items", hint: "Follow-up" },
-  { page: "people", label: "People", hint: "Directory" },
-  { page: "companies", label: "Companies", hint: "Accounts" },
-  { page: "templates", label: "Templates & recipes", hint: "Enhance" },
-  { page: "workspace", label: "Workspace", hint: "Plan & privacy" },
-  { page: "settings", label: "Settings", hint: "Keys" },
-];
+import { useCreateNote } from "@/hooks/useCreateNote";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Kbd } from "@/components/ui/misc";
 
 export function CommandPalette() {
   const open = useAppStore((s) => s.paletteOpen);
   const setOpen = useAppStore((s) => s.setPaletteOpen);
-  const setPage = useAppStore((s) => s.setPage);
-  const selectMeeting = useAppStore((s) => s.selectMeeting);
-  const setChatOpen = useAppStore((s) => s.setChatOpen);
-  const [q, setQ] = useState("");
-  const meetings = useQuery({
-    queryKey: ["meetings", null],
-    queryFn: () => api.listMeetings(null),
+  const navigate = useAppStore((s) => s.navigate);
+  const openNote = useAppStore((s) => s.openNote);
+  const createNote = useCreateNote();
+
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(query.trim()), 150);
+    return () => clearTimeout(id);
+  }, [query]);
+
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
+
+  const { data: results = [] } = useQuery({
+    queryKey: api.qk.search(debounced),
+    queryFn: () => api.searchMeetings(debounced),
+    enabled: open && debounced.length > 0,
+  });
+
+  const { data: recent = [] } = useQuery({
+    queryKey: api.qk.meetings(),
+    queryFn: () => api.listMeetings(),
     enabled: open,
   });
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setOpen(!useAppStore.getState().paletteOpen);
-      }
-      if (e.key === "Escape") setOpen(false);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [setOpen]);
+  const notes = debounced ? results : recent.slice(0, 5);
 
-  const items = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    const jumps = GO.filter((g) => !query || g.label.toLowerCase().includes(query) || g.hint.toLowerCase().includes(query));
-    const notes = (meetings.data ?? []).filter((m) => !query || m.title.toLowerCase().includes(query)).slice(0, 8);
-    return { jumps, notes };
-  }, [q, meetings.data]);
-
-  if (!open) return null;
+  const run = (action: () => void) => {
+    setOpen(false);
+    action();
+  };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center bg-[#1c1914]/25 px-4 pt-[12vh] backdrop-blur-[2px]" onClick={() => setOpen(false)}>
-      <div
-        className="paper-card w-full max-w-xl overflow-hidden rounded-2xl border border-[#e4dfd3]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <input
-          autoFocus
-          className="h-12 w-full border-b border-border bg-transparent px-4 text-sm outline-none"
-          placeholder="Jump, search notes, or ask…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <div className="max-h-80 overflow-y-auto p-2">
-          {items.jumps.map((g) => (
-            <button
-              key={g.page}
-              type="button"
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-accent"
-              onClick={() => {
-                setPage(g.page);
-                setOpen(false);
-              }}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent bare className="max-w-[520px]" aria-label="Command palette">
+        <Command
+          shouldFilter={false}
+          className="overflow-hidden rounded-2xl border border-border bg-elevated shadow-xl"
+        >
+          <div className="flex items-center gap-2 border-b border-border px-3">
+            <Search className="size-4 shrink-0 text-subtle" />
+            <Command.Input
+              autoFocus
+              value={query}
+              onValueChange={setQuery}
+              placeholder="Search notes or jump to…"
+              className="h-11 flex-1 bg-transparent text-[13px] text-text outline-none placeholder:text-subtle"
+            />
+            <Kbd>ESC</Kbd>
+          </div>
+
+          <Command.List className="max-h-[340px] overflow-y-auto p-1.5">
+            <Command.Empty className="px-3 py-6 text-center text-[13px] text-subtle">
+              No results for “{debounced}”
+            </Command.Empty>
+
+            {notes.length > 0 && (
+              <Command.Group
+                heading={debounced ? "Notes" : "Recent"}
+                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-subtle"
+              >
+                {notes.map((note) => (
+                  <Item key={note.id} onSelect={() => run(() => openNote(note.id))}>
+                    <FileText className="size-4 text-subtle" />
+                    <span className="min-w-0 flex-1 truncate">{note.title || "Untitled"}</span>
+                    <span className="text-[11px] text-subtle">{formatDayLabel(note.date)}</span>
+                  </Item>
+                ))}
+              </Command.Group>
+            )}
+
+            <Command.Group
+              heading="Actions"
+              className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-subtle"
             >
-              <span>{g.label}</span>
-              <span className="text-[11px] text-muted-foreground">{g.hint}</span>
-            </button>
-          ))}
-          {items.notes.length > 0 && (
-            <p className="px-3 pb-1 pt-3 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Notes</p>
-          )}
-          {items.notes.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              className="flex w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-accent"
-              onClick={() => {
-                selectMeeting(m.id);
-                setOpen(false);
-              }}
+              <Item onSelect={() => run(() => createNote.mutate({}))}>
+                <Plus className="size-4 text-subtle" />
+                New note
+              </Item>
+              <Item onSelect={() => run(() => createNote.mutate({ record: true }))}>
+                <Mic className="size-4 text-subtle" />
+                New note and start recording
+              </Item>
+            </Command.Group>
+
+            <Command.Group
+              heading="Go to"
+              className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-subtle"
             >
-              {m.title}
-            </button>
-          ))}
-          {q.trim() && (
-            <button
-              type="button"
-              className={cn("mt-1 flex w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-accent")}
-              onClick={() => {
-                setPage("search");
-                setChatOpen(true);
-                setOpen(false);
-              }}
-            >
-              Ask “{q.trim()}” across meetings
-            </button>
-          )}
-        </div>
-        <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">Ctrl+K · Esc to close</p>
-      </div>
-    </div>
+              <Item onSelect={() => run(() => navigate({ kind: "home" }))}>
+                <Home className="size-4 text-subtle" />
+                Home
+              </Item>
+              <Item onSelect={() => run(() => navigate({ kind: "space", spaceId: MY_NOTES_SPACE }))}>
+                <FileText className="size-4 text-subtle" />
+                My notes
+              </Item>
+              <Item onSelect={() => run(() => navigate({ kind: "chat", sessionId: null }))}>
+                <MessageSquare className="size-4 text-subtle" />
+                Chat
+              </Item>
+              <Item onSelect={() => run(() => navigate({ kind: "shared" }))}>
+                <Users className="size-4 text-subtle" />
+                Shared with me
+              </Item>
+              <Item onSelect={() => run(() => navigate({ kind: "settings", tab: "preferences" }))}>
+                <Settings className="size-4 text-subtle" />
+                Settings
+              </Item>
+            </Command.Group>
+          </Command.List>
+        </Command>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Item({ onSelect, children }: { onSelect: () => void; children: React.ReactNode }) {
+  return (
+    <Command.Item
+      onSelect={onSelect}
+      className="flex cursor-default select-none items-center gap-2 rounded-lg px-2 py-2 text-[13px] text-text outline-none data-[selected=true]:bg-hover"
+    >
+      {children}
+    </Command.Item>
   );
 }
