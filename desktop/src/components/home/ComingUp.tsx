@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { CalendarClock, Settings2 } from "lucide-react";
 import * as api from "@/lib/api";
 import { dayOffset, formatMonth, formatTime, formatWeekday, parseDbDate } from "@/lib/format";
@@ -49,7 +50,7 @@ export function ComingUp() {
     <section>
       <h1 className="font-display mb-3 animate-slide-up text-[26px] font-semibold text-text">Coming up</h1>
 
-      <div className="flex animate-slide-up overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="hover-lift flex animate-slide-up overflow-hidden rounded-xl border border-border bg-surface">
         <div className="w-[150px] shrink-0 border-r border-border p-4">
           <div className="flex items-baseline gap-2">
             <span className="font-display text-[26px] font-semibold leading-none text-text">
@@ -73,12 +74,15 @@ export function ComingUp() {
             </div>
           ) : upcoming.length > 0 ? (
             <div className="space-y-1">
-              {upcoming.map(({ event, start }) => {
+              {upcoming.map(({ event, start }, i) => {
                 const names = attendeeNames(event);
                 const offset = dayOffset(start);
                 return (
-                  <div
+                  <motion.div
                     key={event.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.14, delay: Math.min(i * 0.04, 0.16) }}
                     className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-hover"
                   >
                     <Avatar name={names[0] ?? event.title} size={30} className="rounded-lg" />
@@ -98,7 +102,7 @@ export function ComingUp() {
                     >
                       Start now
                     </Button>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>

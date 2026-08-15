@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { Copy, FileText, MoreHorizontal, Share2, Trash2 } from "lucide-react";
 import * as api from "@/lib/api";
 import { formatDayLabel, formatTime, parseDbDate, previewText } from "@/lib/format";
@@ -72,8 +73,15 @@ export function NoteList({
         <section key={group.label} className="mb-4">
           <h3 className="px-2 pb-1 text-[11px] font-semibold text-subtle">{group.label}</h3>
           <div>
-            {group.notes.map((note) => (
-              <NoteRow key={note.id} note={note} />
+            {group.notes.map((note, i) => (
+              <motion.div
+                key={note.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.14, delay: Math.min(i * 0.03, 0.18) }}
+              >
+                <NoteRow note={note} />
+              </motion.div>
             ))}
           </div>
         </section>
