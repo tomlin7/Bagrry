@@ -34,6 +34,8 @@ pub struct SttOptions {
     pub language: Option<String>,
     /// Domain vocabulary (internal jargon) used to bias decoding.
     pub prompt: Option<String>,
+    /// Groq Whisper model id. `None` uses `whisper-large-v3-turbo`.
+    pub model: Option<String>,
 }
 
 pub fn transcribe_wav(
@@ -59,7 +61,12 @@ pub fn transcribe_wav(
         body.extend_from_slice(value.as_bytes());
         body.extend_from_slice(b"\r\n");
     }
-    field(&mut body, boundary, "model", STT_MODEL);
+    let model = opts
+        .model
+        .as_deref()
+        .filter(|m| !m.is_empty())
+        .unwrap_or(STT_MODEL);
+    field(&mut body, boundary, "model", model);
     field(&mut body, boundary, "response_format", "verbose_json");
     if let Some(lang) = opts.language.as_deref().filter(|l| !l.is_empty()) {
         field(&mut body, boundary, "language", lang);
@@ -97,9 +104,18 @@ pub fn transcribe_wav(
     resp.into_json().map_err(|e| format!("stt json: {e}"))
 }
 
-pub fn chat(api_key: &str, system: &str, user: &str, json_mode: bool) -> Result<String, String> {
+pub fn chat(
+    api_key: &str,
+    system: &str,
+    user: &str,
+    json_mode: bool,
+    model: Option<&str>,
+) -> Result<String, String> {
+    let model = model
+        .filter(|m| !m.is_empty())
+        .unwrap_or(CHAT_MODEL);
     let mut body = json!({
-        "model": CHAT_MODEL,
+        "model": model,
         "temperature": 0.2,
         "messages": [
             {"role": "system", "content": system},

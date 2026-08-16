@@ -337,9 +337,20 @@ fn stt_options(conn: &rusqlite::Connection) -> groq::SttOptions {
         other => Some(other.split('-').next().unwrap_or("en").to_string()),
     };
     let jargon = secrets::get_setting(conn, "internal_jargon", "");
+    let model = secrets::get_setting(conn, "stt_model", "whisper-large-v3-turbo");
     groq::SttOptions {
         language,
         prompt: (!jargon.is_empty()).then_some(jargon),
+        model: (!model.trim().is_empty()).then_some(model),
+    }
+}
+
+fn chat_model(conn: &rusqlite::Connection) -> String {
+    let m = secrets::get_setting(conn, "chat_model", "llama-3.3-70b-versatile");
+    if m.trim().is_empty() {
+        "llama-3.3-70b-versatile".into()
+    } else {
+        m
     }
 }
 
@@ -431,6 +442,7 @@ pub fn enhance_meeting(
     };
     let key = secrets::get_secret(&conn, "groq_api_key")?;
     let ctx = enhance_context(&conn);
+    let model = chat_model(&conn);
     drop(conn);
     let doc = pipeline::enhance(
         key.as_deref(),
@@ -439,6 +451,7 @@ pub fn enhance_meeting(
         &prompt,
         &structure,
         &ctx,
+        Some(&model),
     )?;
     let json = serde_json::to_string(&doc).map_err(|e| e.to_string())?;
     let conn = state.conn()?;
@@ -476,6 +489,7 @@ pub fn run_recipe(state: State<AppState>, meeting_id: String, recipe_id: String)
         )
         .map_err(|e| e.to_string())?;
     let key = secrets::get_secret(&conn, "groq_api_key")?;
+    let model = chat_model(&conn);
     drop(conn);
     let user = format!(
         "NOTES:\n{}\n\nENHANCED:\n{}",
@@ -483,7 +497,7 @@ pub fn run_recipe(state: State<AppState>, meeting_id: String, recipe_id: String)
         meeting.enhanced_notes_json.unwrap_or_default()
     );
     if let Some(k) = key.filter(|s| !s.is_empty()) {
-        groq::chat(&k, &recipe, &user, false)
+        groq::chat(&k, &recipe, &user, false, Some(&model))
     } else {
         Ok(format!(
             "{}\n\n---\n{}\n\n{}",
@@ -504,6 +518,7 @@ pub fn reprompt_selection(
     let conn = state.conn()?;
     let segs = pipeline::load_segments(&conn, &meeting_id)?;
     let key = secrets::get_secret(&conn, "groq_api_key")?;
+    let model = chat_model(&conn);
     drop(conn);
     let transcript = segs
         .iter()
@@ -513,7 +528,7 @@ pub fn reprompt_selection(
     let system = "Rewrite only the provided selection. Keep citations if present.";
     let user = format!("INSTRUCTION: {instruction}\n\nSELECTION:\n{selection}\n\nTRANSCRIPT:\n{transcript}");
     if let Some(k) = key.filter(|s| !s.is_empty()) {
-        groq::chat(&k, system, &user, false)
+        groq::chat(&k, system, &user, false, Some(&model))
     } else {
         Ok(format!("{instruction}\n\n{selection}"))
     }
@@ -580,11 +595,12 @@ pub fn ask_bagrry(
         }
     }
     let key = secrets::get_secret(&conn, "groq_api_key")?;
+    let model = chat_model(&conn);
     drop(conn);
     let system = "Answer from the meeting notes. Cite meeting titles. If unknown, say so.";
     let user = format!("QUESTION: {query}\n\nNOTES:\n{context}");
     if let Some(k) = key.filter(|s| !s.is_empty()) {
-        groq::chat(&k, system, &user, false)
+        groq::chat(&k, system, &user, false, Some(&model))
     } else {
         Ok(if context.is_empty() {
             "No matching notes. Try another query or add a Groq key for synthesis.".into()
@@ -598,11 +614,12 @@ pub fn ask_bagrry(
 pub fn live_ask(state: State<AppState>, query: String, live_transcript: String) -> Result<String, String> {
     let conn = state.conn()?;
     let key = secrets::get_secret(&conn, "groq_api_key")?;
+    let model = chat_model(&conn);
     drop(conn);
     let system = "You are an in-meeting copilot. Be brief. Use only the live transcript.";
     let user = format!("LIVE TRANSCRIPT:\n{live_transcript}\n\nQUESTION: {query}");
     if let Some(k) = key.filter(|s| !s.is_empty()) {
-        groq::chat(&k, system, &user, false)
+        groq::chat(&k, system, &user, false, Some(&model))
     } else {
         Ok("Live copilot needs a Groq API key in Settings.".into())
     }
@@ -893,11 +910,12 @@ pub fn pre_meeting_brief(state: State<AppState>, attendees_json: String) -> Resu
         }
     }
     let key = secrets::get_secret(&conn, "groq_api_key")?;
+    let model = chat_model(&conn);
     drop(conn);
     let system = "Write a short pre-meeting brief: past decisions, open action items, notes on attendees.";
     let user = format!("ATTENDEES: {attendees_json}\n\nHISTORY:\n{ctx}");
     if let Some(k) = key.filter(|s| !s.is_empty()) {
-        groq::chat(&k, system, &user, false)
+        groq::chat(&k, system, &user, false, Some(&model))
     } else {
         Ok(ctx.chars().take(2500).collect())
     }

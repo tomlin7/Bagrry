@@ -200,6 +200,7 @@ pub fn enhance(
     template_prompt: &str,
     structure: &str,
     ctx: &EnhanceContext,
+    model: Option<&str>,
 ) -> Result<EnhancedDoc, String> {
     if let Some(key) = api_key.filter(|k| !k.is_empty()) {
         let transcript = segs
@@ -216,7 +217,7 @@ pub fn enhance(
              Template: {template_prompt}\nStructure: {structure}\n{context}"
         );
         let user = format!("SCRATCHPAD:\n{scratchpad}\n\nTRANSCRIPT:\n{transcript}");
-        let raw = groq::chat(key, &system, &user, true)?;
+        let raw = groq::chat(key, &system, &user, true, model)?;
         if let Ok(doc) = serde_json::from_str::<EnhancedDoc>(&raw) {
             return Ok(doc);
         }

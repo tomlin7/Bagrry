@@ -2,9 +2,11 @@ import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUp, ChevronDown, Grid2x2, Mic, Paperclip, SquareCheck } from "lucide-react";
 import * as api from "@/lib/api";
+import { CHAT_MODELS, DEFAULT_CHAT_MODEL } from "@/lib/models";
 import { cn } from "@/lib/utils";
 import { AutoTextarea } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useSetting } from "@/hooks/useSetting";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,11 +15,6 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-export const MODELS = [
-  { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
-  { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B" },
-] as const;
 
 /**
  * The "Ask anything" composer. Used inline on space pages and docked to the
@@ -41,7 +38,7 @@ export function AskBar({
   className?: string;
 }) {
   const [value, setValue] = useState("");
-  const [model, setModel] = useState<string>(MODELS[0].id);
+  const [model, setModel] = useSetting("chat_model", DEFAULT_CHAT_MODEL);
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -108,16 +105,17 @@ export function AskBar({
                 type="button"
                 className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] text-muted transition-colors hover:bg-hover hover:text-text"
               >
-                {MODELS.find((m) => m.id === model)?.label ?? "Model"}
+                {CHAT_MODELS.find((m) => m.id === model)?.label ?? "Model"}
                 <ChevronDown className="size-3" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="min-w-[14rem]">
               <DropdownMenuLabel>Model</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={model} onValueChange={setModel}>
-                {MODELS.map((m) => (
+                {CHAT_MODELS.map((m) => (
                   <DropdownMenuRadioItem key={m.id} value={m.id}>
                     {m.label}
+                    <span className="ml-auto text-[10px] text-muted">{m.hint}</span>
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
