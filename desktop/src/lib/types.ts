@@ -14,6 +14,8 @@ export type Folder = {
   parent_id: string | null;
   name: string;
   is_shared: boolean;
+  icon: string | null;
+  description: string | null;
 };
 
 export type Meeting = {
@@ -98,12 +100,16 @@ export type Person = {
   email: string | null;
   domain: string | null;
   company_id: string | null;
+  note_count: number;
+  last_note_at: string | null;
 };
 
 export type Company = {
   id: string;
   name: string;
   domain: string | null;
+  note_count: number;
+  last_note_at: string | null;
 };
 
 export type CalendarEvent = {
@@ -181,6 +187,8 @@ export type Route =
   | { kind: "chat"; sessionId: string | null }
   | { kind: "space"; spaceId: string }
   | { kind: "note"; noteId: string }
+  | { kind: "people" }
+  | { kind: "companies" }
   | { kind: "settings"; tab: SettingsTab };
 
 export function routeKey(route: Route): string {

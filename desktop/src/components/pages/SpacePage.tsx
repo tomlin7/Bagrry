@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Blocks, Folder as FolderIcon, Lock, NotebookPen, Users, X } from "lucide-react";
+import { Blocks, Lock, NotebookPen, Users, X } from "lucide-react";
 import * as api from "@/lib/api";
 import { MY_NOTES_SPACE, TEAM_SPACE } from "@/lib/types";
+import { folderGlyph, folderGlyphClass } from "@/lib/folder-templates";
 import { useAppStore } from "@/store/app";
 import { useChat } from "@/hooks/useChat";
 import { spaceToFolderId, useCreateNote } from "@/hooks/useCreateNote";
@@ -10,6 +11,7 @@ import { NoteList } from "@/components/notes/NoteList";
 import { AskBar, RecipeChips } from "@/components/chat/AskBar";
 import { Avatar, EmptyState } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const BANNER_DISMISS_PREFIX = "bagrry.banner.";
 
@@ -39,6 +41,8 @@ export function SpacePage({ spaceId }: { spaceId: string }) {
       : spaceId === TEAM_SPACE
         ? allNotes.filter((n) => n.folder_id && sharedFolderIds.has(n.folder_id))
         : allNotes;
+
+  const FolderGlyph = folderGlyph(folder?.icon);
 
   const header =
     spaceId === MY_NOTES_SPACE
@@ -81,11 +85,11 @@ export function SpacePage({ spaceId }: { spaceId: string }) {
             },
           }
         : {
-            icon: <FolderIcon className="size-3.5" />,
+            icon: <FolderGlyph className={cn("size-3.5", folderGlyphClass(folder?.icon))} />,
             title: folder?.name ?? "Folder",
-            subtitle: folder?.is_shared
-              ? "Shared with your workspace."
-              : "A private folder in your space.",
+            subtitle:
+              folder?.description ||
+              (folder?.is_shared ? "Shared with your workspace." : "A private folder in your space."),
             meta: folder?.is_shared ? (
               <>
                 <Users className="size-3" />

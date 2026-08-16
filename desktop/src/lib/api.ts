@@ -36,8 +36,17 @@ export const moveMeeting = (id: string, folderId?: string | null) =>
 export const duplicateMeeting = (id: string) => invoke<Meeting>("duplicate_meeting", { id });
 
 export const listFolders = () => invoke<Folder[]>("list_folders");
-export const createFolder = (name: string, isShared = false) =>
-  invoke<Folder>("create_folder", { name, isShared });
+export const createFolder = (
+  name: string,
+  isShared = false,
+  extras?: { icon?: string | null; description?: string | null },
+) =>
+  invoke<Folder>("create_folder", {
+    name,
+    isShared,
+    icon: extras?.icon ?? null,
+    description: extras?.description ?? null,
+  });
 export const renameFolder = (id: string, name: string) => invoke<void>("rename_folder", { id, name });
 export const deleteFolder = (id: string) => invoke<void>("delete_folder", { id });
 export const setFolderShared = (id: string, isShared: boolean) =>
