@@ -25,11 +25,30 @@ export function TitleBar() {
   const createNote = useCreateNote();
   const showNewNote = route.kind === "home" || route.kind === "space" || route.kind === "shared";
 
+  if (route.kind === "settings") {
+    return (
+      <header data-tauri-drag-region className="relative flex h-11 shrink-0 items-center pl-3 pr-0">
+        <Tooltip label="Back" shortcut="Alt+←">
+          <button
+            type="button"
+            aria-label="Back"
+            onClick={back}
+            className="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-hover hover:text-text"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+        </Tooltip>
+        <div className="pointer-events-none absolute inset-0 grid place-items-center text-[13px] font-medium text-text">
+          Settings
+        </div>
+        <div data-tauri-drag-region className="h-full flex-1" />
+        <WindowControls />
+      </header>
+    );
+  }
+
   return (
-    <header
-      data-tauri-drag-region
-      className="flex h-11 shrink-0 items-center gap-2 pl-3 pr-0"
-    >
+    <header data-tauri-drag-region className="flex h-11 shrink-0 items-center gap-2 pl-3 pr-0">
       <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
         <AnimatePresence initial={false}>
           {history.length > 0 && (
@@ -107,9 +126,7 @@ function RecordingPill() {
       onClick={() => meetingId && openNote(meetingId)}
       className="flex h-6 items-center gap-1.5 rounded-full bg-danger/12 px-2 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20"
     >
-      <span
-        className={cn("size-1.5 rounded-full bg-danger", recState === "recording" && "animate-pulse-ring")}
-      />
+      <span className={cn("size-1.5 rounded-full bg-danger", recState === "recording" && "animate-pulse-ring")} />
       {recState === "recording" ? "Recording" : "Paused"}
     </button>
   );

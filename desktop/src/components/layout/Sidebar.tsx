@@ -41,8 +41,41 @@ import { CreateFolderDialog } from "@/components/layout/CreateFolderDialog";
 import { folderGlyph, folderGlyphClass } from "@/lib/folder-templates";
 import { SIDEBAR_WIDTH, layoutTween } from "@/lib/motion";
 import { AnimatePresence, motion } from "framer-motion";
+import { SettingsSidebar } from "@/components/layout/SettingsSidebar";
 
 export function Sidebar() {
+  const route = useAppStore((s) => s.route);
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {route.kind === "settings" ? (
+        <motion.div
+          key="settings"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={snappy}
+          className="h-full"
+        >
+          <SettingsSidebar tab={route.tab} />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="app"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={snappy}
+          className="h-full"
+        >
+          <AppSidebar />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function AppSidebar() {
   const route = useAppStore((s) => s.route);
   const navigate = useAppStore((s) => s.navigate);
   const openSettings = useAppStore((s) => s.openSettings);

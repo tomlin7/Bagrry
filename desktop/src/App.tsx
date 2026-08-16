@@ -65,7 +65,7 @@ export default function App() {
             <main className="relative min-h-0 flex-1 overflow-hidden">
               <AnimatePresence mode="sync" initial={false}>
                 <motion.div
-                  key={routeKey(route)}
+                  key={route.kind === "settings" ? "settings" : routeKey(route)}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
