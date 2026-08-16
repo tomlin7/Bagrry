@@ -9,6 +9,7 @@ import { routeKey, type RecStatus, type VuLevels } from "@/lib/types";
 import { useAppStore } from "@/store/app";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { SidebarRail } from "@/components/layout/SidebarRail";
 import { TitleBar } from "@/components/layout/TitleBar";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Onboarding } from "@/components/Onboarding";
@@ -21,7 +22,7 @@ import { SharedPage } from "@/components/pages/SharedPage";
 import { PeoplePage } from "@/components/pages/PeoplePage";
 import { CompaniesPage } from "@/components/pages/CompaniesPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
-import { sidebarTween, SIDEBAR_WIDTH, snappy } from "@/lib/motion";
+import { snappy } from "@/lib/motion";
 
 export default function App() {
   const route = useAppStore((s) => s.route);
@@ -36,29 +37,9 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <TooltipProvider delayDuration={350} skipDelayDuration={200}>
         <div className="flex h-full w-full overflow-hidden bg-bg text-text">
-          <AnimatePresence initial={false}>
-            {sidebarOpen && (
-              <motion.div
-                key="sidebar"
-                initial={{ width: 0 }}
-                animate={{ width: SIDEBAR_WIDTH }}
-                exit={{ width: 0 }}
-                transition={sidebarTween}
-                className="relative h-full shrink-0 overflow-hidden"
-              >
-                <motion.div
-                  initial={{ x: -SIDEBAR_WIDTH }}
-                  animate={{ x: 0 }}
-                  exit={{ x: -SIDEBAR_WIDTH }}
-                  transition={sidebarTween}
-                  className="absolute inset-y-0 left-0 h-full"
-                  style={{ width: SIDEBAR_WIDTH }}
-                >
-                  <Sidebar />
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <SidebarRail open={sidebarOpen}>
+            <Sidebar />
+          </SidebarRail>
 
           <div className="flex min-w-0 flex-1 flex-col bg-bg">
             <TitleBar />
