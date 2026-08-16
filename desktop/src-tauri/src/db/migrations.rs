@@ -301,6 +301,12 @@ INSERT INTO meetings_fts(rowid, title, scratchpad_raw, enhanced_notes_json)
 SELECT rowid, title, scratchpad_raw, ifnull(enhanced_notes_json, '') FROM meetings;
 "#;
 
+/// Folder create panel: optional icon (template id) and purpose description.
+const V5: &str = r#"
+ALTER TABLE folders ADD COLUMN icon TEXT;
+ALTER TABLE folders ADD COLUMN description TEXT;
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -357,6 +363,16 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("record v4: {e}"))?;
+    }
+
+    if current < 5 {
+        conn.execute_batch(V5)
+            .map_err(|e| format!("migration v5: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (5)",
+            [],
+        )
+        .map_err(|e| format!("record v5: {e}"))?;
     }
 
     if vec_enabled {

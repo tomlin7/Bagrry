@@ -679,7 +679,9 @@ function SpacesTab() {
           <SettingRow
             key={folder.id}
             title={folder.name}
-            description={folder.is_shared ? "Shared with the workspace" : "Private"}
+            description={
+              folder.description || (folder.is_shared ? "Shared with the workspace" : "Private")
+            }
             control={folder.is_shared ? <Badge tone="accent">Shared</Badge> : <Badge>Private</Badge>}
           />
         ))}
