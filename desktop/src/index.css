@@ -13,10 +13,8 @@
   --motion-fast: 120ms;
   --motion: 160ms;
   --motion-layout: 200ms;
-  --motion-sidebar: 280ms;
   --motion-out: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-in: cubic-bezier(0.4, 0, 1, 1);
-  --ease-sidebar: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Surfaces, from furthest back to closest to the user */
   --bg: #f6f5f2;
@@ -415,32 +413,6 @@
 }
 .ui-dialog[data-state="closed"] {
   animation: dialog-out var(--motion-fast) var(--motion-in) both;
-}
-
-/* Sidebar rail: always mounted. Width collapses the slot; inner translate
-   slides the panel as a solid piece instead of clipping it away. */
-.sidebar-rail {
-  --sidebar-width: 208px;
-  position: relative;
-  height: 100%;
-  width: var(--sidebar-width);
-  min-width: 0;
-  flex-shrink: 0;
-  overflow: hidden;
-  transition: width var(--motion-sidebar) var(--ease-sidebar);
-}
-.sidebar-rail[data-open="false"] {
-  width: 0;
-}
-.sidebar-rail-inner {
-  height: 100%;
-  width: var(--sidebar-width);
-  will-change: transform;
-  transform: translate3d(0, 0, 0);
-  transition: transform var(--motion-sidebar) var(--ease-sidebar);
-}
-.sidebar-rail[data-open="false"] .sidebar-rail-inner {
-  transform: translate3d(-100%, 0, 0);
 }
 
 @media (prefers-reduced-motion: reduce) {

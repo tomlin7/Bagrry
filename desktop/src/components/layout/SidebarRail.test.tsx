@@ -3,15 +3,14 @@ import { render, screen } from "@testing-library/react";
 import { SidebarRail } from "./SidebarRail";
 
 describe("SidebarRail", () => {
-  it("stays mounted while closed so the slide can play", () => {
+  it("stays mounted while closed so the width tween can play", () => {
     const { rerender, container } = render(
       <SidebarRail open>
         <div>Notes</div>
       </SidebarRail>,
     );
 
-    const rail = container.querySelector(".sidebar-rail");
-    expect(rail).toHaveAttribute("data-open", "true");
+    expect(container.querySelector("[data-open='true']")).toBeTruthy();
     expect(screen.getByText("Notes")).toBeInTheDocument();
 
     rerender(
@@ -20,8 +19,8 @@ describe("SidebarRail", () => {
       </SidebarRail>,
     );
 
-    expect(rail).toHaveAttribute("data-open", "false");
+    expect(container.querySelector("[data-open='false']")).toBeTruthy();
     expect(screen.getByText("Notes")).toBeInTheDocument();
-    expect(container.querySelector(".sidebar-rail-inner")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("Notes").closest("[aria-hidden='true']")).toBeTruthy();
   });
 });
