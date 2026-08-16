@@ -5,6 +5,7 @@ import { useAppStore } from "@/store/app";
 import { useCreateNote } from "@/hooks/useCreateNote";
 import { useChat } from "@/hooks/useChat";
 import { ComingUp } from "@/components/home/ComingUp";
+import { ActionItemsStrip } from "@/components/home/ActionItemsStrip";
 import { NoteList } from "@/components/notes/NoteList";
 import { AskBar, RecipeChips } from "@/components/chat/AskBar";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ export function HomePage() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[720px] px-6 pb-40 pt-2">
           <ComingUp />
+          <ActionItemsStrip />
 
           <div className="mt-8">
             <NoteList

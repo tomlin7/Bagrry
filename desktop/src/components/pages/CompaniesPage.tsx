@@ -4,9 +4,11 @@ import { Building2 } from "lucide-react";
 import * as api from "@/lib/api";
 import { mergeDomainCompanies, mergeSelfIntoPeople } from "@/lib/directory";
 import { DirectoryEmpty, DirectoryFilter, DirectoryPanel } from "@/components/directory/DirectoryPanel";
+import { CompanyNotesDialog } from "@/components/directory/EntityDialogs";
 
 export function CompaniesPage() {
   const [scope, setScope] = useState<"all" | "met">("all");
+  const [selected, setSelected] = useState<{ name: string; domain: string | null } | null>(null);
   const { data: profile } = useQuery({ queryKey: api.qk.profile(), queryFn: api.getProfile });
   const { data: people = [] } = useQuery({ queryKey: api.qk.people(), queryFn: api.listPeople });
   const { data: companies = [] } = useQuery({ queryKey: api.qk.companies(), queryFn: api.listCompanies });
@@ -35,10 +37,15 @@ export function CompaniesPage() {
   }, [companies, meetings, people, profile, scope]);
 
   return (
-    <DirectoryPanel
-      title="Companies"
-      subjectColumn="Company"
-      searchPlaceholder="Search companies"
+    <>
+      <DirectoryPanel
+        title="Companies"
+        subjectColumn="Company"
+        searchPlaceholder="Search companies"
+        onRowClick={(id) => {
+          const company = rows.find((r) => r.id === id);
+          if (company) setSelected({ name: company.title, domain: company.subtitle ?? null });
+        }}
       filters={
         <DirectoryFilter
           variant="pill-link"
@@ -56,6 +63,13 @@ export function CompaniesPage() {
           <DirectoryEmpty icon={<Building2 />}>Companies of people you meet in Bagrry will appear here.</DirectoryEmpty>
         ) : null
       }
-    />
+      />
+      <CompanyNotesDialog
+        companyName={selected?.name ?? ""}
+        domain={selected?.domain ?? null}
+        open={Boolean(selected)}
+        onOpenChange={(open) => !open && setSelected(null)}
+      />
+    </>
   );
 }

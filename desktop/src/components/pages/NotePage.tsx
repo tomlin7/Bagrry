@@ -59,6 +59,8 @@ export function NotePage({ noteId }: { noteId: string }) {
 
   const { data: folders = [] } = useQuery({ queryKey: api.qk.folders(), queryFn: api.listFolders });
   const { data: templates = [] } = useQuery({ queryKey: api.qk.templates(), queryFn: api.listTemplates });
+  const { data: recipes = [] } = useQuery({ queryKey: api.qk.recipes(), queryFn: api.listRecipes });
+  const { data: people = [] } = useQuery({ queryKey: api.qk.people(), queryFn: api.listPeople });
 
   const saveBody = useMutation({
     mutationFn: (html: string) => api.saveScratchpad(noteId, html),
@@ -156,8 +158,48 @@ export function NotePage({ noteId }: { noteId: string }) {
     onError: (e) => toast.error(e),
   });
 
+  const recipe = useMutation({
+    mutationFn: (recipeId: string) => api.runRecipe(noteId, recipeId),
+    onSuccess: async (result, recipeId) => {
+      try {
+        await navigator.clipboard.writeText(result);
+        toast.success("Recipe result copied");
+      } catch {
+        toast.info("Recipe", result.slice(0, 400));
+      }
+      if (recipeId === "rcp_actions") {
+        const lines = result
+          .split("\n")
+          .map((l) => l.replace(/^[-*•\d.\s]+/, "").trim())
+          .filter((l) => l.length > 4);
+        for (const line of lines.slice(0, 8)) {
+          await api.addActionItem(noteId, line).catch(() => undefined);
+        }
+        void queryClient.invalidateQueries({ queryKey: api.qk.actionItems() });
+      }
+    },
+    onError: (e) => toast.error(e),
+  });
+
+  const addAttendee = useMutation({
+    mutationFn: (personId: string) => api.addMeetingAttendee(noteId, personId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: api.qk.attendees(noteId) });
+      void queryClient.invalidateQueries({ queryKey: api.qk.people() });
+      toast.success("Attendee added");
+    },
+    onError: (e) => toast.error(e),
+  });
+
   const ask = useMutation({
-    mutationFn: (question: string) => api.askBagrry(question, null, noteId),
+    mutationFn: async (question: string) => {
+      if (recState !== "idle") {
+        const segs = await api.listSegments(noteId);
+        const live = segs.map((s) => `${s.speaker}: ${s.text}`).join("\n");
+        return api.liveAsk(question, live);
+      }
+      return api.askBagrry(question, null, noteId);
+    },
     onSuccess: (answer) => toast.info("Answer", answer.slice(0, 400)),
     onError: (e) => toast.error(e),
   });
@@ -193,10 +235,32 @@ export function NotePage({ noteId }: { noteId: string }) {
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <Chip icon={<CalendarDays className="size-3" />} label={formatDayLabel(note.date)} />
-            <Chip
-              icon={<Users className="size-3" />}
-              label={attendees.length > 0 ? attendees.map((a) => a.name).join(", ") : "Me"}
-            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-6 max-w-[14rem] items-center gap-1 rounded-full border border-border px-2 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-text"
+                >
+                  <Users className="size-3" />
+                  <span className="truncate">
+                    {attendees.length > 0 ? attendees.map((a) => a.name).join(", ") : "Add people"}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Attendees</DropdownMenuLabel>
+                {people
+                  .filter((p) => !attendees.some((a) => a.id === p.id))
+                  .map((person) => (
+                    <DropdownMenuItem key={person.id} onSelect={() => addAttendee.mutate(person.id)}>
+                      {person.name}
+                    </DropdownMenuItem>
+                  ))}
+                {people.filter((p) => !attendees.some((a) => a.id === p.id)).length === 0 && (
+                  <DropdownMenuItem disabled>Everyone’s already on this note</DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -235,8 +299,10 @@ export function NotePage({ noteId }: { noteId: string }) {
 
             <EnhanceButton
               templates={templates}
-              loading={enhance.isPending}
+              recipes={recipes}
+              loading={enhance.isPending || recipe.isPending}
               onEnhance={(templateId) => enhance.mutate(templateId)}
+              onRecipe={(id) => recipe.mutate(id)}
             />
 
             <DropdownMenu>
@@ -331,10 +397,14 @@ export function NotePage({ noteId }: { noteId: string }) {
               </div>
               <AskBar
                 className="flex-1"
-                placeholder="Ask anything"
+                placeholder={recState !== "idle" ? "Ask about this live meeting" : "Ask anything"}
                 showModel={false}
                 busy={ask.isPending}
                 onSubmit={(value) => ask.mutate(value)}
+                onAttach={async (file) => {
+                  await api.saveAttachmentText(noteId, file.name, file.text);
+                  toast.success(`Attached ${file.name}`);
+                }}
               />
             </motion.div>
           )}
@@ -415,12 +485,16 @@ function TabButton({
 
 function EnhanceButton({
   templates,
+  recipes,
   loading,
   onEnhance,
+  onRecipe,
 }: {
   templates: { id: string; name: string }[];
+  recipes: { id: string; name: string }[];
   loading: boolean;
   onEnhance: (templateId: string | null) => void;
+  onRecipe: (recipeId: string) => void;
 }) {
   return (
     <DropdownMenu>
@@ -440,6 +514,17 @@ function EnhanceButton({
             {template.name}
           </DropdownMenuItem>
         ))}
+        {recipes.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Recipes</DropdownMenuLabel>
+            {recipes.map((item) => (
+              <DropdownMenuItem key={item.id} onSelect={() => onRecipe(item.id)}>
+                {item.name}
+              </DropdownMenuItem>
+            ))}
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

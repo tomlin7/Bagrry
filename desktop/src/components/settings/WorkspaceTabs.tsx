@@ -115,9 +115,37 @@ export function MembersTab() {
 }
 
 export function SpacesTab() {
+  const queryClient = useQueryClient();
   const { data: folders = [] } = useQuery({ queryKey: api.qk.folders(), queryFn: api.listFolders });
   const { data: templates = [] } = useQuery({ queryKey: api.qk.templates(), queryFn: api.listTemplates });
   const { data: recipes = [] } = useQuery({ queryKey: api.qk.recipes(), queryFn: api.listRecipes });
+  const [tplName, setTplName] = useState("");
+  const [tplPrompt, setTplPrompt] = useState("");
+  const [rcpName, setRcpName] = useState("");
+  const [rcpPrompt, setRcpPrompt] = useState("");
+
+  const saveTpl = useMutation({
+    mutationFn: () =>
+      api.saveCustomTemplate(tplName.trim(), tplPrompt.trim(), '{"sections":["Summary","Decisions","Next Steps"]}'),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: api.qk.templates() });
+      setTplName("");
+      setTplPrompt("");
+      toast.success("Template saved");
+    },
+    onError: (e) => toast.error(e),
+  });
+
+  const saveRcp = useMutation({
+    mutationFn: () => api.saveCustomRecipe(rcpName.trim(), rcpPrompt.trim()),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: api.qk.recipes() });
+      setRcpName("");
+      setRcpPrompt("");
+      toast.success("Recipe saved");
+    },
+    onError: (e) => toast.error(e),
+  });
 
   return (
     <>
@@ -144,6 +172,35 @@ export function SpacesTab() {
         {recipes.map((recipe) => (
           <SettingRow key={recipe.id} title={recipe.name} description={recipe.prompt_template} />
         ))}
+        <div className="space-y-2 p-4">
+          <Input placeholder="Recipe name" value={rcpName} onChange={(e) => setRcpName(e.target.value)} />
+          <Input placeholder="Prompt" value={rcpPrompt} onChange={(e) => setRcpPrompt(e.target.value)} />
+          <Button
+            variant="solid"
+            size="sm"
+            disabled={!rcpName.trim() || !rcpPrompt.trim()}
+            loading={saveRcp.isPending}
+            onClick={() => saveRcp.mutate()}
+          >
+            Add recipe
+          </Button>
+        </div>
+      </SettingsCard>
+
+      <SettingsCard title="New template">
+        <div className="space-y-2 p-4">
+          <Input placeholder="Template name" value={tplName} onChange={(e) => setTplName(e.target.value)} />
+          <Input placeholder="Prompt" value={tplPrompt} onChange={(e) => setTplPrompt(e.target.value)} />
+          <Button
+            variant="solid"
+            size="sm"
+            disabled={!tplName.trim() || !tplPrompt.trim()}
+            loading={saveTpl.isPending}
+            onClick={() => saveTpl.mutate()}
+          >
+            Add template
+          </Button>
+        </div>
       </SettingsCard>
     </>
   );
