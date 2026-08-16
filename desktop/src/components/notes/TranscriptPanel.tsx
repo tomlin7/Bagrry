@@ -22,6 +22,7 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
   const setMinimized = useAppStore((s) => s.setTranscriptMinimized);
   const setOpen = useAppStore((s) => s.setTranscriptOpen);
   const startedAt = useAppStore((s) => s.recordingStartedAt);
+  const liveSegments = useAppStore((s) => s.liveSegments);
 
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -37,17 +38,24 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
   });
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return segments;
+    const source =
+      recState !== "idle" && liveSegments.length > 0
+        ? liveSegments
+        : recState !== "idle"
+          ? [...segments, ...liveSegments]
+          : segments;
+    if (!query.trim()) return source;
     const needle = query.toLowerCase();
-    return segments.filter((s) => s.text.toLowerCase().includes(needle));
-  }, [segments, query]);
+    return source.filter((s) => s.text.toLowerCase().includes(needle));
+  }, [segments, liveSegments, recState, query]);
 
   useEffect(() => {
     if (!query) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [filtered.length, query]);
 
   const copyAll = async () => {
-    const text = segments.map((s) => `${s.speaker === "me" ? "Me" : "Them"}: ${s.text}`).join("\n");
+    const rows = filtered.length ? filtered : segments;
+    const text = rows.map((s) => `${s.speaker === "me" ? "Me" : "Them"}: ${s.text}`).join("\n");
     try {
       await navigator.clipboard.writeText(text);
       toast.success("Transcript copied");
@@ -143,8 +151,8 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
                     <p className="text-[13px] text-subtle">
                       {query
                         ? "No matching lines"
-                        : recState === "recording"
-                          ? "Transcript starting…"
+                        : recState === "recording" || recState === "paused"
+                          ? "Listening… transcript will appear shortly"
                           : "Nothing transcribed yet"}
                     </p>
                   </div>

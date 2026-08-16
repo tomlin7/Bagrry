@@ -1,3 +1,5 @@
+/// Kept for compact in-memory dual-mono WAVs (tests and older callers).
+#[allow(dead_code)]
 pub fn encode_dual_mono_16k(mic: &[i16], system: &[i16]) -> Vec<u8> {
     let frames = mic.len().max(system.len());
     let data_bytes = frames * 4;
@@ -46,6 +48,7 @@ pub fn encode_mono_16k(samples: &[i16]) -> Vec<u8> {
     out
 }
 
+#[allow(dead_code)]
 pub fn split_dual_mono(wav: &[u8]) -> Result<(Vec<u8>, Vec<u8>), String> {
     if wav.len() < 44 {
         return Err("wav too short".into());

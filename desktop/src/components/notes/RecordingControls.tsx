@@ -10,11 +10,24 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSetting } from "@/hooks/useSetting";
 import { VuMeter } from "./VuMeter";
 import { Elapsed } from "./TranscriptPanel";
+
+const TRANSCRIPTION_LANGS = [
+  { id: "en-best", label: "English" },
+  { id: "en", label: "English (fast)" },
+  { id: "es", label: "Spanish" },
+  { id: "fr", label: "French" },
+  { id: "de", label: "German" },
+  { id: "pt", label: "Portuguese" },
+  { id: "auto", label: "Detect" },
+] as const;
 
 /**
  * Transport for the recorder. Stopping also kicks off transcription, which is
@@ -26,6 +39,8 @@ export function RecordingControls({ noteId, compact }: { noteId: string; compact
   const startedAt = useAppStore((s) => s.recordingStartedAt);
   const applyRecStatus = useAppStore((s) => s.applyRecStatus);
   const loopbackOk = useAppStore((s) => s.loopbackOk);
+  const clearLiveSegments = useAppStore((s) => s.clearLiveSegments);
+  const [transcriptionLang, setTranscriptionLang] = useSetting("transcription_language", "en-best");
 
   const start = useMutation({
     mutationFn: () => api.startRecording(noteId),
@@ -47,11 +62,12 @@ export function RecordingControls({ noteId, compact }: { noteId: string; compact
       await api.transcribePending(noteId);
     },
     onSuccess: () => {
+      clearLiveSegments();
       void queryClient.invalidateQueries({ queryKey: api.qk.segments(noteId) });
       void queryClient.invalidateQueries({ queryKey: api.qk.meeting(noteId) });
       toast.success("Recording transcribed");
     },
-    onError: (e) => toast.error(e, "The audio is still in memory — you can retry."),
+    onError: (e) => toast.error(e, "Audio is still on disk — you can retry."),
   });
 
   const discard = useMutation({
@@ -143,14 +159,28 @@ export function RecordingControls({ noteId, compact }: { noteId: string; compact
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <button
-            type="button"
-            className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] text-muted transition-colors hover:bg-hover hover:text-text"
-          >
-            <Languages className="size-3.5" />
-            English
-            <ChevronDown className="size-3" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] text-muted transition-colors hover:bg-hover hover:text-text"
+              >
+                <Languages className="size-3.5" />
+                {TRANSCRIPTION_LANGS.find((l) => l.id === transcriptionLang)?.label ?? "Language"}
+                <ChevronDown className="size-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Transcription language</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={transcriptionLang} onValueChange={setTranscriptionLang}>
+                {TRANSCRIPTION_LANGS.map((lang) => (
+                  <DropdownMenuRadioItem key={lang.id} value={lang.id}>
+                    {lang.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       )}
     </div>

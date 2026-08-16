@@ -57,6 +57,8 @@ export type RecStatus = {
   loopbackOk?: boolean;
   meeting_id?: string | null;
   meetingId?: string | null;
+  last_error?: string | null;
+  lastError?: string | null;
 };
 
 export type NormalizedRecStatus = {
@@ -64,6 +66,7 @@ export type NormalizedRecStatus = {
   pendingBytes: number;
   loopbackOk: boolean;
   meetingId: string | null;
+  lastError: string | null;
 };
 
 export function normalizeRecStatus(status: RecStatus): NormalizedRecStatus {
@@ -72,8 +75,15 @@ export function normalizeRecStatus(status: RecStatus): NormalizedRecStatus {
     pendingBytes: status.pending_bytes ?? status.pendingBytes ?? 0,
     loopbackOk: status.loopback_ok ?? status.loopbackOk ?? false,
     meetingId: status.meeting_id ?? status.meetingId ?? null,
+    lastError: status.last_error ?? status.lastError ?? null,
   };
 }
+
+export type LiveTranscriptBatch = {
+  meetingId?: string | null;
+  meeting_id?: string | null;
+  segments: TranscriptSeg[];
+};
 
 export type VuLevels = {
   mic: number;

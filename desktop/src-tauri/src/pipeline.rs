@@ -1,8 +1,12 @@
+use crate::audio::sink;
 use crate::audio::wav;
 use crate::groq::{self, Bullet, EnhancedDoc, Section};
 use crate::ids::new_id;
+use crate::secrets;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TranscriptSeg {
@@ -15,6 +19,7 @@ pub struct TranscriptSeg {
     pub sentence_id: String,
 }
 
+#[allow(dead_code)]
 pub fn transcribe_dual_wav(
     api_key: &str,
     wav_bytes: &[u8],
@@ -23,22 +28,172 @@ pub fn transcribe_dual_wav(
     let (mic, sys) = wav::split_dual_mono(wav_bytes)?;
     let mut segs = Vec::new();
     if wav_has_signal(&mic) {
-        let mic_res = groq::transcribe_wav(api_key, &mic, "mic.wav", opts)?;
-        push_channel(&mut segs, &mic_res, "me");
+        let mic_res = transcribe_with_retry(api_key, &mic, "mic.wav", opts)?;
+        push_channel(&mut segs, &mic_res, "me", 0, 0);
     }
     if wav_has_signal(&sys) {
-        let sys_res = groq::transcribe_wav(api_key, &sys, "system.wav", opts)?;
-        push_channel(&mut segs, &sys_res, "attendees");
+        let sys_res = transcribe_with_retry(api_key, &sys, "system.wav", opts)?;
+        push_channel(&mut segs, &sys_res, "attendees", 0, 0);
     }
     segs.sort_by_key(|s| s.start_ms);
-    for (i, s) in segs.iter_mut().enumerate() {
-        s.sentence_index = i as i64;
-        s.sentence_id = format!("s_{:03}", i + 1);
-        s.id = new_id("seg");
+    number_segments(&mut segs);
+    Ok(segs)
+}
+
+/// Maps `transcription_language` + jargon + Whisper model from settings.
+pub fn stt_options(conn: &Connection) -> groq::SttOptions {
+    let lang_setting = secrets::get_setting(conn, "transcription_language", "en-best");
+    let language = match lang_setting.as_str() {
+        "auto" => None,
+        "en-best" => Some("en".to_string()),
+        other => Some(other.split('-').next().unwrap_or("en").to_string()),
+    };
+    let jargon = secrets::get_setting(conn, "internal_jargon", "");
+    let model = secrets::get_setting(conn, "stt_model", "whisper-large-v3-turbo");
+    groq::SttOptions {
+        language,
+        prompt: (!jargon.is_empty()).then_some(jargon),
+        model: (!model.trim().is_empty()).then_some(model),
+    }
+}
+
+const STT_HZ: u64 = 16_000;
+/// ~8 minutes of 16 kHz 16-bit mono stays under Groq's 25 MB upload cap.
+const CHUNK_SAMPLES: u64 = STT_HZ * 8 * 60;
+const OVERLAP_SAMPLES: u64 = STT_HZ * 2;
+const MAX_STT_ATTEMPTS: u32 = 3;
+
+/// Final transcription of a dual-mono recording spilled to disk as raw PCM.
+pub fn transcribe_pcm_files(
+    api_key: &str,
+    mic_path: &Path,
+    sys_path: &Path,
+    opts: &groq::SttOptions,
+) -> Result<Vec<TranscriptSeg>, String> {
+    let mut segs = Vec::new();
+    segs.extend(transcribe_pcm_channel(api_key, mic_path, "me", opts)?);
+    segs.extend(transcribe_pcm_channel(api_key, sys_path, "attendees", opts)?);
+    segs.sort_by_key(|s| s.start_ms);
+    number_segments(&mut segs);
+    Ok(segs)
+}
+
+/// Live window: a few seconds of PCM already at 16 kHz, with a sample offset.
+pub fn transcribe_pcm_chunk(
+    api_key: &str,
+    mic: &[i16],
+    sys: &[i16],
+    opts: &groq::SttOptions,
+    start_sample: u64,
+) -> Result<Vec<TranscriptSeg>, String> {
+    let offset_ms = ((start_sample * 1000) / STT_HZ) as i64;
+    let mut segs = Vec::new();
+    if pcm_has_signal(mic) {
+        let wav = wav::encode_mono_16k(mic);
+        let result = transcribe_with_retry(api_key, &wav, "live-mic.wav", opts)?;
+        push_channel(&mut segs, &result, "me", offset_ms, 0);
+    }
+    if pcm_has_signal(sys) {
+        let wav = wav::encode_mono_16k(sys);
+        let result = transcribe_with_retry(api_key, &wav, "live-sys.wav", opts)?;
+        push_channel(&mut segs, &result, "attendees", offset_ms, 0);
+    }
+    segs.sort_by_key(|s| s.start_ms);
+    number_segments(&mut segs);
+    Ok(segs)
+}
+
+fn transcribe_pcm_channel(
+    api_key: &str,
+    path: &Path,
+    speaker: &str,
+    opts: &groq::SttOptions,
+) -> Result<Vec<TranscriptSeg>, String> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let total = std::fs::metadata(path)
+        .map_err(|e| format!("pcm metadata: {e}"))?
+        .len()
+        / 2;
+    if total < STT_HZ / 2 {
+        return Ok(Vec::new());
+    }
+    let mut segs = Vec::new();
+    let mut start = 0u64;
+    let mut chunk_idx = 0u32;
+    while start < total {
+        let len = CHUNK_SAMPLES.min(total - start);
+        let pcm = sink::read_i16_range(path, start, len)?;
+        if pcm_has_signal(&pcm) {
+            let wav = wav::encode_mono_16k(&pcm);
+            let filename = format!("{speaker}-{chunk_idx}.wav");
+            let result = transcribe_with_retry(api_key, &wav, &filename, opts)?;
+            let offset_ms = ((start * 1000) / STT_HZ) as i64;
+            let skip_ms = if chunk_idx == 0 {
+                0
+            } else {
+                ((OVERLAP_SAMPLES * 1000) / STT_HZ) as i64
+            };
+            push_channel(&mut segs, &result, speaker, offset_ms, skip_ms);
+        }
+        if start + len >= total {
+            break;
+        }
+        start += len.saturating_sub(OVERLAP_SAMPLES);
+        chunk_idx += 1;
     }
     Ok(segs)
 }
 
+fn transcribe_with_retry(
+    api_key: &str,
+    wav: &[u8],
+    filename: &str,
+    opts: &groq::SttOptions,
+) -> Result<groq::WhisperVerbose, String> {
+    let mut last = String::new();
+    for attempt in 0..MAX_STT_ATTEMPTS {
+        match groq::transcribe_wav(api_key, wav, filename, opts) {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                last = e;
+                let retry = attempt + 1 < MAX_STT_ATTEMPTS && is_retryable_stt(&last);
+                if !retry {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(400 * 2u64.pow(attempt)));
+            }
+        }
+    }
+    Err(last)
+}
+
+fn is_retryable_stt(err: &str) -> bool {
+    let lower = err.to_ascii_lowercase();
+    lower.contains("429")
+        || lower.contains("502")
+        || lower.contains("503")
+        || lower.contains("504")
+        || lower.contains("stt request")
+        || lower.contains("timed out")
+}
+
+fn pcm_has_signal(pcm: &[i16]) -> bool {
+    pcm.iter().any(|s| s.unsigned_abs() > 8)
+}
+
+fn number_segments(segs: &mut [TranscriptSeg]) {
+    for (i, s) in segs.iter_mut().enumerate() {
+        s.sentence_index = i as i64;
+        s.sentence_id = format!("s_{:03}", i + 1);
+        if s.id.is_empty() {
+            s.id = new_id("seg");
+        }
+    }
+}
+
+#[allow(dead_code)]
 fn wav_has_signal(wav: &[u8]) -> bool {
     if wav.len() < 46 {
         return false;
@@ -48,7 +203,13 @@ fn wav_has_signal(wav: &[u8]) -> bool {
         .any(|c| i16::from_le_bytes([c[0], c[1]]).unsigned_abs() > 8)
 }
 
-fn push_channel(out: &mut Vec<TranscriptSeg>, result: &groq::WhisperVerbose, speaker: &str) {
+fn push_channel(
+    out: &mut Vec<TranscriptSeg>,
+    result: &groq::WhisperVerbose,
+    speaker: &str,
+    offset_ms: i64,
+    skip_before_ms: i64,
+) {
     if let Some(segments) = &result.segments {
         for seg in segments {
             let text = seg.text.clone().unwrap_or_default().trim().to_string();
@@ -56,19 +217,25 @@ fn push_channel(out: &mut Vec<TranscriptSeg>, result: &groq::WhisperVerbose, spe
                 continue;
             }
             let start_ms = (seg.start.unwrap_or(0.0) * 1000.0) as i64;
+            if start_ms < skip_before_ms {
+                continue;
+            }
             let end_ms = (seg.end.unwrap_or(0.0) * 1000.0) as i64;
             for sentence in split_sentences(&text) {
                 out.push(TranscriptSeg {
                     id: String::new(),
                     speaker: speaker.into(),
-                    start_ms,
-                    end_ms,
+                    start_ms: start_ms + offset_ms,
+                    end_ms: end_ms + offset_ms,
                     text: sentence,
                     sentence_index: 0,
                     sentence_id: String::new(),
                 });
             }
         }
+        return;
+    }
+    if skip_before_ms > 0 {
         return;
     }
     if let Some(text) = &result.text {
@@ -79,8 +246,8 @@ fn push_channel(out: &mut Vec<TranscriptSeg>, result: &groq::WhisperVerbose, spe
             out.push(TranscriptSeg {
                 id: String::new(),
                 speaker: speaker.into(),
-                start_ms: 0,
-                end_ms: 0,
+                start_ms: offset_ms,
+                end_ms: offset_ms,
                 text: sentence,
                 sentence_index: 0,
                 sentence_id: String::new(),
@@ -125,9 +292,10 @@ pub fn persist_transcript(
         .map_err(|e| e.to_string())?;
     }
     let json = serde_json::to_string(segs).map_err(|e| e.to_string())?;
+    let duration_ms = segs.iter().map(|s| s.end_ms).max().unwrap_or(0);
     conn.execute(
-        "UPDATE meetings SET transcript_json = ?1, updated_at = datetime('now') WHERE id = ?2",
-        params![json, meeting_id],
+        "UPDATE meetings SET transcript_json = ?1, duration_ms = ?2, updated_at = datetime('now') WHERE id = ?3",
+        params![json, duration_ms, meeting_id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
