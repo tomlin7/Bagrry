@@ -23,4 +23,8 @@ describe("settings nav", () => {
       "referrals",
     ]);
   });
+
+  it("marks Referrals as new", () => {
+    expect(SETTINGS_WORKSPACE_NAV.find((e) => e.tab === "referrals")?.badge).toBe("New");
+  });
 });
