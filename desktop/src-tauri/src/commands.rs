@@ -88,6 +88,7 @@ pub struct ActionItem {
     pub owner: Option<String>,
     pub task: String,
     pub deadline: Option<String>,
+    pub done: bool,
 }
 
 #[derive(Serialize)]
@@ -316,12 +317,76 @@ pub fn transcribe_pending(app: AppHandle, state: State<AppState>, meeting_id: St
     let key = secrets::get_secret(&conn, "groq_api_key")?.ok_or_else(|| {
         "Add a Groq API key in Settings to transcribe.".to_string()
     })?;
+    let opts = stt_options(&conn);
     drop(conn);
-    let segs = pipeline::transcribe_dual_wav(&key, &wav)?;
+    let segs = pipeline::transcribe_dual_wav(&key, &wav, &opts)?;
     let conn = state.conn()?;
     pipeline::persist_transcript(&conn, &meeting_id, &segs)?;
     let _ = audio::take_pending_wav(&app);
+    notify(&app, &conn, "Transcript ready", "Your meeting transcript has finished processing.");
     Ok(segs)
+}
+
+/// Maps the `transcription_language` setting ("en-best" | "en" | "auto" | ISO code)
+/// plus internal jargon to Whisper request options.
+fn stt_options(conn: &rusqlite::Connection) -> groq::SttOptions {
+    let lang_setting = secrets::get_setting(conn, "transcription_language", "en-best");
+    let language = match lang_setting.as_str() {
+        "auto" => None,
+        "en-best" => Some("en".to_string()),
+        other => Some(other.split('-').next().unwrap_or("en").to_string()),
+    };
+    let jargon = secrets::get_setting(conn, "internal_jargon", "");
+    groq::SttOptions {
+        language,
+        prompt: (!jargon.is_empty()).then_some(jargon),
+    }
+}
+
+/// Builds personalisation context for enhancement prompts from profile settings.
+fn enhance_context(conn: &rusqlite::Connection) -> pipeline::EnhanceContext {
+    let summary_lang = secrets::get_setting(conn, "summary_language", "en");
+    let summary_language = match summary_lang.as_str() {
+        "en" | "" => None, // default; the model already writes English
+        "match" => {
+            let t = secrets::get_setting(conn, "transcription_language", "en-best");
+            (t != "en-best" && t != "en" && t != "auto").then_some(t)
+        }
+        other => Some(other.to_string()),
+    };
+    let get_opt = |key: &str| {
+        let v = secrets::get_setting(conn, key, "");
+        (!v.is_empty()).then_some(v)
+    };
+    // When "improve models" is off we still send the meeting (that's the
+    // product) but we strip profile PII from the prompt.
+    let share_profile = secrets::get_setting(conn, "improve_models", "1") == "1";
+    pipeline::EnhanceContext {
+        summary_language,
+        jargon: get_opt("internal_jargon"),
+        user_name: share_profile
+            .then(|| get_opt("profile_name"))
+            .flatten()
+            .filter(|n| n != "You"),
+        job_title: share_profile.then(|| get_opt("profile_job_title")).flatten(),
+        company_description: share_profile
+            .then(|| get_opt("profile_company_description"))
+            .flatten(),
+    }
+}
+
+/// Fires an OS notification when the matching `notify_*` preference is on.
+fn notify(app: &AppHandle, conn: &rusqlite::Connection, title: &str, body: &str) {
+    if secrets::get_setting(conn, "notify_notes_ready", "1") != "1" {
+        return;
+    }
+    use tauri_plugin_notification::NotificationExt;
+    let _ = app
+        .notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show();
 }
 
 #[tauri::command]
@@ -332,6 +397,7 @@ pub fn list_segments(state: State<AppState>, meeting_id: String) -> Result<Vec<T
 
 #[tauri::command]
 pub fn enhance_meeting(
+    app: AppHandle,
     state: State<AppState>,
     meeting_id: String,
     template_id: Option<String>,
@@ -364,6 +430,7 @@ pub fn enhance_meeting(
         )
     };
     let key = secrets::get_secret(&conn, "groq_api_key")?;
+    let ctx = enhance_context(&conn);
     drop(conn);
     let doc = pipeline::enhance(
         key.as_deref(),
@@ -371,6 +438,7 @@ pub fn enhance_meeting(
         &segs,
         &prompt,
         &structure,
+        &ctx,
     )?;
     let json = serde_json::to_string(&doc).map_err(|e| e.to_string())?;
     let conn = state.conn()?;
@@ -386,6 +454,7 @@ pub fn enhance_meeting(
         json
     );
     let _ = pipeline::store_embedding(&conn, &meeting_id, &blob);
+    notify(&app, &conn, "Notes ready", "Enhanced notes are ready to review.");
     Ok(json)
 }
 
@@ -668,10 +737,10 @@ pub fn list_action_items(state: State<AppState>) -> Result<Vec<ActionItem>, Stri
     let conn = state.conn()?;
     let mut stmt = conn
         .prepare(
-            "SELECT a.id, a.meeting_id, m.title, a.owner, a.task, a.deadline
+            "SELECT a.id, a.meeting_id, m.title, a.owner, a.task, a.deadline, a.done
              FROM action_items a
              JOIN meetings m ON m.id = a.meeting_id
-             ORDER BY ifnull(a.deadline, '9999') ASC",
+             ORDER BY a.done ASC, ifnull(a.deadline, '9999') ASC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
@@ -683,11 +752,31 @@ pub fn list_action_items(state: State<AppState>) -> Result<Vec<ActionItem>, Stri
                 owner: row.get(3)?,
                 task: row.get(4)?,
                 deadline: row.get(5)?,
+                done: row.get::<_, i64>(6)? != 0,
             })
         })
         .map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_action_item_done(state: State<AppState>, id: String, done: bool) -> Result<(), String> {
+    let conn = state.conn()?;
+    conn.execute(
+        "UPDATE action_items SET done=?1 WHERE id=?2",
+        params![if done { 1 } else { 0 }, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_action_item(state: State<AppState>, id: String) -> Result<(), String> {
+    let conn = state.conn()?;
+    conn.execute("DELETE FROM action_items WHERE id=?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -843,12 +932,18 @@ pub fn copy_consent(state: State<AppState>) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn create_share(state: State<AppState>, meeting_id: String) -> Result<String, String> {
+pub fn create_share(
+    state: State<AppState>,
+    meeting_id: String,
+    visibility: Option<String>,
+) -> Result<String, String> {
     let conn = state.conn()?;
     let token = new_id("sh");
+    let visibility =
+        visibility.unwrap_or_else(|| secrets::get_setting(&conn, "default_link_sharing", "link"));
     conn.execute(
-        "INSERT INTO shares (token, meeting_id) VALUES (?1, ?2)",
-        params![token, meeting_id],
+        "INSERT INTO shares (token, meeting_id, visibility) VALUES (?1, ?2, ?3)",
+        params![token, meeting_id, visibility],
     )
     .map_err(|e| e.to_string())?;
     let port = secrets::get_setting(&conn, "api_port", "47821");
@@ -858,9 +953,23 @@ pub fn create_share(state: State<AppState>, meeting_id: String) -> Result<String
 #[tauri::command]
 pub fn dispatch_webhook(state: State<AppState>, meeting_id: String) -> Result<String, String> {
     let conn = state.conn()?;
-    let url = secrets::get_setting(&conn, "webhook_url", "");
-    if url.is_empty() {
-        return Err("Set webhook_url in Settings".into());
+    let mut urls: Vec<(String, String)> = Vec::new();
+    let primary = secrets::get_setting(&conn, "webhook_url", "");
+    if !primary.is_empty() {
+        urls.push(("webhook".into(), primary));
+    }
+    for name in [
+        "gmail", "slack", "notion", "zapier", "affinity", "hubspot", "salesforce", "attio",
+        "pipedrive",
+    ] {
+        let enabled = secrets::get_setting(&conn, &format!("connector_{name}"), "0");
+        let url = secrets::get_setting(&conn, &format!("connector_{name}_url"), "");
+        if enabled == "1" && !url.is_empty() {
+            urls.push((name.into(), url));
+        }
+    }
+    if urls.is_empty() {
+        return Err("Set a webhook URL or connect an integration in Settings".into());
     }
     let meeting = conn
         .query_row(
@@ -874,11 +983,17 @@ pub fn dispatch_webhook(state: State<AppState>, meeting_id: String) -> Result<St
         "event": "meeting.completed",
         "meeting": meeting,
     });
-    let resp = ureq::post(&url)
-        .set("Content-Type", "application/json")
-        .send_json(body)
-        .map_err(|e| e.to_string())?;
-    Ok(format!("webhook {}", resp.status()))
+    let mut results = Vec::new();
+    for (name, url) in urls {
+        match ureq::post(&url)
+            .set("Content-Type", "application/json")
+            .send_json(&body)
+        {
+            Ok(resp) => results.push(format!("{name} {}", resp.status())),
+            Err(e) => results.push(format!("{name} failed: {e}")),
+        }
+    }
+    Ok(results.join(" · "))
 }
 
 #[tauri::command]
@@ -1420,5 +1535,6 @@ pub fn add_action_item(
         owner,
         task,
         deadline,
+        done: false,
     })
 }

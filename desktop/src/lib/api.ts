@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   ActionItem,
+  ApiKey,
   Attachment,
   CalendarEvent,
   ChatMessage,
@@ -130,6 +131,11 @@ export const addActionItem = (
   owner?: string | null,
   deadline?: string | null,
 ) => invoke<ActionItem>("add_action_item", { meetingId, task, owner: owner ?? null, deadline: deadline ?? null });
+export const setActionItemDone = (id: string, done: boolean) =>
+  invoke<void>("set_action_item_done", { id, done });
+export const deleteActionItem = (id: string) => invoke<void>("delete_action_item", { id });
+export const importIcs = (content: string) => invoke<number>("import_ics", { content });
+export const resetCalendar = () => invoke<void>("reset_calendar");
 
 /* ------------------------------------------------------------------ */
 /* Templates & recipes                                                 */
@@ -155,13 +161,34 @@ export const getProfile = () => invoke<Profile>("get_profile");
 export const setProfile = (name: string, email: string, workspace: string) =>
   invoke<void>("set_profile", { name, email, workspace });
 export const copyConsent = () => invoke<string>("copy_consent");
-export const createShare = (meetingId: string) => invoke<string>("create_share", { meetingId });
+export const createShare = (meetingId: string, visibility?: string | null) =>
+  invoke<string>("create_share", { meetingId, visibility: visibility ?? null });
 export const dispatchWebhook = (meetingId: string) => invoke<string>("dispatch_webhook", { meetingId });
 export const exportMarkdown = (meetingId: string) => invoke<string>("export_markdown", { meetingId });
 export const listAttachments = (meetingId: string) =>
   invoke<Attachment[]>("list_attachments", { meetingId });
 export const saveAttachmentText = (meetingId: string, filename: string, extractedText: string) =>
   invoke<void>("save_attachment_text", { meetingId, filename, extractedText });
+
+/* ------------------------------------------------------------------ */
+/* Functional settings                                                 */
+/* ------------------------------------------------------------------ */
+
+export const setLaunchOnLogin = (enable: boolean) =>
+  invoke<boolean>("set_launch_on_login", { enable });
+export const getLaunchOnLogin = () => invoke<boolean>("get_launch_on_login");
+export const applyRetention = () => invoke<number>("apply_retention");
+export const exportCsv = () => invoke<string>("export_csv");
+export const importNotes = (notes: { title: string; body: string; date?: string | null }[]) =>
+  invoke<number>("import_notes", { notes });
+export const deleteAllData = () => invoke<void>("delete_all_data");
+export const listApiKeys = () => invoke<ApiKey[]>("list_api_keys");
+export const createApiKey = (label: string, kind: "personal" | "workspace") =>
+  invoke<string>("create_api_key", { label, kind });
+export const revokeApiKey = (id: string) => invoke<void>("revoke_api_key", { id });
+export const submitFeedback = (category: string, content: string) =>
+  invoke<void>("submit_feedback", { category, content });
+export const getReferralCode = () => invoke<string>("get_referral_code");
 
 /* ------------------------------------------------------------------ */
 /* Query keys                                                          */
@@ -190,4 +217,7 @@ export const qk = {
   dbStatus: () => ["db-status"] as const,
   profile: () => ["profile"] as const,
   settings: (keys: string[]) => ["settings", ...keys] as const,
+  apiKeys: () => ["api-keys"] as const,
+  referral: () => ["referral"] as const,
+  autostart: () => ["autostart"] as const,
 };

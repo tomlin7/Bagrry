@@ -127,6 +127,15 @@ export type ActionItem = {
   owner: string | null;
   task: string;
   deadline: string | null;
+  done: boolean;
+};
+
+export type ApiKey = {
+  id: string;
+  label: string;
+  kind: string;
+  token_tail: string;
+  created_at: string;
 };
 
 export type Attachment = {

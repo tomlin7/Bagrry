@@ -307,6 +307,29 @@ ALTER TABLE folders ADD COLUMN icon TEXT;
 ALTER TABLE folders ADD COLUMN description TEXT;
 "#;
 
+/// v6 makes settings functional: share visibility respects the default-link-sharing
+/// preference, action items get a done flag, feedback is stored locally, and
+/// API keys become a managed list.
+const V6: &str = r#"
+ALTER TABLE shares ADD COLUMN visibility TEXT NOT NULL DEFAULT 'link';
+ALTER TABLE action_items ADD COLUMN done INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS feedback (
+  id TEXT PRIMARY KEY,
+  category TEXT NOT NULL DEFAULT 'problem',
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'personal',
+  token TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -373,6 +396,16 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("record v5: {e}"))?;
+    }
+
+    if current < 6 {
+        conn.execute_batch(V6)
+            .map_err(|e| format!("migration v6: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (6)",
+            [],
+        )
+        .map_err(|e| format!("record v6: {e}"))?;
     }
 
     if vec_enabled {

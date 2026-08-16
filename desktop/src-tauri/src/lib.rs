@@ -6,6 +6,7 @@ mod http;
 mod ids;
 mod pipeline;
 mod secrets;
+mod settings_cmds;
 mod tray;
 
 use db::{PooledConn, SharedPool};
@@ -30,6 +31,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .setup(|app| {
             let pool = db::open(app.handle())
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -38,6 +44,10 @@ pub fn run() {
                 let conn = pool
                     .get()
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                // Honour the auto-deletion preference on every launch.
+                if let Err(e) = settings_cmds::apply_retention_inner(&conn) {
+                    eprintln!("retention sweep: {e}");
+                }
                 secrets::get_setting(&conn, "api_port", "47821")
                     .parse()
                     .unwrap_or(47821)
@@ -121,6 +131,21 @@ pub fn run() {
             commands::export_markdown,
             commands::save_attachment_text,
             commands::list_attachments,
+            commands::set_action_item_done,
+            commands::delete_action_item,
+            settings_cmds::set_launch_on_login,
+            settings_cmds::get_launch_on_login,
+            settings_cmds::apply_retention,
+            settings_cmds::export_csv,
+            settings_cmds::import_notes,
+            settings_cmds::delete_all_data,
+            settings_cmds::list_api_keys,
+            settings_cmds::create_api_key,
+            settings_cmds::revoke_api_key,
+            settings_cmds::submit_feedback,
+            settings_cmds::import_ics,
+            settings_cmds::reset_calendar,
+            settings_cmds::get_referral_code,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
