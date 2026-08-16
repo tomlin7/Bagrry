@@ -7,7 +7,8 @@ export const duration = {
   fast: 0.12,
   base: 0.16,
   layout: 0.2,
-  sidebar: 0.18,
+  /** Keep in sync with `--motion-sidebar` in index.css. */
+  sidebar: 0.28,
 } as const;
 
 export const snappy = { duration: duration.base, ease: EASE_OUT };
