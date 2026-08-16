@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { SettingsTab } from "./types";
 
-export type SettingsNavEntry = { tab: SettingsTab; label: string; icon: LucideIcon };
+export type SettingsNavEntry = { tab: SettingsTab; label: string; icon: LucideIcon; badge?: string };
 
 export const SETTINGS_PERSONAL_NAV: SettingsNavEntry[] = [
   { tab: "preferences", label: "Preferences", icon: SlidersHorizontal },
@@ -32,5 +32,5 @@ export const SETTINGS_WORKSPACE_NAV: SettingsNavEntry[] = [
   { tab: "spaces", label: "Spaces", icon: Folder },
   { tab: "analytics", label: "Analytics", icon: BarChart3 },
   { tab: "billing", label: "Billing", icon: CreditCard },
-  { tab: "referrals", label: "Referrals", icon: Gift },
+  { tab: "referrals", label: "Referrals", icon: Gift, badge: "New" },
 ];

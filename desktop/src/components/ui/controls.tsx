@@ -184,19 +184,37 @@ export function SettingRow({
 
 export function SettingsCard({
   title,
+  description,
+  action,
+  dashed,
+  danger,
   children,
 }: {
   title?: string;
+  description?: React.ReactNode;
+  action?: React.ReactNode;
+  dashed?: boolean;
+  danger?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <section className="mb-6">
-      {title && (
-        <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-subtle">
-          {title}
-        </h3>
+      {(title || action || description) && (
+        <div className="mb-2 px-1">
+          <div className="flex items-center justify-between gap-3">
+            {title ? <h3 className="text-[13px] text-muted">{title}</h3> : <span />}
+            {action}
+          </div>
+          {description && <p className="mt-0.5 max-w-xl text-xs leading-snug text-subtle">{description}</p>}
+        </div>
       )}
-      <div className="overflow-hidden rounded-xl border border-border bg-surface divide-y divide-[color:var(--border)]">
+      <div
+        className={cn(
+          "overflow-hidden rounded-xl border",
+          danger ? "border-danger/35 bg-danger/[0.06]" : "border-border bg-surface",
+          dashed ? "divide-y divide-dashed divide-border" : "divide-y divide-[color:var(--border)]",
+        )}
+      >
         {children}
       </div>
     </section>

@@ -33,7 +33,7 @@ export function TitleBar() {
             type="button"
             aria-label="Back"
             onClick={back}
-            className="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-hover hover:text-text"
+            className="grid size-7 place-items-center rounded-md border border-border bg-surface text-muted shadow-xs transition-colors hover:bg-hover hover:text-text"
           >
             <ChevronLeft className="size-4" />
           </button>

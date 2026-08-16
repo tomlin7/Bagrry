@@ -76,7 +76,12 @@ function SettingsNavButton({
       )}
     >
       <Icon className="size-4 shrink-0" />
-      {entry.label}
+      <span className="min-w-0 flex-1 truncate">{entry.label}</span>
+      {entry.badge && (
+        <span className="rounded-full bg-accent-subtle px-1.5 py-px text-[10px] font-semibold text-accent">
+          {entry.badge}
+        </span>
+      )}
     </button>
   );
 }
