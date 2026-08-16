@@ -1,16 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Command } from "cmdk";
-import {
-  FileText,
-  Home,
-  MessageSquare,
-  Mic,
-  Plus,
-  Search,
-  Settings,
-  Users,
-} from "lucide-react";
+import { Building2, FileText, Home, MessageSquare, Mic, Plus, Search, Settings, User, Users } from "lucide-react";
 import * as api from "@/lib/api";
 import { formatDayLabel } from "@/lib/format";
 import { MY_NOTES_SPACE } from "@/lib/types";
@@ -129,6 +120,14 @@ export function CommandPalette() {
               <Item onSelect={() => run(() => navigate({ kind: "shared" }))}>
                 <Users className="size-4 text-subtle" />
                 Shared with me
+              </Item>
+              <Item onSelect={() => run(() => navigate({ kind: "people" }))}>
+                <User className="size-4 text-subtle" />
+                People
+              </Item>
+              <Item onSelect={() => run(() => navigate({ kind: "companies" }))}>
+                <Building2 className="size-4 text-subtle" />
+                Companies
               </Item>
               <Item onSelect={() => run(() => navigate({ kind: "settings", tab: "preferences" }))}>
                 <Settings className="size-4 text-subtle" />

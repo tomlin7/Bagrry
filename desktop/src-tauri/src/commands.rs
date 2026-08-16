@@ -25,6 +25,8 @@ pub struct Folder {
     pub parent_id: Option<String>,
     pub name: String,
     pub is_shared: bool,
+    pub icon: Option<String>,
+    pub description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -65,6 +67,8 @@ pub struct Person {
     pub email: Option<String>,
     pub domain: Option<String>,
     pub company_id: Option<String>,
+    pub note_count: i64,
+    pub last_note_at: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -72,6 +76,8 @@ pub struct Company {
     pub id: String,
     pub name: String,
     pub domain: Option<String>,
+    pub note_count: i64,
+    pub last_note_at: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -139,7 +145,7 @@ pub fn db_status(app: AppHandle, state: State<AppState>) -> Result<DbStatus, Str
 pub fn list_folders(state: State<AppState>) -> Result<Vec<Folder>, String> {
     let conn = state.conn()?;
     let mut stmt = conn
-        .prepare("SELECT id, parent_id, name, is_shared FROM folders ORDER BY name")
+        .prepare("SELECT id, parent_id, name, is_shared, icon, description FROM folders ORDER BY name")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -148,6 +154,8 @@ pub fn list_folders(state: State<AppState>) -> Result<Vec<Folder>, String> {
                 parent_id: row.get(1)?,
                 name: row.get(2)?,
                 is_shared: row.get::<_, i64>(3)? != 0,
+                icon: row.get(4)?,
+                description: row.get(5)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -597,7 +605,15 @@ pub fn search_meetings(state: State<AppState>, query: String) -> Result<Vec<Meet
 pub fn list_people(state: State<AppState>) -> Result<Vec<Person>, String> {
     let conn = state.conn()?;
     let mut stmt = conn
-        .prepare("SELECT id, name, email, domain, company_id FROM attendees ORDER BY name")
+        .prepare(
+            "SELECT a.id, a.name, a.email, a.domain, a.company_id,
+                    COUNT(m.id), MAX(m.date)
+             FROM attendees a
+             LEFT JOIN meeting_attendees ma ON ma.attendee_id = a.id
+             LEFT JOIN meetings m ON m.id = ma.meeting_id
+             GROUP BY a.id
+             ORDER BY (MAX(m.date) IS NULL), MAX(m.date) DESC, a.name",
+        )
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -607,6 +623,8 @@ pub fn list_people(state: State<AppState>) -> Result<Vec<Person>, String> {
                 email: row.get(2)?,
                 domain: row.get(3)?,
                 company_id: row.get(4)?,
+                note_count: row.get(5)?,
+                last_note_at: row.get(6)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -618,7 +636,17 @@ pub fn list_people(state: State<AppState>) -> Result<Vec<Person>, String> {
 pub fn list_companies(state: State<AppState>) -> Result<Vec<Company>, String> {
     let conn = state.conn()?;
     let mut stmt = conn
-        .prepare("SELECT id, name, domain FROM companies ORDER BY name")
+        .prepare(
+            "SELECT c.id, c.name, c.domain,
+                    COUNT(DISTINCT m.id), MAX(m.date)
+             FROM companies c
+             LEFT JOIN attendees a
+               ON a.company_id = c.id OR (c.domain IS NOT NULL AND a.domain = c.domain)
+             LEFT JOIN meeting_attendees ma ON ma.attendee_id = a.id
+             LEFT JOIN meetings m ON m.id = ma.meeting_id
+             GROUP BY c.id
+             ORDER BY (MAX(m.date) IS NULL), MAX(m.date) DESC, c.name",
+        )
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -626,6 +654,8 @@ pub fn list_companies(state: State<AppState>) -> Result<Vec<Company>, String> {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 domain: row.get(2)?,
+                note_count: row.get(3)?,
+                last_note_at: row.get(4)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -684,6 +714,8 @@ pub fn upsert_person(
         email,
         domain,
         company_id: None,
+        note_count: 0,
+        last_note_at: None,
     })
 }
 
@@ -888,17 +920,35 @@ pub fn create_folder(
     state: State<AppState>,
     name: String,
     is_shared: Option<bool>,
+    icon: Option<String>,
+    description: Option<String>,
 ) -> Result<Folder, String> {
     let name = name.trim().to_string();
     if name.is_empty() {
         return Err("Folder name can't be empty".into());
     }
+    let icon = icon.and_then(|s| {
+        let trimmed = s.trim().to_string();
+        if trimmed.is_empty() || trimmed == "folder" {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+    let description = description.and_then(|s| {
+        let trimmed = s.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
     let conn = state.conn()?;
     let id = new_id("folder");
     let shared = is_shared.unwrap_or(false);
     conn.execute(
-        "INSERT INTO folders (id, name, is_shared) VALUES (?1,?2,?3)",
-        params![id, name, if shared { 1 } else { 0 }],
+        "INSERT INTO folders (id, name, is_shared, icon, description) VALUES (?1,?2,?3,?4,?5)",
+        params![id, name, if shared { 1 } else { 0 }, icon, description],
     )
     .map_err(|e| e.to_string())?;
     Ok(Folder {
@@ -906,6 +956,8 @@ pub fn create_folder(
         parent_id: None,
         name,
         is_shared: shared,
+        icon,
+        description,
     })
 }
 
@@ -1275,6 +1327,8 @@ pub fn list_meeting_attendees(
                 email: row.get(2)?,
                 domain: row.get(3)?,
                 company_id: row.get(4)?,
+                note_count: 0,
+                last_note_at: None,
             })
         })
         .map_err(|e| e.to_string())?;
