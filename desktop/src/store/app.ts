@@ -106,7 +106,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   openNote: (id) => get().navigate({ kind: "note", noteId: id }),
   openSpace: (id) => get().navigate({ kind: "space", spaceId: id || MY_NOTES_SPACE }),
-  openSettings: (tab = "preferences") => get().navigate({ kind: "settings", tab }),
+  openSettings: (tab = "preferences") => {
+    if (!get().sidebarOpen) get().setSidebarOpen(true);
+    get().navigate({ kind: "settings", tab });
+  },
 
   sidebarOpen: readFlag(SIDEBAR_KEY, true),
   toggleSidebar: () => {
