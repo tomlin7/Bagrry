@@ -1,34 +1,29 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BarChart3,
   Bell,
-  Blocks,
-  Building2,
   CalendarDays,
-  CircleHelp,
+  ChevronRight,
   CreditCard,
   Database,
   Eye,
+  Gift,
   KeyRound,
   Link2,
   LogIn,
+  Mail,
   Moon,
-  Palette,
   Plus,
   Radio,
   ShieldCheck,
   Tags,
   Trash2,
-  User,
   Users,
   Webhook,
-  type LucideIcon,
 } from "lucide-react";
 import * as api from "@/lib/api";
 import type { SettingsTab } from "@/lib/types";
 import type { ThemePreference } from "@/lib/theme";
-import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/app";
 import { useBoolSetting, useSetting } from "@/hooks/useSetting";
 import { Avatar, Badge, EmptyState } from "@/components/ui/misc";
@@ -48,109 +43,40 @@ import { toast } from "@/components/ui/toast";
 import { AnimatePresence, motion } from "framer-motion";
 import { snappy } from "@/lib/motion";
 
-type NavEntry = { tab: SettingsTab; label: string; icon: LucideIcon };
-
-const PERSONAL_NAV: NavEntry[] = [
-  { tab: "preferences", label: "Preferences", icon: Palette },
-  { tab: "profile", label: "Profile", icon: User },
-  { tab: "calendar", label: "Calendar", icon: CalendarDays },
-  { tab: "notifications", label: "Notifications", icon: Bell },
-  { tab: "connectors", label: "Connectors", icon: Blocks },
-  { tab: "help", label: "Get help", icon: CircleHelp },
-];
-
-const WORKSPACE_NAV: NavEntry[] = [
-  { tab: "workspace-general", label: "General", icon: Building2 },
-  { tab: "members", label: "Members", icon: Users },
-  { tab: "spaces", label: "Spaces", icon: Blocks },
-  { tab: "analytics", label: "Analytics", icon: BarChart3 },
-  { tab: "billing", label: "Billing", icon: CreditCard },
-];
-
 export function SettingsPage({ tab }: { tab: SettingsTab }) {
-  const navigate = useAppStore((s) => s.navigate);
-  const { data: profile } = useQuery({ queryKey: api.qk.profile(), queryFn: api.getProfile });
-
   return (
-    <div className="flex h-full min-h-0">
-      <nav className="flex w-[212px] shrink-0 flex-col border-r border-border bg-sidebar p-2">
-        <div className="mb-3 flex items-center gap-2 px-1.5 pt-1">
-          <Avatar name={profile?.name || "You"} size={30} />
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-medium text-text">{profile?.name || "You"}</div>
-            <div className="truncate text-[11px] text-subtle">{profile?.email || "No email set"}</div>
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-none">
-          {PERSONAL_NAV.map((entry) => (
-            <NavButton key={entry.tab} entry={entry} active={tab === entry.tab} onClick={navigate} />
-          ))}
-
-          <div className="mt-4 px-2 pb-1 text-[11px] font-semibold text-subtle">Workspace</div>
-          {WORKSPACE_NAV.map((entry) => (
-            <NavButton key={entry.tab} entry={entry} active={tab === entry.tab} onClick={navigate} />
-          ))}
-        </div>
-      </nav>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={snappy}
-            className="mx-auto w-full max-w-[620px] px-8 pb-16 pt-6"
-          >
-            {tab === "preferences" && <PreferencesTab />}
-            {tab === "profile" && <ProfileTab />}
-            {tab === "calendar" && <CalendarTab />}
-            {tab === "notifications" && <NotificationsTab />}
-            {tab === "connectors" && <ConnectorsTab />}
-            {tab === "help" && <HelpTab />}
-            {tab === "workspace-general" && <WorkspaceGeneralTab />}
-            {tab === "members" && <MembersTab />}
-            {tab === "spaces" && <SpacesTab />}
-            {tab === "analytics" && <AnalyticsTab />}
-            {tab === "billing" && <BillingTab />}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+    <div className="h-full min-h-0 overflow-y-auto">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={snappy}
+          className="mx-auto w-full max-w-[620px] px-8 pb-16 pt-6"
+        >
+          {tab === "preferences" && <PreferencesTab />}
+          {tab === "profile" && <ProfileTab />}
+          {tab === "calendar" && <CalendarTab />}
+          {tab === "notifications" && <NotificationsTab />}
+          {tab === "connectors" && <ConnectorsTab />}
+          {tab === "help" && <HelpTab />}
+          {tab === "workspace-general" && <WorkspaceGeneralTab />}
+          {tab === "members" && <MembersTab />}
+          {tab === "spaces" && <SpacesTab />}
+          {tab === "analytics" && <AnalyticsTab />}
+          {tab === "billing" && <BillingTab />}
+          {tab === "referrals" && <ReferralsTab />}
+        </motion.div>
+      </AnimatePresence>
     </div>
-  );
-}
-
-function NavButton({
-  entry,
-  active,
-  onClick,
-}: {
-  entry: NavEntry;
-  active: boolean;
-  onClick: (route: { kind: "settings"; tab: SettingsTab }) => void;
-}) {
-  const Icon = entry.icon;
-  return (
-    <button
-      type="button"
-      onClick={() => onClick({ kind: "settings", tab: entry.tab })}
-      className={cn(
-        "flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[13px] transition-colors",
-        active ? "bg-selected font-medium text-text" : "text-muted hover:bg-hover hover:text-text",
-      )}
-    >
-      <Icon className="size-4 shrink-0" />
-      {entry.label}
-    </button>
   );
 }
 
 function TabHeading({ title, description }: { title: string; description?: string }) {
   return (
-    <header className="mb-5">
-      <h1 className="font-display text-[24px] font-semibold text-text">{title}</h1>
+    <header className="mb-6">
+      <h1 className="font-display text-[30px] font-semibold tracking-tight text-text">{title}</h1>
       {description && <p className="mt-1 text-[13px] text-muted">{description}</p>}
     </header>
   );
@@ -169,12 +95,14 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 function PreferencesTab() {
   const themePreference = useAppStore((s) => s.themePreference);
   const setThemePreference = useAppStore((s) => s.setThemePreference);
+  const navigate = useAppStore((s) => s.navigate);
   const [, persistTheme] = useSetting("theme", "system");
 
   const [indicator, setIndicator] = useBoolSetting("live_indicator", true);
   const [launchOnLogin, setLaunchOnLogin] = useBoolSetting("launch_on_login", false);
   const [reposition, setReposition] = useBoolSetting("reposition_for_meetings", false);
   const [speakerTags, setSpeakerTags] = useBoolSetting("speaker_tags", false);
+  const [followUpEmails, setFollowUpEmails] = useBoolSetting("suggested_follow_up_emails", false);
   const [linkSharing, setLinkSharing] = useSetting("default_link_sharing", "workspace");
   const [improveModels, setImproveModels] = useBoolSetting("improve_models", false);
   const [retention, setRetention] = useSetting("transcript_retention", "off");
@@ -209,7 +137,22 @@ function PreferencesTab() {
           icon={<Tags />}
           title="Speaker tags"
           description="Identify who is speaking in your calls."
-          control={<Switch checked={speakerTags} onCheckedChange={setSpeakerTags} />}
+          control={
+            <button
+              type="button"
+              onClick={() => setSpeakerTags(!speakerTags)}
+              className="inline-flex items-center gap-0.5 text-[13px] text-muted transition-colors hover:text-text"
+            >
+              {speakerTags ? "On" : "Off"}
+              <ChevronRight className="size-3.5" />
+            </button>
+          }
+        />
+        <SettingRow
+          icon={<Mail />}
+          title="Suggested follow-up emails"
+          description="Draft a recap email after a meeting is enhanced."
+          control={<Switch checked={followUpEmails} onCheckedChange={setFollowUpEmails} />}
         />
       </SettingsCard>
 
@@ -263,7 +206,18 @@ function PreferencesTab() {
         <SettingRow
           icon={<ShieldCheck />}
           title="Use my data to improve models"
-          description="Anonymised transcripts help improve summary quality."
+          description={
+            <>
+              Anonymised transcripts help improve summary quality.{" "}
+              <button
+                type="button"
+                className="text-accent hover:underline"
+                onClick={() => navigate({ kind: "settings", tab: "help" }, { replace: true })}
+              >
+                Learn more
+              </button>
+            </>
+          }
           control={<Switch checked={improveModels} onCheckedChange={setImproveModels} />}
         />
         <SettingRow
@@ -300,11 +254,7 @@ function ProfileTab() {
 
   const save = useMutation({
     mutationFn: () =>
-      api.setProfile(
-        name ?? profile?.name ?? "",
-        email ?? profile?.email ?? "",
-        profile?.workspace ?? "",
-      ),
+      api.setProfile(name ?? profile?.name ?? "", email ?? profile?.email ?? "", profile?.workspace ?? ""),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: api.qk.profile() });
       toast.success("Profile saved");
@@ -318,9 +268,7 @@ function ProfileTab() {
 
       <div className="mb-5 flex items-center gap-3">
         <Avatar name={profile?.name || "You"} size={52} />
-        <div className="text-xs text-subtle">
-          Avatars are generated from your name.
-        </div>
+        <div className="text-xs text-subtle">Avatars are generated from your name.</div>
       </div>
 
       <div className="space-y-4">
@@ -403,9 +351,7 @@ function CalendarTab() {
         {events.length === 0 ? (
           <EmptyState icon={<CalendarDays />} title="No events yet" />
         ) : (
-          events.map((event) => (
-            <SettingRow key={event.id} title={event.title} description={event.start_at} />
-          ))
+          events.map((event) => <SettingRow key={event.id} title={event.title} description={event.start_at} />)
         )}
       </SettingsCard>
     </>
@@ -475,20 +421,11 @@ function ConnectorsTab() {
         <SettingRow
           icon={<KeyRound />}
           title="API key"
-          description={
-            status?.groq_configured ? "A key is configured." : "No key yet — AI features are disabled."
-          }
-          control={
-            status?.groq_configured ? <Badge tone="success">Connected</Badge> : <Badge>Not set</Badge>
-          }
+          description={status?.groq_configured ? "A key is configured." : "No key yet — AI features are disabled."}
+          control={status?.groq_configured ? <Badge tone="success">Connected</Badge> : <Badge>Not set</Badge>}
         />
         <div className="flex gap-2 p-4">
-          <Input
-            type="password"
-            placeholder="gsk_..."
-            value={groqKey}
-            onChange={(e) => setGroqKey(e.target.value)}
-          />
+          <Input type="password" placeholder="gsk_..." value={groqKey} onChange={(e) => setGroqKey(e.target.value)} />
           <Button
             variant="solid"
             size="md"
@@ -517,11 +454,7 @@ function ConnectorsTab() {
       </SettingsCard>
 
       <SettingsCard title="Local database">
-        <SettingRow
-          icon={<Database />}
-          title="SQLite file"
-          description={status?.path ?? "Loading…"}
-        />
+        <SettingRow icon={<Database />} title="SQLite file" description={status?.path ?? "Loading…"} />
         <SettingRow
           icon={<Database />}
           title="Notes stored"
@@ -571,8 +504,7 @@ function WorkspaceGeneralTab() {
   const [workspace, setWorkspace] = useState<string | null>(null);
 
   const save = useMutation({
-    mutationFn: () =>
-      api.setProfile(profile?.name ?? "", profile?.email ?? "", (workspace ?? "").trim()),
+    mutationFn: () => api.setProfile(profile?.name ?? "", profile?.email ?? "", (workspace ?? "").trim()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: api.qk.profile() });
       toast.success("Workspace renamed");
@@ -585,10 +517,7 @@ function WorkspaceGeneralTab() {
       <TabHeading title="General" description="Workspace-wide settings." />
       <div className="space-y-4">
         <Field label="Workspace name">
-          <Input
-            value={workspace ?? profile?.workspace ?? ""}
-            onChange={(e) => setWorkspace(e.target.value)}
-          />
+          <Input value={workspace ?? profile?.workspace ?? ""} onChange={(e) => setWorkspace(e.target.value)} />
         </Field>
         <Button
           variant="solid"
@@ -745,6 +674,22 @@ function BillingTab() {
           title="Plan"
           description="Bagrry runs entirely on your machine. Bring your own Groq key."
           control={<Badge tone="accent">Local</Badge>}
+        />
+      </SettingsCard>
+    </>
+  );
+}
+
+function ReferralsTab() {
+  return (
+    <>
+      <TabHeading title="Referrals" description="Invite teammates to your workspace." />
+      <SettingsCard>
+        <SettingRow
+          icon={<Gift />}
+          title="Share Bagrry"
+          description="Bagrry is local-first — send someone the app, not a cloud invite."
+          control={<Badge>Soon</Badge>}
         />
       </SettingsCard>
     </>

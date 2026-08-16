@@ -172,7 +172,8 @@ export type SettingsTab =
   | "members"
   | "spaces"
   | "analytics"
-  | "billing";
+  | "billing"
+  | "referrals";
 
 export type Route =
   | { kind: "home" }
