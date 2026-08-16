@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronsUpDown,
   CircleHelp,
+  Compass,
   FolderPlus,
   Home,
   LayoutTemplate,
@@ -13,7 +14,7 @@ import {
   Plus,
   Search,
   Settings,
-  SquarePen,
+  User,
   UserPlus,
   Users,
   type LucideIcon,
@@ -194,6 +195,7 @@ export function Sidebar() {
         workspace={workspaceName}
         onSettings={openSettings}
         navigate={navigate}
+        route={route}
       />
 
       <NewFolderDialog
@@ -415,22 +417,35 @@ function SidebarFooter({
   workspace,
   onSettings,
   navigate,
+  route,
 }: {
   name: string;
   email: string;
   workspace: string;
   onSettings: () => void;
   navigate: (route: Route) => void;
+  route: Route;
 }) {
   return (
     <div className="border-t border-border p-2">
       <div className="mb-1.5 flex items-center gap-0.5 px-1">
-        <FooterIcon label="New note" icon={SquarePen} onClick={() => navigate({ kind: "home" })} />
-        <FooterIcon label="People" icon={UserPlus} onClick={() => navigate({ kind: "settings", tab: "members" })} />
         <FooterIcon
           label="Templates"
-          icon={LayoutTemplate}
+          icon={Compass}
+          active={route.kind === "settings" && route.tab === "spaces"}
           onClick={() => navigate({ kind: "settings", tab: "spaces" })}
+        />
+        <FooterIcon
+          label="People"
+          icon={User}
+          active={route.kind === "people"}
+          onClick={() => navigate({ kind: "people" })}
+        />
+        <FooterIcon
+          label="Companies"
+          icon={Building2}
+          active={route.kind === "companies"}
+          onClick={() => navigate({ kind: "companies" })}
         />
       </div>
 
@@ -494,10 +509,12 @@ function FooterIcon({
   label,
   icon: Icon,
   onClick,
+  active,
 }: {
   label: string;
   icon: LucideIcon;
   onClick: () => void;
+  active?: boolean;
 }) {
   return (
     <Tooltip label={label} side="top">
@@ -505,7 +522,12 @@ function FooterIcon({
         type="button"
         aria-label={label}
         onClick={onClick}
-        className="grid size-6 place-items-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-text"
+        className={cn(
+          "grid size-6 place-items-center rounded-md transition-[background-color,color,box-shadow] duration-150",
+          active
+            ? "bg-hover text-text shadow-[inset_0_0_0_1px_var(--border-strong)]"
+            : "text-subtle hover:bg-hover hover:text-text",
+        )}
       >
         <Icon className="size-3.5" />
       </button>
