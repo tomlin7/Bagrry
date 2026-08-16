@@ -7,6 +7,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { AnimatePresence, motion } from "framer-motion";
+import { snappy } from "@/lib/motion";
 
 const STEPS = [
   {
@@ -51,48 +53,58 @@ export function Onboarding() {
   return (
     <Dialog open={open} onOpenChange={(next) => !next && finish()}>
       <DialogContent showClose={false} className="max-w-[420px]">
-        {isLastStep ? (
-          <div>
-            <div className="mb-4 grid size-9 place-items-center rounded-xl bg-accent-subtle text-accent">
-              <KeyRound className="size-4" />
-            </div>
-            <h2 className="font-display text-xl font-semibold text-text">Almost there</h2>
-            <p className="mt-1 text-[13px] text-muted">
-              Transcription and summaries run through Groq. You can add the key later in Settings.
-            </p>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={isLastStep ? "setup" : step}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={snappy}
+          >
+            {isLastStep ? (
+              <div>
+                <div className="mb-4 grid size-9 place-items-center rounded-xl bg-accent-subtle text-accent">
+                  <KeyRound className="size-4" />
+                </div>
+                <h2 className="font-display text-xl font-semibold text-text">Almost there</h2>
+                <p className="mt-1 text-[13px] text-muted">
+                  Transcription and summaries run through Groq. You can add the key later in Settings.
+                </p>
 
-            <div className="mt-4 space-y-3">
-              <Input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
-              <Input
-                type="password"
-                placeholder="Groq API key (optional)"
-                value={groqKey}
-                onChange={(e) => setGroqKey(e.target.value)}
+                <div className="mt-4 space-y-3">
+                  <Input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
+                  <Input
+                    type="password"
+                    placeholder="Groq API key (optional)"
+                    value={groqKey}
+                    onChange={(e) => setGroqKey(e.target.value)}
+                  />
+                </div>
+
+                <div className="mt-5 flex items-center justify-between">
+                  <Button variant="ghost" size="md" onClick={finish}>
+                    Skip
+                  </Button>
+                  <Button
+                    variant="solid"
+                    size="md"
+                    loading={complete.isPending}
+                    onClick={() => complete.mutate()}
+                  >
+                    Start using Bagrry
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Step
+                index={step}
+                onNext={() => setStep((s) => s + 1)}
+                onSkip={finish}
+                total={STEPS.length}
               />
-            </div>
-
-            <div className="mt-5 flex items-center justify-between">
-              <Button variant="ghost" size="md" onClick={finish}>
-                Skip
-              </Button>
-              <Button
-                variant="solid"
-                size="md"
-                loading={complete.isPending}
-                onClick={() => complete.mutate()}
-              >
-                Start using Bagrry
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <Step
-            index={step}
-            onNext={() => setStep((s) => s + 1)}
-            onSkip={finish}
-            total={STEPS.length}
-          />
-        )}
+            )}
+          </motion.div>
+        </AnimatePresence>
       </DialogContent>
     </Dialog>
   );
@@ -125,7 +137,11 @@ function Step({
           {Array.from({ length: total + 1 }, (_, i) => (
             <span
               key={i}
-              className={i === index ? "h-1 w-4 rounded-full bg-accent" : "size-1 rounded-full bg-border-strong"}
+              className={
+                i === index
+                  ? "h-1 w-4 rounded-full bg-accent transition-all duration-150"
+                  : "size-1 rounded-full bg-border-strong transition-all duration-150"
+              }
             />
           ))}
         </div>

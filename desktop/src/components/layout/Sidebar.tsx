@@ -37,8 +37,8 @@ import {
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const SIDEBAR_WIDTH = 208;
+import { SIDEBAR_WIDTH, layoutTween } from "@/lib/motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 export function Sidebar() {
   const route = useAppStore((s) => s.route);
@@ -118,28 +118,38 @@ export function Sidebar() {
           }
         />
 
-        {chatExpanded && sessions.length > 0 && (
-          <div className="mb-1">
-            {sessions.slice(0, 6).map((session) => (
-              <button
-                key={session.id}
-                type="button"
-                onClick={() => navigate({ kind: "chat", sessionId: session.id })}
-                className={cn(
-                  "flex h-7 w-full items-center gap-2 rounded-lg pl-8 pr-2 text-left text-[13px] transition-colors",
-                  route.kind === "chat" && route.sessionId === session.id
-                    ? "bg-selected text-text"
-                    : "text-muted hover:bg-hover hover:text-text",
-                )}
-              >
-                <span className="min-w-0 flex-1 truncate">{session.title || "New chat"}</span>
-                <span className="shrink-0 text-[11px] text-subtle">
-                  {formatRelative(session.updated_at)}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {chatExpanded && sessions.length > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={layoutTween}
+              className="overflow-hidden"
+            >
+              <div className="mb-1">
+                {sessions.slice(0, 6).map((session) => (
+                  <button
+                    key={session.id}
+                    type="button"
+                    onClick={() => navigate({ kind: "chat", sessionId: session.id })}
+                    className={cn(
+                      "flex h-7 w-full items-center gap-2 rounded-lg pl-8 pr-2 text-left text-[13px] transition-colors",
+                      route.kind === "chat" && route.sessionId === session.id
+                        ? "bg-selected text-text"
+                        : "text-muted hover:bg-hover hover:text-text",
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{session.title || "New chat"}</span>
+                    <span className="shrink-0 text-[11px] text-subtle">
+                      {formatRelative(session.updated_at)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="mt-4 px-2 pb-1 text-[11px] font-semibold text-subtle">Spaces</div>
 
