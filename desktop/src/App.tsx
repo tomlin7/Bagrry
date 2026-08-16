@@ -19,7 +19,7 @@ import { ChatPage } from "@/components/pages/ChatPage";
 import { SpacePage } from "@/components/pages/SpacePage";
 import { SharedPage } from "@/components/pages/SharedPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
-import { layoutTween, SIDEBAR_WIDTH, snappy } from "@/lib/motion";
+import { sidebarTween, SIDEBAR_WIDTH, snappy } from "@/lib/motion";
 
 export default function App() {
   const route = useAppStore((s) => s.route);
@@ -41,12 +41,19 @@ export default function App() {
                 initial={{ width: 0 }}
                 animate={{ width: SIDEBAR_WIDTH }}
                 exit={{ width: 0 }}
-                transition={layoutTween}
+                transition={sidebarTween}
                 className="relative h-full shrink-0 overflow-hidden"
               >
-                <div className="absolute inset-y-0 left-0 h-full" style={{ width: SIDEBAR_WIDTH }}>
+                <motion.div
+                  initial={{ x: -SIDEBAR_WIDTH }}
+                  animate={{ x: 0 }}
+                  exit={{ x: -SIDEBAR_WIDTH }}
+                  transition={sidebarTween}
+                  className="absolute inset-y-0 left-0 h-full"
+                  style={{ width: SIDEBAR_WIDTH }}
+                >
                   <Sidebar />
-                </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
