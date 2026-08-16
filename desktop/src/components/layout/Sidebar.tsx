@@ -34,9 +34,10 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { CreateFolderDialog } from "@/components/layout/CreateFolderDialog";
+import { folderGlyph, folderGlyphClass } from "@/lib/folder-templates";
 import { SIDEBAR_WIDTH, layoutTween } from "@/lib/motion";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -63,10 +64,7 @@ export function Sidebar() {
   const sharedFolders = folders.filter((f) => f.is_shared);
 
   return (
-    <aside
-      className="flex h-full shrink-0 flex-col border-r border-border bg-sidebar"
-      style={{ width: SIDEBAR_WIDTH }}
-    >
+    <aside className="flex h-full shrink-0 flex-col border-r border-border bg-sidebar" style={{ width: SIDEBAR_WIDTH }}>
       {/* Brand row doubles as the drag handle for the sidebar column. */}
       <div data-tauri-drag-region className="flex h-11 items-center px-3">
         <button
@@ -90,12 +88,7 @@ export function Sidebar() {
           <Kbd>Ctrl+K</Kbd>
         </button>
 
-        <NavItem
-          icon={Home}
-          label="Home"
-          active={route.kind === "home"}
-          onClick={() => navigate({ kind: "home" })}
-        />
+        <NavItem icon={Home} label="Home" active={route.kind === "home"} onClick={() => navigate({ kind: "home" })} />
         <NavItem
           icon={Users}
           label="Shared with me"
@@ -110,11 +103,7 @@ export function Sidebar() {
           expanded={sessions.length > 0 ? chatExpanded : undefined}
           onToggleExpanded={() => setChatExpanded((v) => !v)}
           trailing={
-            <IconAction
-              label="New chat"
-              icon={Plus}
-              onClick={() => navigate({ kind: "chat", sessionId: null })}
-            />
+            <IconAction label="New chat" icon={Plus} onClick={() => navigate({ kind: "chat", sessionId: null })} />
           }
         />
 
@@ -141,9 +130,7 @@ export function Sidebar() {
                     )}
                   >
                     <span className="min-w-0 flex-1 truncate">{session.title || "New chat"}</span>
-                    <span className="shrink-0 text-[11px] text-subtle">
-                      {formatRelative(session.updated_at)}
-                    </span>
+                    <span className="shrink-0 text-[11px] text-subtle">{formatRelative(session.updated_at)}</span>
                   </button>
                 ))}
               </div>
@@ -164,6 +151,7 @@ export function Sidebar() {
             key={folder.id}
             id={folder.id}
             name={folder.name}
+            icon={folder.icon}
             active={route.kind === "space" && route.spaceId === folder.id}
             onClick={() => navigate({ kind: "space", spaceId: folder.id })}
           />
@@ -181,6 +169,7 @@ export function Sidebar() {
             key={folder.id}
             id={folder.id}
             name={folder.name}
+            icon={folder.icon}
             active={route.kind === "space" && route.spaceId === folder.id}
             onClick={() => navigate({ kind: "space", spaceId: folder.id })}
           />
@@ -196,9 +185,10 @@ export function Sidebar() {
         navigate={navigate}
       />
 
-      <NewFolderDialog
+      <CreateFolderDialog
         open={newFolderIn !== null}
-        shared={newFolderIn?.shared ?? false}
+        initialShared={newFolderIn?.shared ?? false}
+        workspaceName={workspaceName}
         onOpenChange={(open) => !open && setNewFolderIn(null)}
       />
     </aside>
@@ -267,14 +257,17 @@ function NavItem({
 function FolderItem({
   id,
   name,
+  icon,
   active,
   onClick,
 }: {
   id: string;
   name: string;
+  icon: string | null;
   active: boolean;
   onClick: () => void;
 }) {
+  const Glyph = folderGlyph(icon);
   const queryClient = useQueryClient();
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(name);
@@ -333,11 +326,12 @@ function FolderItem({
         type="button"
         onClick={onClick}
         className={cn(
-          "min-w-0 flex-1 truncate py-1 text-left text-[13px]",
+          "flex min-w-0 flex-1 items-center gap-1.5 truncate py-1 text-left text-[13px]",
           active ? "font-medium text-text" : "text-muted group-hover:text-text",
         )}
       >
-        {name}
+        {icon ? <Glyph className={cn("size-3.5 shrink-0", folderGlyphClass(icon))} /> : null}
+        <span className="truncate">{name}</span>
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -381,15 +375,7 @@ function AddFolderButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function IconAction({
-  label,
-  icon: Icon,
-  onClick,
-}: {
-  label: string;
-  icon: LucideIcon;
-  onClick: () => void;
-}) {
+function IconAction({ label, icon: Icon, onClick }: { label: string; icon: LucideIcon; onClick: () => void }) {
   return (
     <Tooltip label={label}>
       <button
@@ -490,15 +476,7 @@ function SidebarFooter({
   );
 }
 
-function FooterIcon({
-  label,
-  icon: Icon,
-  onClick,
-}: {
-  label: string;
-  icon: LucideIcon;
-  onClick: () => void;
-}) {
+function FooterIcon({ label, icon: Icon, onClick }: { label: string; icon: LucideIcon; onClick: () => void }) {
   return (
     <Tooltip label={label} side="top">
       <button
@@ -510,69 +488,5 @@ function FooterIcon({
         <Icon className="size-3.5" />
       </button>
     </Tooltip>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-function NewFolderDialog({
-  open,
-  shared,
-  onOpenChange,
-}: {
-  open: boolean;
-  shared: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [name, setName] = useState("");
-  const queryClient = useQueryClient();
-  const navigate = useAppStore((s) => s.navigate);
-
-  const create = useMutation({
-    mutationFn: () => api.createFolder(name.trim(), shared),
-    onSuccess: (folder) => {
-      void queryClient.invalidateQueries({ queryKey: api.qk.folders() });
-      onOpenChange(false);
-      setName("");
-      navigate({ kind: "space", spaceId: folder.id });
-    },
-    onError: (e) => toast.error(e),
-  });
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) setName("");
-        onOpenChange(next);
-      }}
-    >
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>New folder</DialogTitle>
-        </DialogHeader>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (name.trim()) create.mutate();
-          }}
-        >
-          <Input
-            autoFocus
-            placeholder={shared ? "Team folder name" : "Folder name"}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <DialogFooter>
-            <Button type="button" variant="ghost" size="md" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="solid" size="md" disabled={!name.trim()} loading={create.isPending}>
-              Create
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

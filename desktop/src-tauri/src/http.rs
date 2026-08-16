@@ -252,7 +252,7 @@ fn get_note(conn: &Connection, id: &str) -> Option<serde_json::Value> {
 fn list_folders(conn: &Connection) -> serde_json::Value {
     query_json(
         conn,
-        "SELECT id, name, parent_id, is_shared FROM folders ORDER BY name",
+        "SELECT id, name, parent_id, is_shared, icon, description FROM folders ORDER BY name",
         [],
         |row| {
             Ok(json!({
@@ -260,6 +260,8 @@ fn list_folders(conn: &Connection) -> serde_json::Value {
                 "name": row.get::<_, String>(1)?,
                 "parent_id": row.get::<_, Option<String>>(2)?,
                 "is_shared": row.get::<_, i64>(3)? != 0,
+                "icon": row.get::<_, Option<String>>(4)?,
+                "description": row.get::<_, Option<String>>(5)?,
             }))
         },
     )

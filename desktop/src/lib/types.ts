@@ -14,6 +14,8 @@ export type Folder = {
   parent_id: string | null;
   name: string;
   is_shared: boolean;
+  icon: string | null;
+  description: string | null;
 };
 
 export type Meeting = {
