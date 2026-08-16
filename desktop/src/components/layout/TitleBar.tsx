@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { WindowControls } from "./WindowControls";
 import { useCreateNote } from "@/hooks/useCreateNote";
+import { AnimatePresence, motion } from "framer-motion";
+import { snappy } from "@/lib/motion";
 
 /**
  * The one horizontal strip at the top of the content column. Everything that
@@ -29,18 +31,28 @@ export function TitleBar() {
       className="flex h-11 shrink-0 items-center gap-2 pl-3 pr-0"
     >
       <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
-        {history.length > 0 && (
-          <Tooltip label="Back" shortcut="Alt+←">
-            <button
-              type="button"
-              aria-label="Back"
-              onClick={back}
-              className="grid size-6 place-items-center rounded-md text-muted transition-colors hover:bg-hover hover:text-text"
+        <AnimatePresence initial={false}>
+          {history.length > 0 && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 24, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={snappy}
+              className="overflow-hidden"
             >
-              <ChevronLeft className="size-3.5" />
-            </button>
-          </Tooltip>
-        )}
+              <Tooltip label="Back" shortcut="Alt+←">
+                <button
+                  type="button"
+                  aria-label="Back"
+                  onClick={back}
+                  className="grid size-6 place-items-center rounded-md text-muted transition-colors hover:bg-hover hover:text-text"
+                >
+                  <ChevronLeft className="size-3.5" />
+                </button>
+              </Tooltip>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <Tooltip label={sidebarOpen ? "Hide sidebar" : "Show sidebar"} shortcut="Ctrl+\">
           <button
             type="button"
@@ -56,7 +68,11 @@ export function TitleBar() {
         </Tooltip>
       </div>
 
-      {recState !== "idle" && <RecordingPill />}
+      {recState !== "idle" && (
+        <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={snappy}>
+          <RecordingPill />
+        </motion.div>
+      )}
 
       <div data-tauri-drag-region className="h-full flex-1" />
 

@@ -19,8 +19,7 @@ import { ChatPage } from "@/components/pages/ChatPage";
 import { SpacePage } from "@/components/pages/SpacePage";
 import { SharedPage } from "@/components/pages/SharedPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
-
-const SNAPPY = { duration: 0.14, ease: [0.22, 1, 0.36, 1] as const };
+import { layoutTween, SIDEBAR_WIDTH, snappy } from "@/lib/motion";
 
 export default function App() {
   const route = useAppStore((s) => s.route);
@@ -32,19 +31,22 @@ export default function App() {
   useShowWindowWhenReady();
 
   return (
-    <MotionConfig reducedMotion="user" transition={SNAPPY}>
+    <MotionConfig reducedMotion="user">
       <TooltipProvider delayDuration={350} skipDelayDuration={200}>
         <div className="flex h-full w-full overflow-hidden bg-bg text-text">
           <AnimatePresence initial={false}>
             {sidebarOpen && (
               <motion.div
                 key="sidebar"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="h-full"
+                initial={{ width: 0 }}
+                animate={{ width: SIDEBAR_WIDTH }}
+                exit={{ width: 0 }}
+                transition={layoutTween}
+                className="relative h-full shrink-0 overflow-hidden"
               >
-                <Sidebar />
+                <div className="absolute inset-y-0 left-0 h-full" style={{ width: SIDEBAR_WIDTH }}>
+                  <Sidebar />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -52,13 +54,14 @@ export default function App() {
           <div className="flex min-w-0 flex-1 flex-col bg-bg">
             <TitleBar />
             <main className="relative min-h-0 flex-1 overflow-hidden">
-              <AnimatePresence mode="popLayout" initial={false}>
+              <AnimatePresence mode="sync" initial={false}>
                 <motion.div
                   key={routeKey(route)}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  className="h-full min-h-0"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={snappy}
+                  className="absolute inset-0"
                 >
                   {route.kind === "home" && <HomePage />}
                   {route.kind === "shared" && <SharedPage />}

@@ -16,7 +16,7 @@ export const Switch = React.forwardRef<
     <SwitchPrimitive.Root
       ref={ref}
       className={cn(
-        "peer inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
+        "peer inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-150",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
         "data-[state=checked]:bg-accent data-[state=unchecked]:bg-border-strong",
         "disabled:cursor-not-allowed disabled:opacity-50",
@@ -26,7 +26,7 @@ export const Switch = React.forwardRef<
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          "pointer-events-none block size-[18px] rounded-full bg-white shadow-sm ring-0 transition-transform",
+          "pointer-events-none block size-[18px] rounded-full bg-white shadow-sm ring-0 transition-transform duration-150 ease-out",
           "data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0",
         )}
       />
@@ -75,7 +75,7 @@ export const SelectContent = React.forwardRef<
         position={position}
         sideOffset={6}
         className={cn(
-          "z-50 min-w-[8rem] overflow-hidden rounded-xl border border-border bg-elevated p-1 text-[13px] shadow-lg animate-pop-in",
+          "z-50 min-w-[8rem] overflow-hidden rounded-xl border border-border bg-elevated p-1 text-[13px] shadow-lg ui-pop",
           "max-h-[min(24rem,var(--radix-select-content-available-height))]",
           className,
         )}

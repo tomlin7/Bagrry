@@ -33,8 +33,7 @@ export function Tooltip({
           align={align}
           sideOffset={6}
           className={cn(
-            "z-[60] flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2 py-1 text-[11px] font-medium text-text shadow-md",
-            "animate-pop-in",
+            "ui-pop z-[60] flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2 py-1 text-[11px] font-medium text-text shadow-md",
           )}
         >
           {label}
