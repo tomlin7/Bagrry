@@ -39,7 +39,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CreateFolderDialog } from "@/components/layout/CreateFolderDialog";
 import { folderGlyph, folderGlyphClass } from "@/lib/folder-templates";
-import { SIDEBAR_WIDTH, layoutTween } from "@/lib/motion";
+import { SIDEBAR_WIDTH, layoutTween, snappy } from "@/lib/motion";
 import { AnimatePresence, motion } from "framer-motion";
 import { SettingsSidebar } from "@/components/layout/SettingsSidebar";
 
