@@ -25,6 +25,8 @@ pub struct Folder {
     pub parent_id: Option<String>,
     pub name: String,
     pub is_shared: bool,
+    pub icon: Option<String>,
+    pub description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -139,7 +141,7 @@ pub fn db_status(app: AppHandle, state: State<AppState>) -> Result<DbStatus, Str
 pub fn list_folders(state: State<AppState>) -> Result<Vec<Folder>, String> {
     let conn = state.conn()?;
     let mut stmt = conn
-        .prepare("SELECT id, parent_id, name, is_shared FROM folders ORDER BY name")
+        .prepare("SELECT id, parent_id, name, is_shared, icon, description FROM folders ORDER BY name")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -148,6 +150,8 @@ pub fn list_folders(state: State<AppState>) -> Result<Vec<Folder>, String> {
                 parent_id: row.get(1)?,
                 name: row.get(2)?,
                 is_shared: row.get::<_, i64>(3)? != 0,
+                icon: row.get(4)?,
+                description: row.get(5)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -888,17 +892,35 @@ pub fn create_folder(
     state: State<AppState>,
     name: String,
     is_shared: Option<bool>,
+    icon: Option<String>,
+    description: Option<String>,
 ) -> Result<Folder, String> {
     let name = name.trim().to_string();
     if name.is_empty() {
         return Err("Folder name can't be empty".into());
     }
+    let icon = icon.and_then(|s| {
+        let trimmed = s.trim().to_string();
+        if trimmed.is_empty() || trimmed == "folder" {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+    let description = description.and_then(|s| {
+        let trimmed = s.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
     let conn = state.conn()?;
     let id = new_id("folder");
     let shared = is_shared.unwrap_or(false);
     conn.execute(
-        "INSERT INTO folders (id, name, is_shared) VALUES (?1,?2,?3)",
-        params![id, name, if shared { 1 } else { 0 }],
+        "INSERT INTO folders (id, name, is_shared, icon, description) VALUES (?1,?2,?3,?4,?5)",
+        params![id, name, if shared { 1 } else { 0 }, icon, description],
     )
     .map_err(|e| e.to_string())?;
     Ok(Folder {
@@ -906,6 +928,8 @@ pub fn create_folder(
         parent_id: None,
         name,
         is_shared: shared,
+        icon,
+        description,
     })
 }
 
