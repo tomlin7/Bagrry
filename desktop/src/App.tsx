@@ -18,6 +18,8 @@ import { NotePage } from "@/components/pages/NotePage";
 import { ChatPage } from "@/components/pages/ChatPage";
 import { SpacePage } from "@/components/pages/SpacePage";
 import { SharedPage } from "@/components/pages/SharedPage";
+import { PeoplePage } from "@/components/pages/PeoplePage";
+import { CompaniesPage } from "@/components/pages/CompaniesPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
 import { sidebarTween, SIDEBAR_WIDTH, snappy } from "@/lib/motion";
 
@@ -75,6 +77,8 @@ export default function App() {
                   {route.kind === "space" && <SpacePage spaceId={route.spaceId} />}
                   {route.kind === "note" && <NotePage noteId={route.noteId} />}
                   {route.kind === "chat" && <ChatPage sessionId={route.sessionId} />}
+                  {route.kind === "people" && <PeoplePage />}
+                  {route.kind === "companies" && <CompaniesPage />}
                   {route.kind === "settings" && <SettingsPage tab={route.tab} />}
                 </motion.div>
               </AnimatePresence>
@@ -100,7 +104,10 @@ function useRecordingBridge() {
     let disposed = false;
     const unlisteners: Array<() => void> = [];
 
-    api.recordingStatus().then(applyRecStatus).catch(() => undefined);
+    api
+      .recordingStatus()
+      .then(applyRecStatus)
+      .catch(() => undefined);
 
     const register = <T,>(event: string, handler: (payload: T) => void) => {
       listen<T>(event, (e) => handler(e.payload))
