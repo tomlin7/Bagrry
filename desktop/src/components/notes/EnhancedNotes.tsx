@@ -15,7 +15,15 @@ function parseDoc(json: string | null): EnhancedDoc | null {
   }
 }
 
-export function EnhancedNotes({ noteId, json }: { noteId: string; json: string | null }) {
+export function EnhancedNotes({
+  noteId,
+  json,
+  onChange,
+}: {
+  noteId: string;
+  json: string | null;
+  onChange?: (json: string) => void;
+}) {
   const doc = useMemo(() => parseDoc(json), [json]);
   const { data: segments = [] } = useQuery({
     queryKey: api.qk.segments(noteId),
@@ -48,7 +56,31 @@ export function EnhancedNotes({ noteId, json }: { noteId: string; json: string |
               <li key={bulletIndex} className="flex gap-2 text-[13px] leading-relaxed text-text">
                 <span className="mt-[0.45rem] size-1 shrink-0 rounded-full bg-subtle" />
                 <span>
-                  {bullet.text}
+                  <span
+                    contentEditable={Boolean(onChange)}
+                    suppressContentEditableWarning
+                    className={cn(onChange && "rounded-sm outline-none focus:bg-hover")}
+                    onBlur={(event) => {
+                      if (!onChange || !doc) return;
+                      const nextText = event.currentTarget.innerText.trim();
+                      if (nextText === bullet.text) return;
+                      const next: EnhancedDoc = {
+                        sections: doc.sections.map((section, sIdx) =>
+                          sIdx !== index
+                            ? section
+                            : {
+                                ...section,
+                                bullet_points: section.bullet_points.map((item, bIdx) =>
+                                  bIdx === bulletIndex ? { ...item, text: nextText } : item,
+                                ),
+                              },
+                        ),
+                      };
+                      onChange(JSON.stringify(next));
+                    }}
+                  >
+                    {bullet.text}
+                  </span>
                   {bullet.citations?.length > 0 && (
                     <span className="ml-1 inline-flex gap-0.5 align-baseline">
                       {bullet.citations.map((citation) => (

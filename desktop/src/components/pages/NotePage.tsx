@@ -15,7 +15,7 @@ import * as api from "@/lib/api";
 import { formatDayLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/app";
-import { NoteEditor } from "@/components/notes/NoteEditor";
+import { NoteEditor, type NoteEditorHandle } from "@/components/notes/NoteEditor";
 import { EnhancedNotes } from "@/components/notes/EnhancedNotes";
 import { TranscriptPanel } from "@/components/notes/TranscriptPanel";
 import { RecordingControls } from "@/components/notes/RecordingControls";
@@ -46,6 +46,7 @@ export function NotePage({ noteId }: { noteId: string }) {
 
   const [tab, setTab] = useState<Tab>("notes");
   const [selection, setSelection] = useState("");
+  const editorRef = useRef<NoteEditorHandle>(null);
 
   const { data: note, isLoading } = useQuery({
     queryKey: api.qk.meeting(noteId),
@@ -63,8 +64,14 @@ export function NotePage({ noteId }: { noteId: string }) {
   const { data: people = [] } = useQuery({ queryKey: api.qk.people(), queryFn: api.listPeople });
 
   const saveBody = useMutation({
-    mutationFn: (html: string) => api.saveScratchpad(noteId, html),
+    mutationFn: (draft: { text: string; json: string }) => api.saveScratchpad(noteId, draft.text, draft.json),
     onError: (e) => toast.error(e, "Your latest edits may not be saved."),
+  });
+
+  const saveEnhanced = useMutation({
+    mutationFn: (json: string) => api.saveEnhancedNotes(noteId, json),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: api.qk.meeting(noteId) }),
+    onError: (e) => toast.error(e, "Enhanced notes weren't saved."),
   });
 
   const saveTitle = useMutation({
@@ -154,7 +161,10 @@ export function NotePage({ noteId }: { noteId: string }) {
 
   const reprompt = useMutation({
     mutationFn: (instruction: string) => api.repromptSelection(noteId, selection, instruction),
-    onSuccess: (result) => toast.info("Rewrite suggestion", result.slice(0, 240)),
+    onSuccess: (result) => {
+      editorRef.current?.replaceSelection(result.trim());
+      toast.success("Selection rewritten");
+    },
     onError: (e) => toast.error(e),
   });
 
@@ -347,12 +357,18 @@ export function NotePage({ noteId }: { noteId: string }) {
                 transition={snappy}
               >
                 {tab === "enhanced" && hasEnhanced ? (
-                  <EnhancedNotes noteId={noteId} json={note.enhanced_notes_json} />
+                  <EnhancedNotes
+                    noteId={noteId}
+                    json={note.enhanced_notes_json}
+                    onChange={(next) => saveEnhanced.mutate(next)}
+                  />
                 ) : (
                   <NoteEditor
+                    ref={editorRef}
                     noteId={noteId}
                     initialContent={note.scratchpad_raw}
-                    onSave={(html) => saveBody.mutate(html)}
+                    initialJson={note.scratchpad_json}
+                    onSave={(draft) => saveBody.mutate(draft)}
                     onSelectionChange={setSelection}
                   />
                 )}

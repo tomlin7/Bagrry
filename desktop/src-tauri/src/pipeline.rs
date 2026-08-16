@@ -301,6 +301,16 @@ pub fn persist_transcript(
     Ok(())
 }
 
+/// Drops citation ids that are not in this meeting's transcript.
+pub fn validate_citations(doc: &mut groq::EnhancedDoc, segs: &[TranscriptSeg]) {
+    let ids: std::collections::HashSet<&str> = segs.iter().map(|s| s.sentence_id.as_str()).collect();
+    for section in &mut doc.sections {
+        for bullet in &mut section.bullet_points {
+            bullet.citations.retain(|c| ids.contains(c.as_str()));
+        }
+    }
+}
+
 pub fn load_segments(conn: &Connection, meeting_id: &str) -> Result<Vec<TranscriptSeg>, String> {
     let mut stmt = conn
         .prepare(
