@@ -7,6 +7,7 @@ import {
   type RecStatus,
   type Route,
   type SettingsTab,
+  type TranscriptSeg,
   type VuLevels,
 } from "@/lib/types";
 import {
@@ -71,9 +72,13 @@ type AppState = {
   recordingStartedAt: number | null;
   pendingBytes: number;
   loopbackOk: boolean;
+  lastError: string | null;
   vu: VuLevels;
   applyRecStatus: (status: RecStatus) => void;
   setVu: (vu: VuLevels) => void;
+  liveSegments: TranscriptSeg[];
+  appendLiveSegments: (segments: TranscriptSeg[]) => void;
+  clearLiveSegments: () => void;
 
   /* Transcript panel */
   transcriptOpen: boolean;
@@ -151,7 +156,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   recordingStartedAt: null,
   pendingBytes: 0,
   loopbackOk: false,
+  lastError: null,
   vu: { mic: 0, system: 0 },
+  liveSegments: [],
 
   applyRecStatus: (status) => {
     const next = normalizeRecStatus(status);
@@ -161,7 +168,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       recordingMeetingId: next.meetingId,
       pendingBytes: next.pendingBytes,
       loopbackOk: next.loopbackOk,
-      // Keep the original start time across pause/resume so the clock is continuous.
+      lastError: next.lastError,
+      // A new capture starts empty; leftover live lines stay until stop transcribes.
+      liveSegments: wasIdle && next.state !== "idle" ? [] : get().liveSegments,
       recordingStartedAt:
         next.state === "idle" ? null : wasIdle ? Date.now() : (get().recordingStartedAt ?? Date.now()),
       transcriptOpen: next.state === "idle" ? get().transcriptOpen : true,
@@ -170,6 +179,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setVu: (vu) => set({ vu }),
+  appendLiveSegments: (segments) => {
+    if (segments.length === 0) return;
+    set({ liveSegments: [...get().liveSegments, ...segments] });
+  },
+  clearLiveSegments: () => set({ liveSegments: [] }),
 
   transcriptOpen: false,
   transcriptMinimized: false,

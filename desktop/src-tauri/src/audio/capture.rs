@@ -1,4 +1,5 @@
-use super::resample::{push_capped, resample_mono, rms, to_mono_i16};
+use super::resample::{resample_mono, rms, to_mono_i16};
+use super::sink::PcmSink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::SampleFormat;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -8,10 +9,10 @@ use std::thread::JoinHandle;
 pub fn start_mic(
     stop: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
-    pcm: Arc<Mutex<Vec<i16>>>,
+    pcm: Arc<PcmSink>,
     level: Arc<AtomicU32>,
+    last_error: Arc<Mutex<Option<String>>>,
     target_hz: u32,
-    max_seconds: usize,
 ) -> Result<JoinHandle<()>, String> {
     let host = cpal::default_host();
     let device = host
@@ -22,13 +23,19 @@ pub fn start_mic(
         .map_err(|e| format!("mic config: {e}"))?;
     let sample_rate = config.sample_rate().0;
     let channels = config.channels() as usize;
-    let max_samples = target_hz as usize * max_seconds;
     let format = config.sample_format();
     let stream_config = config.into();
     std::thread::Builder::new()
         .name("mic-capture".into())
         .spawn(move || {
-            let err_fn = |e| eprintln!("mic stream error: {e}");
+            let last_error_cb = last_error.clone();
+            let err_fn = move |e| {
+                let msg = format!("mic stream error: {e}");
+                eprintln!("{msg}");
+                if let Ok(mut slot) = last_error_cb.lock() {
+                    *slot = Some(msg);
+                }
+            };
             let stream = match format {
                 SampleFormat::F32 => device.build_input_stream(
                     &stream_config,
@@ -41,16 +48,7 @@ pub fn start_mic(
                             if stop.load(Ordering::Relaxed) {
                                 return;
                             }
-                            ingest_f32(
-                                data,
-                                channels,
-                                sample_rate,
-                                target_hz,
-                                max_samples,
-                                paused.as_ref(),
-                                &pcm,
-                                &level,
-                            );
+                            ingest_f32(data, channels, sample_rate, target_hz, paused.as_ref(), &pcm, &level);
                         }
                     },
                     err_fn,
@@ -67,16 +65,7 @@ pub fn start_mic(
                             if stop.load(Ordering::Relaxed) {
                                 return;
                             }
-                            ingest_i16(
-                                data,
-                                channels,
-                                sample_rate,
-                                target_hz,
-                                max_samples,
-                                paused.as_ref(),
-                                &pcm,
-                                &level,
-                            );
+                            ingest_i16(data, channels, sample_rate, target_hz, paused.as_ref(), &pcm, &level);
                         }
                     },
                     err_fn,
@@ -94,35 +83,38 @@ pub fn start_mic(
                                 return;
                             }
                             let f: Vec<f32> = data.iter().map(|s| *s as f32 / i32::MAX as f32).collect();
-                            ingest_f32(
-                                &f,
-                                channels,
-                                sample_rate,
-                                target_hz,
-                                max_samples,
-                                paused.as_ref(),
-                                &pcm,
-                                &level,
-                            );
+                            ingest_f32(&f, channels, sample_rate, target_hz, paused.as_ref(), &pcm, &level);
                         }
                     },
                     err_fn,
                     None,
                 ),
                 other => {
-                    eprintln!("unsupported mic format: {other}");
+                    let msg = format!("unsupported mic format: {other}");
+                    eprintln!("{msg}");
+                    if let Ok(mut slot) = last_error.lock() {
+                        *slot = Some(msg);
+                    }
                     return;
                 }
             };
             let stream = match stream {
                 Ok(s) => s,
                 Err(e) => {
-                    eprintln!("mic stream: {e}");
+                    let msg = format!("mic stream: {e}");
+                    eprintln!("{msg}");
+                    if let Ok(mut slot) = last_error.lock() {
+                        *slot = Some(msg);
+                    }
                     return;
                 }
             };
             if let Err(e) = stream.play() {
-                eprintln!("mic play: {e}");
+                let msg = format!("mic play: {e}");
+                eprintln!("{msg}");
+                if let Ok(mut slot) = last_error.lock() {
+                    *slot = Some(msg);
+                }
                 return;
             }
             while !stop.load(Ordering::Relaxed) {
@@ -136,24 +128,27 @@ pub fn start_mic(
 pub fn start_loopback(
     stop: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
-    pcm: Arc<Mutex<Vec<i16>>>,
+    pcm: Arc<PcmSink>,
     level: Arc<AtomicU32>,
+    last_error: Arc<Mutex<Option<String>>>,
     target_hz: u32,
-    max_seconds: usize,
 ) -> (Option<JoinHandle<()>>, bool) {
     #[cfg(windows)]
     {
-        match spawn_wasapi_loopback(stop, paused, pcm, level, target_hz, max_seconds) {
+        match spawn_wasapi_loopback(stop, paused, pcm, level, last_error.clone(), target_hz) {
             Ok(handle) => (Some(handle), true),
             Err(e) => {
                 eprintln!("loopback unavailable: {e}");
+                if let Ok(mut slot) = last_error.lock() {
+                    *slot = Some(format!("System audio unavailable: {e}"));
+                }
                 (None, false)
             }
         }
     }
     #[cfg(not(windows))]
     {
-        let _ = (stop, paused, pcm, level, target_hz, max_seconds);
+        let _ = (stop, paused, pcm, level, last_error, target_hz);
         (None, false)
     }
 }
@@ -163,9 +158,8 @@ fn ingest_f32(
     channels: usize,
     sample_rate: u32,
     target_hz: u32,
-    max_samples: usize,
     paused: &AtomicBool,
-    pcm: &Mutex<Vec<i16>>,
+    pcm: &PcmSink,
     level: &AtomicU32,
 ) {
     let mut mono = Vec::with_capacity(data.len() / channels.max(1));
@@ -177,9 +171,7 @@ fn ingest_f32(
     if paused.load(Ordering::Relaxed) {
         return;
     }
-    if let Ok(mut buf) = pcm.lock() {
-        push_capped(&mut buf, &resampled, max_samples);
-    }
+    pcm.push(&resampled);
 }
 
 fn ingest_i16(
@@ -187,42 +179,35 @@ fn ingest_i16(
     channels: usize,
     sample_rate: u32,
     target_hz: u32,
-    max_seconds_samples: usize,
     paused: &AtomicBool,
-    pcm: &Mutex<Vec<i16>>,
+    pcm: &PcmSink,
     level: &AtomicU32,
 ) {
     let mut as_f = Vec::with_capacity(data.len());
     for s in data {
         as_f.push(*s as f32 / i16::MAX as f32);
     }
-    ingest_f32(
-        &as_f,
-        channels,
-        sample_rate,
-        target_hz,
-        max_seconds_samples,
-        paused,
-        pcm,
-        level,
-    );
+    ingest_f32(&as_f, channels, sample_rate, target_hz, paused, pcm, level);
 }
 
 #[cfg(windows)]
 fn spawn_wasapi_loopback(
     stop: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
-    pcm: Arc<Mutex<Vec<i16>>>,
+    pcm: Arc<PcmSink>,
     level: Arc<AtomicU32>,
+    last_error: Arc<Mutex<Option<String>>>,
     target_hz: u32,
-    max_seconds: usize,
 ) -> Result<JoinHandle<()>, String> {
     let handle = std::thread::Builder::new()
         .name("wasapi-loopback".into())
         .spawn(move || {
-            if let Err(e) = wasapi_loopback_thread(stop, paused, pcm, level, target_hz, max_seconds)
-            {
-                eprintln!("loopback thread: {e}");
+            if let Err(e) = wasapi_loopback_thread(stop, paused, pcm, level, target_hz) {
+                let msg = format!("loopback thread: {e}");
+                eprintln!("{msg}");
+                if let Ok(mut slot) = last_error.lock() {
+                    *slot = Some(msg);
+                }
             }
         })
         .map_err(|e| e.to_string())?;
@@ -233,10 +218,9 @@ fn spawn_wasapi_loopback(
 fn wasapi_loopback_thread(
     stop: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
-    pcm: Arc<Mutex<Vec<i16>>>,
+    pcm: Arc<PcmSink>,
     level: Arc<AtomicU32>,
     target_hz: u32,
-    max_seconds: usize,
 ) -> Result<(), String> {
     use windows::Win32::Media::Audio::{
         eConsole, eRender, IAudioCaptureClient, IAudioClient, IMMDeviceEnumerator,
@@ -279,7 +263,6 @@ fn wasapi_loopback_thread(
         let bits = format.wBitsPerSample;
         let is_float = format.wFormatTag == 3
             || (format.wFormatTag == 0xFFFE && bits == 32);
-        let max_samples = target_hz as usize * max_seconds;
 
         while !stop.load(Ordering::Relaxed) {
             let packet = capture
@@ -312,7 +295,6 @@ fn wasapi_loopback_thread(
                     channels,
                     sample_rate,
                     target_hz,
-                    max_samples,
                     paused.as_ref(),
                     pcm.as_ref(),
                     level.as_ref(),

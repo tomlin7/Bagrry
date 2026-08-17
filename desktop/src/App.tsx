@@ -5,7 +5,7 @@ import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import * as api from "@/lib/api";
 import { currentWindow, isTauri } from "@/lib/tauri";
 import { watchSystemTheme } from "@/lib/theme";
-import { routeKey, type RecStatus, type VuLevels } from "@/lib/types";
+import { routeKey, type LiveTranscriptBatch, type RecStatus, type VuLevels } from "@/lib/types";
 import { useAppStore } from "@/store/app";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useMeetingReminders, useRecordingStartToast } from "@/hooks/useMeetingReminders";
@@ -14,7 +14,7 @@ import { SidebarRail } from "@/components/layout/SidebarRail";
 import { TitleBar } from "@/components/layout/TitleBar";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Onboarding } from "@/components/Onboarding";
-import { Toaster } from "@/components/ui/toast";
+import { Toaster, toast } from "@/components/ui/toast";
 import { HomePage } from "@/components/pages/HomePage";
 import { NotePage } from "@/components/pages/NotePage";
 import { ChatPage } from "@/components/pages/ChatPage";
@@ -85,6 +85,7 @@ export default function App() {
 function useRecordingBridge() {
   const applyRecStatus = useAppStore((s) => s.applyRecStatus);
   const setVu = useAppStore((s) => s.setVu);
+  const appendLiveSegments = useAppStore((s) => s.appendLiveSegments);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -104,12 +105,18 @@ function useRecordingBridge() {
 
     register<RecStatus>("recording-state", applyRecStatus);
     register<VuLevels>("audio-vu", setVu);
+    register<LiveTranscriptBatch>("live-transcript", (batch) => {
+      appendLiveSegments(batch.segments ?? []);
+    });
+    register<string>("recording-error", (message) => {
+      if (message) toast.error(message, "Capture issue");
+    });
 
     return () => {
       disposed = true;
       unlisteners.forEach((fn) => fn());
     };
-  }, [applyRecStatus, setVu]);
+  }, [applyRecStatus, setVu, appendLiveSegments]);
 }
 
 function useSystemThemeSync() {

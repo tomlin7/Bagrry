@@ -312,37 +312,21 @@ pub fn discard_audio(app: AppHandle) -> Result<audio::RecStatus, String> {
 
 #[tauri::command]
 pub fn transcribe_pending(app: AppHandle, state: State<AppState>, meeting_id: String) -> Result<Vec<TranscriptSeg>, String> {
-    let wav = audio::peek_pending_wav(&app)?.ok_or_else(|| "no audio in memory".to_string())?;
+    let (mic, sys) = audio::peek_pending(&app)?.ok_or_else(|| "no audio captured".to_string())?;
     let conn = state.conn()?;
     let key = secrets::get_secret(&conn, "groq_api_key")?.ok_or_else(|| {
         "Add a Groq API key in Settings to transcribe.".to_string()
     })?;
-    let opts = stt_options(&conn);
+    let opts = pipeline::stt_options(&conn);
     drop(conn);
-    let segs = pipeline::transcribe_dual_wav(&key, &wav, &opts)?;
+    let segs = pipeline::transcribe_pcm_files(&key, &mic, &sys, &opts)?;
     let conn = state.conn()?;
     pipeline::persist_transcript(&conn, &meeting_id, &segs)?;
-    let _ = audio::take_pending_wav(&app);
+    if let Some(pending) = audio::take_pending(&app)? {
+        pending.cleanup();
+    }
     notify(&app, &conn, "Transcript ready", "Your meeting transcript has finished processing.");
     Ok(segs)
-}
-
-/// Maps the `transcription_language` setting ("en-best" | "en" | "auto" | ISO code)
-/// plus internal jargon to Whisper request options.
-fn stt_options(conn: &rusqlite::Connection) -> groq::SttOptions {
-    let lang_setting = secrets::get_setting(conn, "transcription_language", "en-best");
-    let language = match lang_setting.as_str() {
-        "auto" => None,
-        "en-best" => Some("en".to_string()),
-        other => Some(other.split('-').next().unwrap_or("en").to_string()),
-    };
-    let jargon = secrets::get_setting(conn, "internal_jargon", "");
-    let model = secrets::get_setting(conn, "stt_model", "whisper-large-v3-turbo");
-    groq::SttOptions {
-        language,
-        prompt: (!jargon.is_empty()).then_some(jargon),
-        model: (!model.trim().is_empty()).then_some(model),
-    }
 }
 
 fn chat_model(conn: &rusqlite::Connection) -> String {

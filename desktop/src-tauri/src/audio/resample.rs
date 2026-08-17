@@ -46,6 +46,8 @@ pub fn rms(samples: &[i16]) -> f32 {
     ((sum / samples.len() as f64).sqrt() as f32).clamp(0.0, 1.0)
 }
 
+/// Kept for tests and future in-memory capture caps.
+#[allow(dead_code)]
 pub fn push_capped(buf: &mut Vec<i16>, extra: &[i16], max_samples: usize) {
     buf.extend_from_slice(extra);
     if buf.len() > max_samples {
