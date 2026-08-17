@@ -38,6 +38,7 @@ pub struct Meeting {
     pub duration_ms: Option<i64>,
     pub calendar_event_id: Option<String>,
     pub scratchpad_raw: String,
+    pub scratchpad_json: Option<String>,
     pub enhanced_notes_json: Option<String>,
     pub transcript_json: Option<String>,
     pub updated_at: String,
@@ -109,13 +110,14 @@ fn meeting_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Meeting> {
         duration_ms: row.get(4)?,
         calendar_event_id: row.get(5)?,
         scratchpad_raw: row.get(6)?,
-        enhanced_notes_json: row.get(7)?,
-        transcript_json: row.get(8)?,
-        updated_at: row.get(9)?,
+        scratchpad_json: row.get(7)?,
+        enhanced_notes_json: row.get(8)?,
+        transcript_json: row.get(9)?,
+        updated_at: row.get(10)?,
     })
 }
 
-const MEETING_COLS: &str = "id, folder_id, title, date, duration_ms, calendar_event_id, scratchpad_raw, enhanced_notes_json, transcript_json, updated_at";
+const MEETING_COLS: &str = "id, folder_id, title, date, duration_ms, calendar_event_id, scratchpad_raw, scratchpad_json, enhanced_notes_json, transcript_json, updated_at";
 
 #[tauri::command]
 pub fn db_status(app: AppHandle, state: State<AppState>) -> Result<DbStatus, String> {
@@ -259,11 +261,36 @@ pub fn create_meeting(
 }
 
 #[tauri::command]
-pub fn save_scratchpad(state: State<AppState>, id: String, scratchpad_raw: String) -> Result<(), String> {
+pub fn save_scratchpad(
+    state: State<AppState>,
+    id: String,
+    scratchpad_raw: String,
+    scratchpad_json: Option<String>,
+) -> Result<(), String> {
     let conn = state.conn()?;
     conn.execute(
-        "UPDATE meetings SET scratchpad_raw = ?1, updated_at = datetime('now') WHERE id = ?2",
-        params![scratchpad_raw, id],
+        "UPDATE meetings SET scratchpad_raw = ?1, scratchpad_json = ?2, updated_at = datetime('now') WHERE id = ?3",
+        params![scratchpad_raw, scratchpad_json, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_enhanced_notes(
+    state: State<AppState>,
+    id: String,
+    enhanced_notes_json: String,
+) -> Result<(), String> {
+    let conn = state.conn()?;
+    let segs = pipeline::load_segments(&conn, &id).unwrap_or_default();
+    let mut doc: groq::EnhancedDoc =
+        serde_json::from_str(&enhanced_notes_json).map_err(|e| e.to_string())?;
+    pipeline::validate_citations(&mut doc, &segs);
+    let json = serde_json::to_string(&doc).map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE meetings SET enhanced_notes_json = ?1, updated_at = datetime('now') WHERE id = ?2",
+        params![json, id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
@@ -428,7 +455,7 @@ pub fn enhance_meeting(
     let ctx = enhance_context(&conn);
     let model = chat_model(&conn);
     drop(conn);
-    let doc = pipeline::enhance(
+    let mut doc = pipeline::enhance(
         key.as_deref(),
         &meeting.scratchpad_raw,
         &segs,
@@ -437,6 +464,7 @@ pub fn enhance_meeting(
         &ctx,
         Some(&model),
     )?;
+    pipeline::validate_citations(&mut doc, &segs);
     let json = serde_json::to_string(&doc).map_err(|e| e.to_string())?;
     let conn = state.conn()?;
     conn.execute(
@@ -1122,13 +1150,14 @@ pub fn duplicate_meeting(state: State<AppState>, id: String) -> Result<Meeting, 
         .map_err(|e| e.to_string())?;
     let new = new_id("mtg");
     conn.execute(
-        "INSERT INTO meetings (id, folder_id, title, date, scratchpad_raw, enhanced_notes_json)
-         VALUES (?1, ?2, ?3, datetime('now'), ?4, ?5)",
+        "INSERT INTO meetings (id, folder_id, title, date, scratchpad_raw, scratchpad_json, enhanced_notes_json)
+         VALUES (?1, ?2, ?3, datetime('now'), ?4, ?5, ?6)",
         params![
             &new,
             source.folder_id,
             format!("{} (copy)", source.title),
             source.scratchpad_raw,
+            source.scratchpad_json,
             source.enhanced_notes_json,
         ],
     )

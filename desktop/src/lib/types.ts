@@ -26,6 +26,7 @@ export type Meeting = {
   duration_ms: number | null;
   calendar_event_id: string | null;
   scratchpad_raw: string;
+  scratchpad_json: string | null;
   enhanced_notes_json: string | null;
   transcript_json: string | null;
   updated_at: string;

@@ -330,6 +330,11 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 "#;
 
+/// ProseMirror JSON for the scratchpad, with plaintext remaining in scratchpad_raw.
+const V7: &str = r#"
+ALTER TABLE meetings ADD COLUMN scratchpad_json TEXT;
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -406,6 +411,16 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("record v6: {e}"))?;
+    }
+
+    if current < 7 {
+        conn.execute_batch(V7)
+            .map_err(|e| format!("migration v7: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (7)",
+            [],
+        )
+        .map_err(|e| format!("record v7: {e}"))?;
     }
 
     if vec_enabled {

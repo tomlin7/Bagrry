@@ -23,6 +23,7 @@ const meetings: Meeting[] = [
     duration_ms: null,
     calendar_event_id: null,
     scratchpad_raw: "",
+    scratchpad_json: null,
     enhanced_notes_json: null,
     transcript_json: null,
     updated_at: "2026-08-15 10:00:00",

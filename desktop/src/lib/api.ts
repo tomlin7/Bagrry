@@ -28,8 +28,10 @@ export const listMeetings = (folderId?: string | null) =>
 export const getMeeting = (id: string) => invoke<Meeting>("get_meeting", { id });
 export const createMeeting = (title: string, folderId?: string | null) =>
   invoke<Meeting>("create_meeting", { title, folderId: folderId ?? null });
-export const saveScratchpad = (id: string, scratchpadRaw: string) =>
-  invoke<void>("save_scratchpad", { id, scratchpadRaw });
+export const saveScratchpad = (id: string, scratchpadRaw: string, scratchpadJson?: string | null) =>
+  invoke<void>("save_scratchpad", { id, scratchpadRaw, scratchpadJson: scratchpadJson ?? null });
+export const saveEnhancedNotes = (id: string, enhancedNotesJson: string) =>
+  invoke<void>("save_enhanced_notes", { id, enhancedNotesJson });
 export const saveTitle = (id: string, title: string) => invoke<void>("save_title", { id, title });
 export const deleteMeeting = (id: string) => invoke<void>("delete_meeting", { id });
 export const moveMeeting = (id: string, folderId?: string | null) =>

@@ -81,6 +81,7 @@ pub fn run() {
             commands::create_meeting,
             commands::duplicate_meeting,
             commands::save_scratchpad,
+            commands::save_enhanced_notes,
             commands::save_title,
             commands::delete_meeting,
             commands::move_meeting,
