@@ -10,6 +10,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { RecordingControls } from "./RecordingControls";
 import { AnimatePresence, motion } from "framer-motion";
 import { snappy } from "@/lib/motion";
+import { useBoolSetting } from "@/hooks/useSetting";
 
 /**
  * The floating transcript card that sits over the editor while a note is live.
@@ -25,6 +26,7 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [speakerTags] = useBoolSetting("speaker_tags", true);
 
   const { data: segments = [] } = useQuery({
     queryKey: api.qk.segments(noteId),
@@ -150,14 +152,16 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
                   <div className="space-y-2 py-2">
                     {filtered.map((segment) => (
                       <div key={segment.id} className="flex gap-2 text-[13px] leading-relaxed">
-                        <span
-                          className={cn(
-                            "shrink-0 pt-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                            segment.speaker === "me" ? "text-accent" : "text-subtle",
-                          )}
-                        >
-                          {segment.speaker === "me" ? "Me" : "Them"}
-                        </span>
+                        {speakerTags && (
+                          <span
+                            className={cn(
+                              "shrink-0 pt-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                              segment.speaker === "me" ? "text-accent" : "text-subtle",
+                            )}
+                          >
+                            {segment.speaker === "me" ? "Me" : "Them"}
+                          </span>
+                        )}
                         <span className="text-text">{segment.text}</span>
                       </div>
                     ))}
@@ -167,8 +171,20 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
 
               <div className="mx-3 mb-2 rounded-lg bg-hover px-3 py-1.5 text-center text-[11px] text-subtle">
                 Always get consent when transcribing others.{" "}
-                <button type="button" className="text-muted underline-offset-2 hover:underline">
-                  Learn more
+                <button
+                  type="button"
+                  className="text-muted underline-offset-2 hover:underline"
+                  onClick={() => {
+                    void api.copyConsent().then(
+                      (text) => navigator.clipboard.writeText(text).then(
+                        () => toast.success("Consent message copied"),
+                        () => toast.info(text),
+                      ),
+                      (e) => toast.error(e),
+                    );
+                  }}
+                >
+                  Copy consent
                 </button>
               </div>
 

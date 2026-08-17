@@ -76,10 +76,24 @@ export function NotePage({ noteId }: { noteId: string }) {
 
   const enhance = useMutation({
     mutationFn: (templateId: string | null) => api.enhanceMeeting(noteId, templateId),
-    onSuccess: () => {
+    onSuccess: async () => {
       void queryClient.invalidateQueries({ queryKey: api.qk.meeting(noteId) });
       setTab("enhanced");
       toast.success("Notes enhanced");
+      try {
+        const followUp = await api.getSetting("suggested_follow_up_emails");
+        if (followUp === "1" || followUp === "true") {
+          const draft = await api.runRecipe(noteId, "rcp_email");
+          try {
+            await navigator.clipboard.writeText(draft);
+            toast.success("Follow-up email copied");
+          } catch {
+            toast.info("Follow-up email", draft.slice(0, 280));
+          }
+        }
+      } catch {
+        /* recipe optional */
+      }
     },
     onError: (e) => toast.error(e),
   });

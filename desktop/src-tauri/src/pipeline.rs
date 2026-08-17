@@ -15,15 +15,19 @@ pub struct TranscriptSeg {
     pub sentence_id: String,
 }
 
-pub fn transcribe_dual_wav(api_key: &str, wav_bytes: &[u8]) -> Result<Vec<TranscriptSeg>, String> {
+pub fn transcribe_dual_wav(
+    api_key: &str,
+    wav_bytes: &[u8],
+    opts: &groq::SttOptions,
+) -> Result<Vec<TranscriptSeg>, String> {
     let (mic, sys) = wav::split_dual_mono(wav_bytes)?;
     let mut segs = Vec::new();
     if wav_has_signal(&mic) {
-        let mic_res = groq::transcribe_wav(api_key, &mic, "mic.wav")?;
+        let mic_res = groq::transcribe_wav(api_key, &mic, "mic.wav", opts)?;
         push_channel(&mut segs, &mic_res, "me");
     }
     if wav_has_signal(&sys) {
-        let sys_res = groq::transcribe_wav(api_key, &sys, "system.wav")?;
+        let sys_res = groq::transcribe_wav(api_key, &sys, "system.wav", opts)?;
         push_channel(&mut segs, &sys_res, "attendees");
     }
     segs.sort_by_key(|s| s.start_ms);
@@ -153,12 +157,49 @@ pub fn load_segments(conn: &Connection, meeting_id: &str) -> Result<Vec<Transcri
         .map_err(|e| e.to_string())
 }
 
+/// User-specific context threaded into every AI prompt, mirroring how Granola
+/// personalises summaries with profile settings.
+#[derive(Debug, Default, Clone)]
+pub struct EnhanceContext {
+    pub summary_language: Option<String>,
+    pub jargon: Option<String>,
+    pub user_name: Option<String>,
+    pub job_title: Option<String>,
+    pub company_description: Option<String>,
+}
+
+impl EnhanceContext {
+    pub fn as_prompt(&self) -> String {
+        let mut parts = Vec::new();
+        if let Some(lang) = self.summary_language.as_deref().filter(|s| !s.is_empty()) {
+            parts.push(format!("Write the notes in this language: {lang}."));
+        }
+        if let Some(jargon) = self.jargon.as_deref().filter(|s| !s.is_empty()) {
+            parts.push(format!("Company jargon you should recognise: {jargon}."));
+        }
+        if let Some(name) = self.user_name.as_deref().filter(|s| !s.is_empty()) {
+            let role = self
+                .job_title
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .map(|t| format!(" ({t})"))
+                .unwrap_or_default();
+            parts.push(format!("The note-taker is {name}{role}."));
+        }
+        if let Some(desc) = self.company_description.as_deref().filter(|s| !s.is_empty()) {
+            parts.push(format!("Their company: {desc}."));
+        }
+        parts.join("\n")
+    }
+}
+
 pub fn enhance(
     api_key: Option<&str>,
     scratchpad: &str,
     segs: &[TranscriptSeg],
     template_prompt: &str,
     structure: &str,
+    ctx: &EnhanceContext,
 ) -> Result<EnhancedDoc, String> {
     if let Some(key) = api_key.filter(|k| !k.is_empty()) {
         let transcript = segs
@@ -166,12 +207,13 @@ pub fn enhance(
             .map(|s| format!("[{}] {} ({}) ", s.sentence_id, s.speaker, s.text))
             .collect::<Vec<_>>()
             .join("\n");
+        let context = ctx.as_prompt();
         let system = format!(
             "You write meeting notes. Rules:\n\
              1. Anchor on the user's scratchpad. Expand those points with exact quotes, numbers, and decisions from the transcript.\n\
              2. If the scratchpad is blank, produce a structured executive summary using the template sections.\n\
              3. Output JSON: {{\"sections\":[{{\"section_title\":\"\",\"bullet_points\":[{{\"text\":\"\",\"citations\":[\"s_001\"]}}]}}]}}\n\
-             Template: {template_prompt}\nStructure: {structure}"
+             Template: {template_prompt}\nStructure: {structure}\n{context}"
         );
         let user = format!("SCRATCHPAD:\n{scratchpad}\n\nTRANSCRIPT:\n{transcript}");
         let raw = groq::chat(key, &system, &user, true)?;

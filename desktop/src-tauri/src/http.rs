@@ -121,17 +121,34 @@ fn header_value(req: &Request, field: &str) -> Option<String> {
         .map(|h| h.value.as_str().to_string())
 }
 
-/// When no API key is configured the server is open — it only listens on
-/// loopback. Once a key exists we require an exact `Bearer <key>`.
+/// When no API key exists the server is open — it only listens on loopback.
+/// Once a legacy `api_key` setting or any managed key exists we require a
+/// matching `Bearer <key>`.
 fn authorized(conn: &Connection, req: &Request) -> bool {
-    let expected = secrets::get_setting(conn, "api_key", "");
-    if expected.is_empty() {
+    let legacy = secrets::get_setting(conn, "api_key", "");
+    let managed: i64 = conn
+        .query_row("SELECT COUNT(*) FROM api_keys", [], |row| row.get(0))
+        .unwrap_or(0);
+    if legacy.is_empty() && managed == 0 {
         return true;
     }
-    match header_value(req, "Authorization") {
-        Some(value) => value.strip_prefix("Bearer ").map(str::trim) == Some(expected.as_str()),
-        None => false,
+    let presented = match header_value(req, "Authorization") {
+        Some(value) => match value.strip_prefix("Bearer ").map(str::trim) {
+            Some(t) if !t.is_empty() => t.to_string(),
+            _ => return false,
+        },
+        None => return false,
+    };
+    if !legacy.is_empty() && presented == legacy {
+        return true;
     }
+    conn.query_row(
+        "SELECT COUNT(*) FROM api_keys WHERE token = ?1",
+        [&presented],
+        |row| row.get::<_, i64>(0),
+    )
+    .map(|n| n > 0)
+    .unwrap_or(false)
 }
 
 fn read_body(req: &mut Request) -> serde_json::Value {
@@ -283,13 +300,17 @@ fn search_notes(conn: &Connection, query: &str) -> serde_json::Value {
 }
 
 fn share_payload(conn: &Connection, token: &str) -> Option<serde_json::Value> {
-    let meeting_id: String = conn
+    let (meeting_id, visibility): (String, String) = conn
         .query_row(
-            "SELECT meeting_id FROM shares WHERE token = ?1",
+            "SELECT meeting_id, ifnull(visibility, 'link') FROM shares WHERE token = ?1",
             [token],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .ok()?;
+    // "Only me" links exist for copy/paste bookkeeping but never serve content.
+    if visibility == "private" {
+        return None;
+    }
     get_note(conn, &meeting_id)
 }
 

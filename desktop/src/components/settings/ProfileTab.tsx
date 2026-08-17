@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/lib/api";
+import { pickTextFiles } from "@/lib/open";
 import { useSetting } from "@/hooks/useSetting";
 import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
@@ -8,20 +9,22 @@ import { Input, Textarea } from "@/components/ui/input";
 import { SettingRow, SettingsCard } from "@/components/ui/controls";
 import { toast } from "@/components/ui/toast";
 import { SettingsField, TabHeading } from "./shared";
-import { comingSoon, quietField } from "./helpers";
+import { quietField } from "./helpers";
 
 export function ProfileTab() {
   const queryClient = useQueryClient();
   const { data: profile } = useQuery({ queryKey: api.qk.profile(), queryFn: api.getProfile });
 
   const [name, setName] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [workspace, setWorkspace] = useState<string | null>(null);
   const [jobTitle, setJobTitle] = useSetting("profile_job_title", "");
   const [linkedin, setLinkedin] = useSetting("profile_linkedin", "");
   const [companyDescription, setCompanyDescription] = useSetting("profile_company_description", "");
+  const [confirmDelete, setConfirmDelete] = useState("");
 
   const displayName = name ?? profile?.name ?? "";
-  const displayEmail = profile?.email ?? "";
+  const displayEmail = email ?? profile?.email ?? "";
   const company = workspace ?? profile?.workspace ?? "";
 
   const save = useMutation({
@@ -33,16 +36,50 @@ export function ProfileTab() {
     onError: (e) => toast.error(e),
   });
 
+  const importNotes = useMutation({
+    mutationFn: async () => {
+      const files = await pickTextFiles(".md,.txt,.markdown,text/markdown,text/plain");
+      if (files.length === 0) return 0;
+      const notes = files.map((file) => ({
+        title: file.name.replace(/\.(md|txt|markdown)$/i, ""),
+        body: file.text,
+      }));
+      return api.importNotes(notes);
+    },
+    onSuccess: (count) => {
+      if (count === 0) return;
+      void queryClient.invalidateQueries({ queryKey: api.qk.meetings() });
+      toast.success(`Imported ${count} note${count === 1 ? "" : "s"}`);
+    },
+    onError: (e) => toast.error(e),
+  });
+
+  const exportCsv = useMutation({
+    mutationFn: api.exportCsv,
+    onSuccess: (path) => toast.success("CSV saved", path),
+    onError: (e) => toast.error(e),
+  });
+
+  const wipe = useMutation({
+    mutationFn: api.deleteAllData,
+    onSuccess: () => {
+      void queryClient.invalidateQueries();
+      setConfirmDelete("");
+      toast.success("All notes and data deleted");
+    },
+    onError: (e) => toast.error(e),
+  });
+
   return (
     <>
       <TabHeading
         title="Profile"
-        description="Bagrry works best knowing a little about you. Info here is visible to other users in your meetings."
+        description="Bagrry works best knowing a little about you. This is used when summarising your meetings."
       />
 
       <SettingsCard title="Account" dashed>
         <SettingRow
-          title="Email"
+          title="Avatar"
           description={displayEmail || "No email set"}
           control={<Avatar name={displayName || "You"} size={28} />}
         />
@@ -53,6 +90,16 @@ export function ProfileTab() {
             onChange={(e) => setName(e.target.value)}
             onBlur={() => displayName.trim() && save.mutate()}
             placeholder="Your name"
+          />
+        </SettingsField>
+        <SettingsField label="Email">
+          <Input
+            className={quietField}
+            type="email"
+            value={displayEmail}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => save.mutate()}
+            placeholder="you@company.com"
           />
         </SettingsField>
         <SettingsField label="Job title">
@@ -102,18 +149,30 @@ export function ProfileTab() {
       <SettingsCard title="Account management" dashed>
         <SettingRow
           title="Import notes from another account"
-          description="Bring existing meeting notes into this workspace."
+          description="Choose Markdown or text files. Each file becomes a note."
           control={
-            <Button variant="outline" size="sm" shape="square" onClick={() => comingSoon("Note import")}>
+            <Button
+              variant="outline"
+              size="sm"
+              shape="square"
+              loading={importNotes.isPending}
+              onClick={() => importNotes.mutate()}
+            >
               Import
             </Button>
           }
         />
         <SettingRow
           title="Export historical data"
-          description="Download a CSV of your notes and attendees."
+          description="Download a CSV of your notes and attendees to your Downloads folder."
           control={
-            <Button variant="outline" size="sm" shape="square" onClick={() => comingSoon("CSV export")}>
+            <Button
+              variant="outline"
+              size="sm"
+              shape="square"
+              loading={exportCsv.isPending}
+              onClick={() => exportCsv.mutate()}
+            >
               Generate CSV
             </Button>
           }
@@ -123,18 +182,26 @@ export function ProfileTab() {
       <SettingsCard title="Danger zone" danger dashed>
         <SettingRow
           title="Delete my account"
-          description="Delete your account, notes, and all associated data. This cannot be undone."
-          control={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-danger hover:bg-danger/10 hover:text-danger"
-              onClick={() => comingSoon("Account deletion")}
-            >
-              Delete my account
-            </Button>
-          }
+          description="Deletes every note, transcript, chat and calendar event on this computer. Type DELETE to confirm."
         />
+        <div className="flex items-center gap-2 px-4 pb-4">
+          <Input
+            className={quietField}
+            value={confirmDelete}
+            onChange={(e) => setConfirmDelete(e.target.value)}
+            placeholder="DELETE"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-danger hover:bg-danger/10 hover:text-danger"
+            disabled={confirmDelete !== "DELETE" || wipe.isPending}
+            loading={wipe.isPending}
+            onClick={() => wipe.mutate()}
+          >
+            Delete my account
+          </Button>
+        </div>
       </SettingsCard>
     </>
   );

@@ -161,6 +161,7 @@ export function AnalyticsTab() {
 
   const enhanced = notes.filter((n) => n.enhanced_notes_json).length;
   const totalMs = notes.reduce((sum, n) => sum + (n.duration_ms ?? 0), 0);
+  const openActions = actions.filter((a) => !a.done).length;
 
   return (
     <>
@@ -168,7 +169,7 @@ export function AnalyticsTab() {
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Notes captured" value={notes.length} />
         <Stat label="Notes enhanced" value={enhanced} />
-        <Stat label="Open action items" value={actions.length} />
+        <Stat label="Open action items" value={openActions} />
         <Stat label="Hours recorded" value={(totalMs / 3_600_000).toFixed(1)} />
       </div>
     </>

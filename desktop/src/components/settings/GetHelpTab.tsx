@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, BookOpen, ChevronRight, CircleHelp, Hash } from "lucide-react";
 import * as api from "@/lib/api";
+import { openExternal } from "@/lib/open";
 import { Badge } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
@@ -9,7 +10,6 @@ import { SettingRow, SettingsCard } from "@/components/ui/controls";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { TabHeading } from "./shared";
-import { comingSoon } from "./helpers";
 
 const bugTemplate = `What happened?
 
@@ -24,10 +24,23 @@ const featureTemplate = `What should we add?
 
 Why would it help?`;
 
+const HELP_CENTER = "https://github.com/tomlin7/Bagrry#readme";
+const TROUBLESHOOTING = "https://github.com/tomlin7/Bagrry/issues";
+const COMMUNITY = "https://github.com/tomlin7/Bagrry/discussions";
+
 export function GetHelpTab() {
   const { data: status } = useQuery({ queryKey: api.qk.dbStatus(), queryFn: api.dbStatus });
   const [kind, setKind] = useState<"problem" | "feature">("problem");
   const [body, setBody] = useState(bugTemplate);
+
+  const submit = useMutation({
+    mutationFn: () => api.submitFeedback(kind, body),
+    onSuccess: () => {
+      toast.success("Feedback saved locally");
+      setBody(kind === "problem" ? bugTemplate : featureTemplate);
+    },
+    onError: (e) => toast.error(e),
+  });
 
   return (
     <>
@@ -38,13 +51,13 @@ export function GetHelpTab() {
           icon={<BookOpen />}
           title="Help Center"
           control={<ChevronRight className="size-4 text-subtle" />}
-          onClick={() => comingSoon("Help Center")}
+          onClick={() => void openExternal(HELP_CENTER)}
         />
         <SettingRow
           icon={<CircleHelp />}
           title="Troubleshooting"
           control={<ChevronRight className="size-4 text-subtle" />}
-          onClick={() => comingSoon("Troubleshooting")}
+          onClick={() => void openExternal(TROUBLESHOOTING)}
         />
       </SettingsCard>
 
@@ -82,15 +95,13 @@ export function GetHelpTab() {
             <Textarea rows={8} value={body} onChange={(e) => setBody(e.target.value)} className="leading-relaxed" />
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <Button variant="ghost" size="sm" onClick={() => comingSoon("Add screenshot")}>
-            Add screenshot
-          </Button>
+        <div className="flex items-center justify-end gap-3 px-4 py-3">
           <Button
             variant="accent"
             size="sm"
             shape="square"
-            onClick={() => toast.info("Feedback is UI-only for now", "We will wire this in a follow-up.")}
+            loading={submit.isPending}
+            onClick={() => submit.mutate()}
           >
             {kind === "problem" ? "Report bug" : "Send request"}
           </Button>
@@ -100,10 +111,10 @@ export function GetHelpTab() {
       <SettingsCard>
         <SettingRow
           icon={<Hash />}
-          title="Join the Bagrry Slack community"
+          title="Join the Bagrry community"
           description="Ask questions and share tips with other users."
           control={<ArrowUpRight className="size-4 text-subtle" />}
-          onClick={() => comingSoon("Slack community")}
+          onClick={() => void openExternal(COMMUNITY)}
         />
       </SettingsCard>
 
@@ -122,6 +133,7 @@ export function GetHelpTab() {
           title="Vector search"
           description={status?.vec_enabled ? "sqlite-vec enabled" : "Hash embeddings (sqlite-vec off)"}
         />
+        <SettingRow title="Local API" description={`127.0.0.1:${status?.api_port ?? "—"}`} />
       </SettingsCard>
     </>
   );

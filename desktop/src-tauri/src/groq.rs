@@ -27,7 +27,21 @@ pub struct WhisperVerbose {
     pub words: Option<Vec<WhisperWord>>,
 }
 
-pub fn transcribe_wav(api_key: &str, wav: &[u8], filename: &str) -> Result<WhisperVerbose, String> {
+/// Transcription options sourced from user settings.
+#[derive(Debug, Default, Clone)]
+pub struct SttOptions {
+    /// ISO-639-1 code ("en", "es", …). `None` lets Whisper auto-detect.
+    pub language: Option<String>,
+    /// Domain vocabulary (internal jargon) used to bias decoding.
+    pub prompt: Option<String>,
+}
+
+pub fn transcribe_wav(
+    api_key: &str,
+    wav: &[u8],
+    filename: &str,
+    opts: &SttOptions,
+) -> Result<WhisperVerbose, String> {
     if wav.len() < 64 {
         return Ok(WhisperVerbose {
             text: Some(String::new()),
@@ -47,6 +61,14 @@ pub fn transcribe_wav(api_key: &str, wav: &[u8], filename: &str) -> Result<Whisp
     }
     field(&mut body, boundary, "model", STT_MODEL);
     field(&mut body, boundary, "response_format", "verbose_json");
+    if let Some(lang) = opts.language.as_deref().filter(|l| !l.is_empty()) {
+        field(&mut body, boundary, "language", lang);
+    }
+    if let Some(prompt) = opts.prompt.as_deref().filter(|p| !p.is_empty()) {
+        // Whisper prompts cap at 224 tokens; trim to a safe byte budget.
+        let trimmed: String = prompt.chars().take(600).collect();
+        field(&mut body, boundary, "prompt", &trimmed);
+    }
     body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
     body.extend_from_slice(
         format!(

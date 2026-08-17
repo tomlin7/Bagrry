@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/controls";
 import { Input } from "@/components/ui/input";
 import { AccentLink, TabHeading } from "./shared";
-import { comingSoon } from "./helpers";
 
 const CHANNELS = [
   { value: "feed-email", label: "Activity Feed and Email" },
@@ -23,6 +22,7 @@ const CHANNELS = [
 export function NotificationsTab() {
   const [scheduled, setScheduled] = useBoolSetting("notify_meeting_start", true);
   const [autoDetected, setAutoDetected] = useBoolSetting("notify_auto_detected", true);
+  const [notesReady, setNotesReady] = useBoolSetting("notify_notes_ready", true);
   const [quietApps, setQuietApps] = useSetting("notify_quiet_apps", "");
   const [addedToFolder, setAddedToFolder] = useSetting("notify_added_to_folder", "feed-email");
   const [noteAdded, setNoteAdded] = useSetting("notify_note_added_to_folder", "off");
@@ -43,6 +43,11 @@ export function NotificationsTab() {
           title="Auto-detected meetings"
           description="Notify when Bagrry hears a call on this computer."
           control={<Switch checked={autoDetected} onCheckedChange={setAutoDetected} />}
+        />
+        <SettingRow
+          title="Notes ready"
+          description="Desktop notification when a transcript or enhancement finishes."
+          control={<Switch checked={notesReady} onCheckedChange={setNotesReady} />}
         />
         {autoDetected && (
           <div className="px-4 pb-4">
@@ -116,13 +121,7 @@ function ChannelRow({
       title={title}
       description={description}
       control={
-        <Select
-          value={value}
-          onValueChange={(next) => {
-            onChange(next);
-            if (next !== "off") comingSoon("Email delivery");
-          }}
-        >
+        <Select value={value} onValueChange={onChange}>
           <SelectTrigger className="w-[13.5rem]">
             <SelectValue />
           </SelectTrigger>

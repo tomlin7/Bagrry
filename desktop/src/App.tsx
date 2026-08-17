@@ -8,6 +8,7 @@ import { watchSystemTheme } from "@/lib/theme";
 import { routeKey, type RecStatus, type VuLevels } from "@/lib/types";
 import { useAppStore } from "@/store/app";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
+import { useMeetingReminders, useRecordingStartToast } from "@/hooks/useMeetingReminders";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SidebarRail } from "@/components/layout/SidebarRail";
 import { TitleBar } from "@/components/layout/TitleBar";
@@ -22,6 +23,7 @@ import { SharedPage } from "@/components/pages/SharedPage";
 import { PeoplePage } from "@/components/pages/PeoplePage";
 import { CompaniesPage } from "@/components/pages/CompaniesPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
+import { LiveMeetingIndicator, useRepositionForMeetings } from "@/components/layout/LiveMeetingIndicator";
 import { snappy } from "@/lib/motion";
 
 export default function App() {
@@ -32,6 +34,9 @@ export default function App() {
   useRecordingBridge();
   useSystemThemeSync();
   useShowWindowWhenReady();
+  useRepositionForMeetings();
+  useMeetingReminders();
+  useRecordingStartToast();
 
   return (
     <MotionConfig reducedMotion="user">
@@ -68,6 +73,7 @@ export default function App() {
 
           <CommandPalette />
           <Onboarding />
+          <LiveMeetingIndicator />
           <Toaster />
         </div>
       </TooltipProvider>

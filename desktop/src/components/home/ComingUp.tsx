@@ -9,6 +9,7 @@ import { Avatar, Skeleton } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/store/app";
 import { useCreateNote } from "@/hooks/useCreateNote";
+import { useBoolSetting } from "@/hooks/useSetting";
 
 function attendeeNames(event: CalendarEvent): string[] {
   if (!event.attendees_json) return [];
@@ -27,6 +28,8 @@ function attendeeNames(event: CalendarEvent): string[] {
 export function ComingUp() {
   const openSettings = useAppStore((s) => s.openSettings);
   const createNote = useCreateNote();
+  const [emptyEvents] = useBoolSetting("calendar_show_empty_events", true);
+  const [calendarOn] = useBoolSetting("calendar_primary_visible", true);
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: api.qk.calendar(),
@@ -35,6 +38,7 @@ export function ComingUp() {
 
   const today = new Date();
   const upcoming = useMemo(() => {
+    if (!calendarOn) return [];
     const now = Date.now();
     return events
       .map((event) => ({ event, start: parseDbDate(event.start_at) }))
@@ -42,9 +46,10 @@ export function ComingUp() {
         (item): item is { event: CalendarEvent; start: Date } =>
           item.start !== null && item.start.getTime() >= now - 30 * 60_000,
       )
+      .filter(({ event }) => emptyEvents || attendeeNames(event).length > 0)
       .sort((a, b) => a.start.getTime() - b.start.getTime())
       .slice(0, 4);
-  }, [events]);
+  }, [events, calendarOn, emptyEvents]);
 
   return (
     <section>
