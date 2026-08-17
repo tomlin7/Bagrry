@@ -7,6 +7,7 @@ import { dayOffset, formatMonth, formatTime, formatWeekday, parseDbDate } from "
 import type { CalendarEvent } from "@/lib/types";
 import { Avatar, Skeleton } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { useAppStore } from "@/store/app";
 import { useCreateNote } from "@/hooks/useCreateNote";
 import { useBoolSetting } from "@/hooks/useSetting";
@@ -106,6 +107,19 @@ export function ComingUp() {
                       onClick={() => createNote.mutate({ title: event.title, record: true })}
                     >
                       Start now
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                      onClick={() => {
+                        void api.preMeetingBrief(event.attendees_json ?? "[]").then(
+                          (brief) => toast.info("Pre-meeting brief", brief.slice(0, 400)),
+                          (e) => toast.error(e),
+                        );
+                      }}
+                    >
+                      Brief
                     </Button>
                   </motion.div>
                 );

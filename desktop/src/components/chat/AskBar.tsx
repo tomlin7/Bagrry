@@ -26,6 +26,7 @@ export const MODELS = [
 export function AskBar({
   placeholder = "Ask anything",
   onSubmit,
+  onAttach,
   busy,
   autoFocus,
   showModel = true,
@@ -33,6 +34,7 @@ export function AskBar({
 }: {
   placeholder?: string;
   onSubmit: (value: string) => void;
+  onAttach?: (file: { name: string; text: string }) => void;
   busy?: boolean;
   autoFocus?: boolean;
   showModel?: boolean;
@@ -82,6 +84,18 @@ export function AskBar({
             type="button"
             aria-label="Attach a file"
             className="grid size-6 place-items-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-text"
+            onClick={() => {
+              if (!onAttach) return;
+              const input = document.createElement("input");
+              input.type = "file";
+              input.accept = ".md,.txt,.csv,.json,text/plain";
+              input.onchange = () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                void file.text().then((text) => onAttach({ name: file.name, text }));
+              };
+              input.click();
+            }}
           >
             <Paperclip className="size-3.5" />
           </button>

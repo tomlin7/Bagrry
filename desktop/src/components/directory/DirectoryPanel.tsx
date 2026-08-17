@@ -21,6 +21,7 @@ export function DirectoryPanel({
   rows,
   empty,
   searchPlaceholder,
+  onRowClick,
 }: {
   title: string;
   subjectColumn: string;
@@ -28,6 +29,7 @@ export function DirectoryPanel({
   rows: DirectoryRow[];
   empty: React.ReactNode;
   searchPlaceholder: string;
+  onRowClick?: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -109,9 +111,11 @@ export function DirectoryPanel({
         </div>
 
         {visible.map((row) => (
-          <div
+          <button
             key={row.id}
-            className="grid grid-cols-[minmax(0,1fr)_7.5rem_4.5rem] items-center gap-x-3 rounded-lg px-1 py-2.5 transition-colors hover:bg-hover"
+            type="button"
+            onClick={() => onRowClick?.(row.id)}
+            className="grid w-full grid-cols-[minmax(0,1fr)_7.5rem_4.5rem] items-center gap-x-3 rounded-lg px-1 py-2.5 text-left transition-colors hover:bg-hover"
           >
             <div className="flex min-w-0 items-center gap-2.5">
               <Avatar name={row.avatarName} size={28} />
@@ -122,7 +126,7 @@ export function DirectoryPanel({
             </div>
             <div className="text-[13px] text-muted">{row.lastNoteAt ? formatDayLabel(row.lastNoteAt) : "—"}</div>
             <div className="text-[13px] text-muted">{row.noteCount || "—"}</div>
-          </div>
+          </button>
         ))}
 
         {empty}
