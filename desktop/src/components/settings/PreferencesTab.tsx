@@ -1,4 +1,4 @@
-import { Eye, Link2, LogIn, Mail, Moon, Radio, ShieldCheck, Tags, Trash2 } from "lucide-react";
+import { Cpu, Eye, Link2, LogIn, Mail, Mic, Moon, Radio, ShieldCheck, Tags, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ThemePreference } from "@/lib/theme";
 import { useAppStore } from "@/store/app";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/controls";
 import { toast } from "@/components/ui/toast";
 import { AccentLink, TabHeading } from "./shared";
+import { CHAT_MODELS, DEFAULT_CHAT_MODEL, DEFAULT_STT_MODEL, STT_MODELS } from "@/lib/models";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "System" },
@@ -41,6 +42,8 @@ export function PreferencesTab() {
   const [transcriptionLang, setTranscriptionLang] = useSetting("transcription_language", "en-best");
   const [summaryLang, setSummaryLang] = useSetting("summary_language", "en");
   const [jargon, setJargon] = useSetting("internal_jargon", "");
+  const [chatModel, setChatModel] = useSetting("chat_model", DEFAULT_CHAT_MODEL);
+  const [sttModel, setSttModel] = useSetting("stt_model", DEFAULT_STT_MODEL);
 
   const { data: autostart = false } = useQuery({
     queryKey: api.qk.autostart(),
@@ -109,6 +112,47 @@ export function PreferencesTab() {
           title="Suggested follow-up emails"
           description="After enhancing a meeting, offer a draft recap email you can copy."
           control={<Switch checked={followUpEmails} onCheckedChange={setFollowUpEmails} />}
+        />
+      </SettingsCard>
+
+      <SettingsCard title="AI models">
+        <SettingRow
+          icon={<Cpu />}
+          title="Chat model"
+          description="Used for Ask, enhance, recipes, briefs, and live copilot."
+          control={
+            <Select value={chatModel} onValueChange={setChatModel}>
+              <SelectTrigger className="w-[13.5rem]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CHAT_MODELS.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        />
+        <SettingRow
+          icon={<Mic />}
+          title="Transcription model"
+          description="Whisper variant Groq uses when turning meeting audio into text."
+          control={
+            <Select value={sttModel} onValueChange={setSttModel}>
+              <SelectTrigger className="w-[13.5rem]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STT_MODELS.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
         />
       </SettingsCard>
 
