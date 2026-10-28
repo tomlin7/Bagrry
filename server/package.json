@@ -1,0 +1,18 @@
+{
+  "name": "@bagrry/server",
+  "version": "1.0.0",
+  "description": "Bagrry Cloud, Sync, Public Web Share & Model Context Protocol (MCP) Server",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.0"
+  }
+}

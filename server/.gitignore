@@ -1,0 +1,12 @@
+# SQLite databases
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+
+# Build & TypeScript cache
+*.tsbuildinfo
+dist/
+
+# Dependencies
+node_modules/
