@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Select, SelectContent, SelectTrigger } from '@gpuix/react'
 import { useBagrryStore } from '../../store/bagrry-store'
 import { Icons } from '../icons'
 import { FONT_DISPLAY, FONT_SANS } from '../../theme'
@@ -216,54 +217,161 @@ export function NotePage({ noteId }: NotePageProps) {
             </div>
 
             {/* Folder Picker Chip */}
-            <div
-              onClick={() => setShowFolderPicker(!showFolderPicker)}
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 5,
-                height: 24,
-                paddingLeft: 8,
-                paddingRight: 8,
-                borderRadius: 9999,
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.border,
-                cursor: 'pointer',
-              }}
-            >
-              <Icons.Folder size={12} color={colors.textSubtle} />
-              <text style={{ fontSize: 11, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                {currentFolder?.name ?? 'Inbox'}
-              </text>
-              <Icons.ChevronDown size={10} color={colors.textSubtle} />
-            </div>
+            <Select open={showFolderPicker} onOpenChange={setShowFolderPicker}>
+              <SelectTrigger
+                testId="folder-picker-chip"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  height: 24,
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  borderRadius: 9999,
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  cursor: 'pointer',
+                }}
+              >
+                <Icons.Folder size={12} color={colors.textSubtle} />
+                <text style={{ fontSize: 11, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {currentFolder?.name ?? 'Inbox'}
+                </text>
+                <Icons.ChevronDown size={10} color={colors.textSubtle} />
+              </SelectTrigger>
+              <SelectContent
+                side="bottom"
+                sideOffset={6}
+                align="start"
+                testId="folder-picker-menu"
+                style={{
+                  width: 220,
+                  borderRadius: 10,
+                  backgroundColor: colors.elevated,
+                  borderWidth: 1,
+                  borderColor: colors.borderStrong,
+                  padding: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                {folders.map((f) => (
+                  <div
+                    key={f.id}
+                    testId={`folder-option-${f.id}`}
+                    onClick={() => {
+                      moveMeeting(noteId, f.id)
+                      setShowFolderPicker(false)
+                      showNotice(`Moved to ${f.name}`)
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      height: 28,
+                      borderRadius: 6,
+                      paddingLeft: 8,
+                      paddingRight: 8,
+                      cursor: 'pointer',
+                      hover: { backgroundColor: colors.hover },
+                    }}
+                  >
+                    <Icons.Folder size={12} color={colors.textMuted} />
+                    <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                      {f.name}
+                    </text>
+                  </div>
+                ))}
+              </SelectContent>
+            </Select>
 
             {/* Attendees Picker Chip */}
-            <div
-              onClick={() => setShowAttendeesPicker(!showAttendeesPicker)}
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 5,
-                height: 24,
-                paddingLeft: 8,
-                paddingRight: 8,
-                borderRadius: 9999,
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.border,
-                cursor: 'pointer',
-              }}
-            >
-              <Icons.Users size={12} color={colors.textSubtle} />
-              <text style={{ fontSize: 11, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                {selectedAttendees.length > 0 ? selectedAttendees.join(', ') : 'Add attendees'}
-              </text>
-              <Icons.ChevronDown size={10} color={colors.textSubtle} />
-            </div>
+            <Select open={showAttendeesPicker} onOpenChange={setShowAttendeesPicker}>
+              <SelectTrigger
+                testId="attendees-picker-chip"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  height: 24,
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  borderRadius: 9999,
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  cursor: 'pointer',
+                }}
+              >
+                <Icons.Users size={12} color={colors.textSubtle} />
+                <text style={{ fontSize: 11, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {selectedAttendees.length > 0 ? selectedAttendees.join(', ') : 'Add attendees'}
+                </text>
+                <Icons.ChevronDown size={10} color={colors.textSubtle} />
+              </SelectTrigger>
+              <SelectContent
+                side="bottom"
+                sideOffset={6}
+                align="start"
+                testId="attendees-picker-menu"
+                style={{
+                  width: 240,
+                  borderRadius: 10,
+                  backgroundColor: colors.elevated,
+                  borderWidth: 1,
+                  borderColor: colors.borderStrong,
+                  padding: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                <div style={{ paddingLeft: 8, paddingTop: 2, paddingBottom: 4 }}>
+                  <text style={{ fontSize: 11, fontWeight: '600', color: colors.textSubtle, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                    {'Select attendees'}
+                  </text>
+                </div>
+                {people.map((p) => {
+                  const isSelected = selectedAttendees.includes(p.name)
+                  return (
+                    <div
+                      key={p.id}
+                      testId={`attendee-option-${p.id}`}
+                      onClick={() => {
+                        const next = isSelected
+                          ? selectedAttendees.filter((name) => name !== p.name)
+                          : [...selectedAttendees, p.name]
+                        setSelectedAttendees(next)
+                      }}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                        height: 28,
+                        borderRadius: 6,
+                        paddingLeft: 8,
+                        paddingRight: 8,
+                        cursor: 'pointer',
+                        backgroundColor: isSelected ? colors.surface2 : 'transparent',
+                        hover: { backgroundColor: colors.hover },
+                      }}
+                    >
+                      <Icons.User size={12} color={isSelected ? colors.accent : colors.textMuted} />
+                      <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, flexGrow: 1, whiteSpace: 'nowrap' }}>
+                        {p.name}
+                      </text>
+                      {isSelected && <Icons.Check size={12} color={colors.accent} />}
+                    </div>
+                  )
+                })}
+              </SelectContent>
+            </Select>
 
             <div style={{ flexGrow: 1 }} />
 
@@ -364,45 +472,45 @@ export function NotePage({ noteId }: NotePageProps) {
             </div>
 
             {/* More Options Dropdown */}
-            <div
-              onClick={() => setShowActionsMenu(!showActionsMenu)}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 9999,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                backgroundColor: showActionsMenu ? colors.hover : 'transparent',
-              }}
-            >
-              <Icons.MoreHorizontal size={13} color={colors.textSubtle} />
-            </div>
-          </div>
-
-          {/* Folder picker dropdown */}
-          {showFolderPicker && (
-            <div
-              style={{
-                width: 220,
-                borderRadius: 10,
-                backgroundColor: colors.elevated,
-                borderWidth: 1,
-                borderColor: colors.borderStrong,
-                padding: 6,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}
-            >
-              {folders.map((f) => (
+            <Select open={showActionsMenu} onOpenChange={setShowActionsMenu}>
+              <SelectTrigger
+                testId="note-actions-trigger"
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 9999,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  backgroundColor: showActionsMenu ? colors.hover : 'transparent',
+                  hover: { backgroundColor: colors.hover },
+                }}
+              >
+                <Icons.MoreHorizontal size={13} color={colors.textSubtle} />
+              </SelectTrigger>
+              <SelectContent
+                side="bottom"
+                sideOffset={6}
+                align="end"
+                testId="note-actions-menu"
+                style={{
+                  width: 200,
+                  borderRadius: 10,
+                  backgroundColor: colors.elevated,
+                  borderWidth: 1,
+                  borderColor: colors.borderStrong,
+                  padding: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
                 <div
-                  key={f.id}
+                  testId="action-copy-markdown"
                   onClick={() => {
-                    moveMeeting(noteId, f.id)
-                    setShowFolderPicker(false)
-                    showNotice(`Moved to ${f.name}`)
+                    handleExportMarkdown()
+                    setShowActionsMenu(false)
                   }}
                   style={{
                     display: 'flex',
@@ -410,159 +518,70 @@ export function NotePage({ noteId }: NotePageProps) {
                     alignItems: 'center',
                     gap: 8,
                     height: 28,
-                    borderRadius: 6,
                     paddingLeft: 8,
+                    paddingRight: 8,
+                    borderRadius: 6,
                     cursor: 'pointer',
+                    hover: { backgroundColor: colors.hover },
                   }}
                 >
-                  <Icons.Folder size={12} color={colors.textMuted} />
+                  <Icons.Download size={12} color={colors.textMuted} />
                   <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                    {f.name}
+                    {'Copy Markdown'}
                   </text>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Attendees picker dropdown */}
-          {showAttendeesPicker && (
-            <div
-              style={{
-                width: 240,
-                borderRadius: 10,
-                backgroundColor: colors.elevated,
-                borderWidth: 1,
-                borderColor: colors.borderStrong,
-                padding: 6,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}
-            >
-              <div style={{ paddingLeft: 8, paddingTop: 2, paddingBottom: 4 }}>
-                <text style={{ fontSize: 11, fontWeight: '600', color: colors.textSubtle, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                  {'Select attendees'}
-                </text>
-              </div>
-              {people.map((p) => {
-                const isSelected = selectedAttendees.includes(p.name)
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => {
-                      const next = isSelected
-                        ? selectedAttendees.filter((name) => name !== p.name)
-                        : [...selectedAttendees, p.name]
-                      setSelectedAttendees(next)
-                    }}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      height: 28,
-                      borderRadius: 6,
-                      paddingLeft: 8,
-                      paddingRight: 8,
-                      cursor: 'pointer',
-                      backgroundColor: isSelected ? colors.surface2 : 'transparent',
-                    }}
-                  >
-                    <Icons.User size={12} color={isSelected ? colors.accent : colors.textMuted} />
-                    <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, flexGrow: 1, whiteSpace: 'nowrap' }}>
-                      {p.name}
-                    </text>
-                    {isSelected && <Icons.Check size={12} color={colors.accent} />}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Actions Menu */}
-          {showActionsMenu && (
-            <div
-              style={{
-                width: 200,
-                borderRadius: 10,
-                backgroundColor: colors.elevated,
-                borderWidth: 1,
-                borderColor: colors.borderStrong,
-                padding: 6,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}
-            >
-              <div
-                onClick={() => {
-                  handleExportMarkdown()
-                  setShowActionsMenu(false)
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  height: 28,
-                  paddingLeft: 8,
-                  paddingRight: 8,
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                }}
-              >
-                <Icons.Download size={12} color={colors.textMuted} />
-                <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                  {'Copy Markdown'}
-                </text>
-              </div>
-              <div
-                onClick={() => {
-                  handleDuplicate()
-                  setShowActionsMenu(false)
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  height: 28,
-                  paddingLeft: 8,
-                  paddingRight: 8,
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                }}
-              >
-                <Icons.Copy size={12} color={colors.textMuted} />
-                <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                  {'Duplicate note'}
-                </text>
-              </div>
-              <div style={{ height: 1, backgroundColor: colors.border, marginTop: 2, marginBottom: 2 }} />
-              <div
-                onClick={() => {
-                  deleteMeeting(noteId)
-                  setShowActionsMenu(false)
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  height: 28,
-                  paddingLeft: 8,
-                  paddingRight: 8,
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                }}
-              >
-                <Icons.Trash2 size={12} color={colors.danger} />
-                <text style={{ fontSize: 12, color: colors.danger, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                  {'Delete note'}
-                </text>
-              </div>
-            </div>
-          )}
+                <div
+                  testId="action-duplicate-note"
+                  onClick={() => {
+                    handleDuplicate()
+                    setShowActionsMenu(false)
+                  }}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    height: 28,
+                    paddingLeft: 8,
+                    paddingRight: 8,
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    hover: { backgroundColor: colors.hover },
+                  }}
+                >
+                  <Icons.Copy size={12} color={colors.textMuted} />
+                  <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                    {'Duplicate note'}
+                  </text>
+                </div>
+                <div style={{ height: 1, backgroundColor: colors.border, marginTop: 2, marginBottom: 2 }} />
+                <div
+                  testId="action-delete-note"
+                  onClick={() => {
+                    deleteMeeting(noteId)
+                    setShowActionsMenu(false)
+                  }}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    height: 28,
+                    paddingLeft: 8,
+                    paddingRight: 8,
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    hover: { backgroundColor: colors.hover },
+                  }}
+                >
+                  <Icons.Trash2 size={12} color={colors.danger} />
+                  <text style={{ fontSize: 12, color: colors.danger, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                    {'Delete note'}
+                  </text>
+                </div>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Main content body */}
           {tab === 'notes' ? (

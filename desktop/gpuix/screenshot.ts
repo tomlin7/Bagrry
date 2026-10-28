@@ -29,6 +29,13 @@ try {
     await Bun.sleep(400)
     await capture('bagrry-note-editor')
 
+    // 2b. Open Attendees Floating Popover
+    await app.getByTestId('attendees-picker-chip').click()
+    await Bun.sleep(400)
+    await capture('bagrry-note-floating-attendees')
+    await app.getByTestId('attendees-picker-chip').click()
+    await Bun.sleep(300)
+
     // 3. Switch to Enhanced Notes
     await app.getByTestId('tab-enhanced').click()
     await Bun.sleep(400)

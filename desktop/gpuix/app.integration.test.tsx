@@ -174,4 +174,52 @@ describeNative('Bagrry comprehensive integration suite', () => {
 
     await app.close()
   })
+
+  it('interacts with floating popover menus: folder picker, attendees multi-select, and actions menu', async () => {
+    const { render, renderer } = createTestRoot({ width: 1200, height: 800 })
+    render(<BagrryApp />)
+    const app = await connectTest(renderer)
+
+    // Open vertex note
+    await app.getByTestId('note-row-note_vertex_pilot').click()
+    expect(useBagrryStore.getState().route.kind).toBe('note')
+
+    // 1. Open Attendees Floating Popover
+    await app.getByTestId('attendees-picker-chip').click()
+    const attendeesMenu = app.getByTestId('attendees-picker-menu')
+    await attendeesMenu.waitFor({ timeoutMs: 5000 })
+    expect(attendeesMenu).toBeDefined()
+
+    // Select Sarah Chen (multi-select attendee)
+    const sarahOption = app.getByTestId('attendee-option-usr_sarah')
+    await sarahOption.click()
+    // The attendees menu stays open for multi-selection without shifting content!
+    const attendeesText = renderer.getPaintedText().join(' ')
+    expect(attendeesText).toContain('Select attendees')
+
+    // 2. Open Folder Picker Floating Popover
+    await app.getByTestId('folder-picker-chip').click()
+    const folderMenu = app.getByTestId('folder-picker-menu')
+    await folderMenu.waitFor({ timeoutMs: 5000 })
+    expect(folderMenu).toBeDefined()
+
+    // Move to Product Roadmap folder (fld_roadmap)
+    const fldRoadmapOption = app.getByTestId('folder-option-fld_roadmap')
+    await fldRoadmapOption.click()
+    const targetMeeting = useBagrryStore.getState().meetings.find((m) => m.id === 'note_vertex_pilot')
+    expect(targetMeeting?.folder_id).toBe('fld_roadmap')
+
+    // 3. Open Actions Floating Popover
+    await app.getByTestId('note-actions-trigger').click()
+    const actionsMenu = app.getByTestId('note-actions-menu')
+    await actionsMenu.waitFor({ timeoutMs: 5000 })
+    expect(actionsMenu).toBeDefined()
+
+    // Duplicate note
+    const initialMeetings = useBagrryStore.getState().meetings.length
+    await app.getByTestId('action-duplicate-note').click()
+    expect(useBagrryStore.getState().meetings.length).toBe(initialMeetings + 1)
+
+    await app.close()
+  })
 })
