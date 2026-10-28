@@ -247,7 +247,7 @@ export function TitleBar() {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 6,
-            marginRight: 8,
+            marginRight: 14,
             maxWidth: 240,
             overflow: 'hidden',
           }}
@@ -284,7 +284,7 @@ export function TitleBar() {
             borderRadius: 9999,
             backgroundColor: hoverBtn === 'new_note' ? '#ffffff' : colors.solid,
             cursor: 'pointer',
-            marginRight: 8,
+            marginRight: 14,
           }}
         >
           <Icons.Plus size={14} color={colors.solidFg} />

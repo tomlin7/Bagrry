@@ -21,7 +21,7 @@ export function SharedPage() {
         height: '100%',
         backgroundColor: colors.bg,
         overflow: 'hidden',
-        paddingTop: 24,
+        paddingTop: 32,
         alignItems: 'center',
       }}
     >
@@ -33,22 +33,51 @@ export function SharedPage() {
           paddingRight: 24,
           display: 'flex',
           flexDirection: 'column',
-          gap: 16,
+          alignItems: 'center',
+          gap: 24,
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 16, borderBottomWidth: 1, borderColor: colors.border }}>
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icons.Users size={18} color={colors.text} />
-            <text style={{ fontSize: 22, fontFamily: FONT_DISPLAY, fontWeight: '600', color: colors.text, whiteSpace: 'nowrap' }}>
-              {'Shared with me'}
-            </text>
+        {/* Header centered matching Tauri */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              backgroundColor: colors.hover,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icons.Users size={16} color={colors.textMuted} />
           </div>
-          <text style={{ fontSize: 13, color: colors.textSubtle, fontFamily: FONT_SANS }}>
-            {'Notes and meeting summaries shared with you by teammates.'}
+          <text
+            style={{
+              fontSize: 28,
+              fontFamily: FONT_DISPLAY,
+              fontWeight: '600',
+              color: colors.text,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {'Shared with me'}
+          </text>
+          <text
+            style={{
+              fontSize: 13,
+              color: colors.textSubtle,
+              fontFamily: FONT_SANS,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {'Notes teammates have shared into your workspace.'}
           </text>
         </div>
 
-        <NoteList notes={sharedNotes} emptyMessage="No shared notes yet." />
+        <div style={{ width: '100%' }}>
+          <NoteList notes={sharedNotes} emptyMessage="Nothing shared with you yet. When a teammate shares a note or folder, it shows up here." />
+        </div>
       </div>
     </div>
   )

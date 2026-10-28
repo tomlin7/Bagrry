@@ -65,46 +65,48 @@ export function EnhancedNotes({ noteId, json }: EnhancedNotesProps) {
                     flexShrink: 0,
                   }}
                 />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
-                  <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
-                    <text
-                      style={{
-                        fontSize: 13.5,
-                        lineHeight: 1.5,
-                        color: colors.text,
-                        fontFamily: FONT_SANS,
-                      }}
-                    >
-                      {bullet.text}
-                    </text>
-                    {bullet.citations?.map((citId) => (
-                      <div
-                        key={citId}
-                        onClick={() => setActiveCitation(activeCitation === citId ? null : citId)}
-                        style={{
-                          paddingLeft: 4,
-                          paddingRight: 4,
-                          paddingTop: 1,
-                          paddingBottom: 1,
-                          borderRadius: 4,
-                          backgroundColor: activeCitation === citId ? colors.accent : colors.accentSubtle,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <text
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexGrow: 1, minWidth: 0 }}>
+                  <text
+                    style={{
+                      fontSize: 13.5,
+                      color: colors.text,
+                      fontFamily: FONT_SANS,
+                    }}
+                  >
+                    {bullet.text}
+                  </text>
+
+                  {bullet.citations && bullet.citations.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      {bullet.citations.map((citId) => (
+                        <div
+                          key={citId}
+                          onClick={() => setActiveCitation(activeCitation === citId ? null : citId)}
                           style={{
-                            fontSize: 10,
-                            fontWeight: '600',
-                            color: activeCitation === citId ? colors.accentFg : colors.accent,
-                            fontFamily: FONT_SANS,
-                            whiteSpace: 'nowrap',
+                            paddingLeft: 5,
+                            paddingRight: 5,
+                            paddingTop: 1,
+                            paddingBottom: 1,
+                            borderRadius: 4,
+                            backgroundColor: activeCitation === citId ? colors.accent : colors.accentSubtle,
+                            cursor: 'pointer',
                           }}
                         >
-                          {`#${citId.replace('seg_', '')}`}
-                        </text>
-                      </div>
-                    ))}
-                  </div>
+                          <text
+                            style={{
+                              fontSize: 10,
+                              fontWeight: '600',
+                              color: activeCitation === citId ? colors.accentFg : colors.accent,
+                              fontFamily: FONT_SANS,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {`#${citId.replace('seg_', '')}`}
+                          </text>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Popover quote for citation */}
                   {bullet.citations?.includes(activeCitation ?? '') && (

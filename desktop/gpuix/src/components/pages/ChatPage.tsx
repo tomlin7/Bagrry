@@ -343,7 +343,6 @@ export function ChatPage({ sessionId }: ChatPageProps) {
                 <text
                   style={{
                     fontSize: 13.5,
-                    lineHeight: 1.5,
                     color: colors.text,
                     fontFamily: FONT_SANS,
                   }}

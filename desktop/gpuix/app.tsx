@@ -19,6 +19,8 @@ import { CompaniesPage } from './src/components/pages/CompaniesPage'
 import { SettingsPage } from './src/components/pages/SettingsPage'
 import { CommandPalette } from './src/components/CommandPalette'
 import { Onboarding } from './src/components/Onboarding'
+import { LiveMeetingIndicator } from './src/components/layout/LiveMeetingIndicator'
+import { CreateFolderDialog } from './src/components/layout/CreateFolderDialog'
 import { readWindowState } from './src/shell/state'
 
 export function BagrryApp(_props?: any) {
@@ -148,6 +150,8 @@ export function BagrryApp(_props?: any) {
       {/* Modals & Overlays */}
       <CommandPalette />
       <Onboarding />
+      <LiveMeetingIndicator />
+      <CreateFolderDialog />
     </div>
   )
 }

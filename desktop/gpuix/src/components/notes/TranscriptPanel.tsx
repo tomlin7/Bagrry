@@ -200,7 +200,7 @@ export function TranscriptPanel({ noteId }: TranscriptPanelProps) {
                   {formatElapsed(seg.start_ms)}
                 </text>
               </div>
-              <text style={{ fontSize: 12.5, color: colors.text, fontFamily: FONT_SANS, lineHeight: 1.4 }}>
+              <text style={{ fontSize: 12.5, color: colors.text, fontFamily: FONT_SANS }}>
                 {seg.text}
               </text>
             </div>

@@ -223,6 +223,9 @@ interface BagrryStore {
   setPaletteOpen: (open: boolean) => void
   onboardingOpen: boolean
   finishOnboarding: () => void
+  folderModal: { open: boolean; shared: boolean } | null
+  openFolderModal: (shared: boolean) => void
+  closeFolderModal: () => void
 
   /* Theme */
   themePreference: 'dark' | 'light' | 'system'
@@ -321,6 +324,10 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
 
   onboardingOpen: false,
   finishOnboarding: () => set({ onboardingOpen: false }),
+
+  folderModal: null,
+  openFolderModal: (shared) => set({ folderModal: { open: true, shared } }),
+  closeFolderModal: () => set({ folderModal: null }),
 
   themePreference: 'dark',
   colors: DARK_THEME,

@@ -36,7 +36,7 @@ export function NoteEditor({
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
-        gap: 8,
+        gap: 12,
       }}
     >
       {/* Formatting & AI Quick Bar */}
@@ -148,7 +148,7 @@ export function NoteEditor({
             </text>
           </div>
 
-          {/* Task / Todo */}
+          {/* Task Item */}
           <div
             onClick={() => insertText('- [ ] ')}
             onMouseEnter={() => setHoverBtn('task')}
@@ -286,7 +286,7 @@ export function NoteEditor({
           flexDirection: 'column',
           borderRadius: 10,
           borderWidth: 1,
-          borderColor: colors.borderStrong,
+          borderColor: colors.border,
           backgroundColor: colors.surface,
           overflow: 'hidden',
         }}
@@ -298,7 +298,6 @@ export function NoteEditor({
           minRows={14}
           style={{
             fontSize: 13.5,
-            lineHeight: 1.6,
             color: colors.text,
             backgroundColor: '#00000000',
             borderWidth: 0,
@@ -318,13 +317,13 @@ export function NoteEditor({
             paddingLeft: 12,
             paddingRight: 12,
             paddingTop: 4,
-            paddingBottom: 4,
+            paddingBottom: 6,
+            backgroundColor: colors.surface2,
             borderTopWidth: 1,
             borderColor: colors.border,
-            backgroundColor: colors.surface2,
           }}
         >
-          <text style={{ fontSize: 10.5, color: colors.textSubtle, fontFamily: FONT_MONO, whiteSpace: 'nowrap' }}>
+          <text style={{ fontSize: 11, color: colors.textSubtle, fontFamily: FONT_MONO, whiteSpace: 'nowrap' }}>
             {`${wordCount} words · ${content.length} chars`}
           </text>
         </div>

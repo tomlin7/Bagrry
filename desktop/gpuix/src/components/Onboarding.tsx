@@ -86,7 +86,7 @@ export function Onboarding() {
               {steps[step].title}
             </text>
 
-            <text style={{ fontSize: 13, lineHeight: 1.5, color: colors.textMuted, fontFamily: FONT_SANS }}>
+            <text style={{ fontSize: 13, color: colors.textMuted, fontFamily: FONT_SANS }}>
               {steps[step].description}
             </text>
 
@@ -131,7 +131,7 @@ export function Onboarding() {
               {'Ready to go'}
             </text>
 
-            <text style={{ fontSize: 13, lineHeight: 1.5, color: colors.textMuted, fontFamily: FONT_SANS }}>
+            <text style={{ fontSize: 13, color: colors.textMuted, fontFamily: FONT_SANS }}>
               {'You can configure your local audio devices and Groq transcription key anytime in Settings.'}
             </text>
 

@@ -28,27 +28,18 @@ function AppSidebar({ width = SIDEBAR_WIDTH }: SidebarProps) {
   const profile = useBagrryStore((s) => s.profile)
   const folders = useBagrryStore((s) => s.folders)
   const chatSessions = useBagrryStore((s) => s.chatSessions)
-  const createFolder = useBagrryStore((s) => s.createFolder)
+  const openFolderModal = useBagrryStore((s) => s.openFolderModal)
   const createChatSession = useBagrryStore((s) => s.createChatSession)
   const colors = useBagrryStore((s) => s.colors)
 
   const [chatExpanded, setChatExpanded] = useState(true)
   const [hoverBtn, setHoverBtn] = useState<string | null>(null)
-  const [showFolderModal, setShowFolderModal] = useState<null | { shared: boolean }>(null)
-  const [folderDraft, setFolderDraft] = useState('')
 
   const workspaceName = profile.workspace || 'My workspace'
   const teamLabel = `${workspaceName} team`
 
   const privateFolders = folders.filter((f) => !f.is_shared)
   const sharedFolders = folders.filter((f) => f.is_shared)
-
-  const handleCreateFolder = () => {
-    if (!folderDraft.trim() || !showFolderModal) return
-    createFolder(folderDraft.trim(), showFolderModal.shared)
-    setFolderDraft('')
-    setShowFolderModal(null)
-  }
 
   return (
     <div
@@ -462,7 +453,8 @@ function AppSidebar({ width = SIDEBAR_WIDTH }: SidebarProps) {
 
         {/* Add Folder button (private) */}
         <div
-          onClick={() => setShowFolderModal({ shared: false })}
+          testId="sidebar-add-private-folder"
+          onClick={() => openFolderModal(false)}
           onMouseEnter={() => setHoverBtn('add_private_folder')}
           onMouseLeave={() => setHoverBtn(null)}
           style={{
@@ -596,7 +588,8 @@ function AppSidebar({ width = SIDEBAR_WIDTH }: SidebarProps) {
 
         {/* Add Folder button (shared) */}
         <div
-          onClick={() => setShowFolderModal({ shared: true })}
+          testId="sidebar-add-team-folder"
+          onClick={() => openFolderModal(true)}
           onMouseEnter={() => setHoverBtn('add_shared_folder')}
           onMouseLeave={() => setHoverBtn(null)}
           style={{
@@ -781,112 +774,6 @@ function AppSidebar({ width = SIDEBAR_WIDTH }: SidebarProps) {
           <Icons.ChevronsUpDown size={14} color={colors.textSubtle} />
         </div>
       </div>
-
-      {/* Add Folder Modal */}
-      {showFolderModal && (
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: 0,
-            backgroundColor: '#00000088',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 280,
-              borderRadius: 12,
-              backgroundColor: colors.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-              padding: 16,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-            }}
-          >
-            <text
-              style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: colors.text,
-                fontFamily: FONT_SANS,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {showFolderModal.shared ? 'New Team Folder' : 'New Private Folder'}
-            </text>
-            <input
-              value={folderDraft}
-              placeholder="Folder name"
-              style={{
-                height: 32,
-                borderRadius: 6,
-                borderWidth: 1,
-                borderColor: colors.borderStrong,
-                backgroundColor: colors.surface,
-                paddingLeft: 8,
-                paddingRight: 8,
-                fontSize: 13,
-                color: colors.text,
-              }}
-              onChange={(e: any) => setFolderDraft(e.value ?? '')}
-              onSubmit={handleCreateFolder}
-            />
-            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-              <div
-                onClick={() => setShowFolderModal(null)}
-                style={{
-                  paddingLeft: 10,
-                  paddingRight: 10,
-                  height: 28,
-                  borderRadius: 6,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <text style={{ fontSize: 12, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                  {'Cancel'}
-                </text>
-              </div>
-              <div
-                onClick={handleCreateFolder}
-                style={{
-                  paddingLeft: 12,
-                  paddingRight: 12,
-                  height: 28,
-                  borderRadius: 6,
-                  backgroundColor: colors.solid,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: '600',
-                    color: colors.solidFg,
-                    fontFamily: FONT_SANS,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {'Create'}
-                </text>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

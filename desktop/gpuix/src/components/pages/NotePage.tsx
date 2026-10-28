@@ -6,6 +6,7 @@ import { NoteEditor } from '../notes/NoteEditor'
 import { EnhancedNotes } from '../notes/EnhancedNotes'
 import { TranscriptPanel } from '../notes/TranscriptPanel'
 import { RecordingControls } from '../notes/RecordingControls'
+import { AskBar } from '../chat/AskBar'
 
 interface NotePageProps {
   noteId: string
@@ -25,6 +26,8 @@ export function NotePage({ noteId }: NotePageProps) {
   const sendChatMessage = useBagrryStore((s) => s.sendChatMessage)
   const colors = useBagrryStore((s) => s.colors)
   const transcriptOpen = useBagrryStore((s) => s.transcriptOpen)
+  const setTranscriptOpen = useBagrryStore((s) => s.setTranscriptOpen)
+  const recState = useBagrryStore((s) => s.recState)
 
   const [tab, setTab] = useState<'notes' | 'enhanced'>('notes')
   const [titleDraft, setTitleDraft] = useState(note?.title ?? '')
@@ -46,6 +49,7 @@ export function NotePage({ noteId }: NotePageProps) {
   }
 
   const currentFolder = folders.find((f) => f.id === note.folder_id)
+  const hasEnhanced = Boolean(note.enhanced_notes_json)
 
   const showNotice = (msg: string) => {
     setNotification(msg)
@@ -231,12 +235,12 @@ export function NotePage({ noteId }: NotePageProps) {
             >
               <Icons.Folder size={12} color={colors.textSubtle} />
               <text style={{ fontSize: 11, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                {currentFolder ? currentFolder.name : 'General'}
+                {currentFolder?.name ?? 'Inbox'}
               </text>
-              <Icons.ChevronDown size={11} color={colors.textSubtle} />
+              <Icons.ChevronDown size={10} color={colors.textSubtle} />
             </div>
 
-            {/* Attendees Chip */}
+            {/* Attendees Picker Chip */}
             <div
               onClick={() => setShowAttendeesPicker(!showAttendeesPicker)}
               style={{
@@ -256,14 +260,87 @@ export function NotePage({ noteId }: NotePageProps) {
             >
               <Icons.Users size={12} color={colors.textSubtle} />
               <text style={{ fontSize: 11, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                {selectedAttendees.length > 0 ? selectedAttendees.join(', ') : 'Add people'}
+                {selectedAttendees.length > 0 ? selectedAttendees.join(', ') : 'Add attendees'}
               </text>
-              <Icons.ChevronDown size={11} color={colors.textSubtle} />
+              <Icons.ChevronDown size={10} color={colors.textSubtle} />
             </div>
 
-            {/* AI Enhance Action Chip */}
+            <div style={{ flexGrow: 1 }} />
+
+            {/* Mode Switcher Tabs: Notes vs Enhanced Notes */}
             <div
-              testId="enhance-note-btn"
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderRadius: 9999,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                padding: 2,
+              }}
+            >
+              <div
+                testId="tab-notes"
+                onClick={() => setTab('notes')}
+                style={{
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  paddingTop: 2,
+                  paddingBottom: 2,
+                  borderRadius: 9999,
+                  backgroundColor: tab === 'notes' ? colors.hover : 'transparent',
+                  cursor: 'pointer',
+                }}
+              >
+                <text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: tab === 'notes' ? '600' : '400',
+                    color: tab === 'notes' ? colors.text : colors.textMuted,
+                    fontFamily: FONT_SANS,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {'Notes'}
+                </text>
+              </div>
+
+              <div
+                testId="tab-enhanced"
+                onClick={() => setTab('enhanced')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 3,
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  paddingTop: 2,
+                  paddingBottom: 2,
+                  borderRadius: 9999,
+                  backgroundColor: tab === 'enhanced' ? colors.hover : 'transparent',
+                  cursor: 'pointer',
+                }}
+              >
+                <Icons.Sparkles size={11} color={tab === 'enhanced' ? colors.accent : colors.textSubtle} />
+                <text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: tab === 'enhanced' ? '600' : '400',
+                    color: tab === 'enhanced' ? colors.text : colors.textMuted,
+                    fontFamily: FONT_SANS,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {'Enhanced'}
+                </text>
+              </div>
+            </div>
+
+            {/* Enhance Button */}
+            <div
+              testId="enhance-btn"
               onClick={handleEnhance}
               style={{
                 display: 'flex',
@@ -280,114 +357,29 @@ export function NotePage({ noteId }: NotePageProps) {
                 cursor: 'pointer',
               }}
             >
-              <Icons.Sparkles size={12} color={colors.accent} />
+              <Icons.Sparkles size={11} color={colors.accent} />
               <text style={{ fontSize: 11, fontWeight: '600', color: colors.accent, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
                 {'Enhance'}
               </text>
             </div>
 
-            {/* Action menu trigger */}
+            {/* More Options Dropdown */}
             <div
               onClick={() => setShowActionsMenu(!showActionsMenu)}
               style={{
                 width: 24,
                 height: 24,
-                borderRadius: 6,
+                borderRadius: 9999,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.border,
+                backgroundColor: showActionsMenu ? colors.hover : 'transparent',
               }}
             >
-              <Icons.MoreHorizontal size={14} color={colors.textMuted} />
+              <Icons.MoreHorizontal size={13} color={colors.textSubtle} />
             </div>
           </div>
-
-          {/* Actions popup dropdown */}
-          {showActionsMenu && (
-            <div
-              style={{
-                width: 200,
-                borderRadius: 10,
-                backgroundColor: colors.elevated,
-                borderWidth: 1,
-                borderColor: colors.borderStrong,
-                padding: 6,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}
-            >
-              <div
-                onClick={() => {
-                  setShowActionsMenu(false)
-                  handleExportMarkdown()
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  height: 28,
-                  borderRadius: 6,
-                  paddingLeft: 8,
-                  cursor: 'pointer',
-                }}
-              >
-                <Icons.Download size={13} color={colors.textMuted} />
-                <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                  {'Export Markdown'}
-                </text>
-              </div>
-
-              <div
-                onClick={() => {
-                  setShowActionsMenu(false)
-                  handleDuplicate()
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  height: 28,
-                  borderRadius: 6,
-                  paddingLeft: 8,
-                  cursor: 'pointer',
-                }}
-              >
-                <Icons.Copy size={13} color={colors.textMuted} />
-                <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                  {'Duplicate note'}
-                </text>
-              </div>
-
-              <div
-                onClick={() => {
-                  setShowActionsMenu(false)
-                  deleteMeeting(noteId)
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  height: 28,
-                  borderRadius: 6,
-                  paddingLeft: 8,
-                  cursor: 'pointer',
-                }}
-              >
-                <Icons.Trash2 size={13} color={colors.danger} />
-                <text style={{ fontSize: 12, color: colors.danger, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                  {'Delete note'}
-                </text>
-              </div>
-            </div>
-          )}
 
           {/* Folder picker dropdown */}
           {showFolderPicker && (
@@ -487,76 +479,90 @@ export function NotePage({ noteId }: NotePageProps) {
             </div>
           )}
 
-          {/* Mode Switcher Tabs: Notes vs Enhanced Notes */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              borderBottomWidth: 1,
-              borderColor: colors.border,
-              paddingBottom: 6,
-              marginTop: 6,
-            }}
-          >
+          {/* Actions Menu */}
+          {showActionsMenu && (
             <div
-              testId="tab-notes"
-              onClick={() => setTab('notes')}
               style={{
-                paddingLeft: 10,
-                paddingRight: 10,
-                paddingTop: 4,
-                paddingBottom: 4,
-                borderRadius: 6,
-                backgroundColor: tab === 'notes' ? colors.surface2 : 'transparent',
-                cursor: 'pointer',
-              }}
-            >
-              <text
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: tab === 'notes' ? '600' : '400',
-                  color: tab === 'notes' ? colors.text : colors.textMuted,
-                  fontFamily: FONT_SANS,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {'Notes'}
-              </text>
-            </div>
-
-            <div
-              testId="tab-enhanced"
-              onClick={() => setTab('enhanced')}
-              style={{
+                width: 200,
+                borderRadius: 10,
+                backgroundColor: colors.elevated,
+                borderWidth: 1,
+                borderColor: colors.borderStrong,
+                padding: 6,
                 display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-                paddingLeft: 10,
-                paddingRight: 10,
-                paddingTop: 4,
-                paddingBottom: 4,
-                borderRadius: 6,
-                backgroundColor: tab === 'enhanced' ? colors.surface2 : 'transparent',
-                cursor: 'pointer',
+                flexDirection: 'column',
+                gap: 2,
               }}
             >
-              <Icons.Sparkles size={12} color={tab === 'enhanced' ? colors.accent : colors.textSubtle} />
-              <text
+              <div
+                onClick={() => {
+                  handleExportMarkdown()
+                  setShowActionsMenu(false)
+                }}
                 style={{
-                  fontSize: 12.5,
-                  fontWeight: tab === 'enhanced' ? '600' : '400',
-                  color: tab === 'enhanced' ? colors.text : colors.textMuted,
-                  fontFamily: FONT_SANS,
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  height: 28,
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  borderRadius: 6,
+                  cursor: 'pointer',
                 }}
               >
-                {'Enhanced Notes'}
-              </text>
+                <Icons.Download size={12} color={colors.textMuted} />
+                <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'Copy Markdown'}
+                </text>
+              </div>
+              <div
+                onClick={() => {
+                  handleDuplicate()
+                  setShowActionsMenu(false)
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  height: 28,
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                <Icons.Copy size={12} color={colors.textMuted} />
+                <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'Duplicate note'}
+                </text>
+              </div>
+              <div style={{ height: 1, backgroundColor: colors.border, marginTop: 2, marginBottom: 2 }} />
+              <div
+                onClick={() => {
+                  deleteMeeting(noteId)
+                  setShowActionsMenu(false)
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  height: 28,
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                <Icons.Trash2 size={12} color={colors.danger} />
+                <text style={{ fontSize: 12, color: colors.danger, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'Delete note'}
+                </text>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Main content body */}
           {tab === 'notes' ? (
@@ -575,18 +581,86 @@ export function NotePage({ noteId }: NotePageProps) {
       </div>
 
       {/* Slide-out floating transcript panel */}
-      <TranscriptPanel noteId={noteId} />
+      {transcriptOpen && <TranscriptPanel noteId={noteId} />}
 
-      {/* Floating Bottom Recording Bar (when panel is closed) */}
+      {/* Docked bottom composer + recording capsule (when transcript is closed) */}
       {!transcriptOpen && (
         <div
           style={{
             position: 'absolute',
-            bottom: 24,
-            right: 28,
+            left: 0,
+            right: 0,
+            bottom: 16,
+            display: 'flex',
+            justifyContent: 'center',
+            pointerEvents: 'none',
           }}
         >
-          <RecordingControls noteId={noteId} />
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 680,
+              paddingLeft: 24,
+              paddingRight: 24,
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+              pointerEvents: 'auto',
+            }}
+          >
+            {/* Recording Controls Capsule with Transcript toggle button */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                borderRadius: 9999,
+                borderWidth: 1,
+                borderColor: colors.borderStrong,
+                backgroundColor: colors.surface,
+                paddingLeft: 6,
+                paddingRight: 10,
+                paddingTop: 4,
+                paddingBottom: 4,
+                flexShrink: 0,
+              }}
+            >
+              <RecordingControls noteId={noteId} compact />
+              <div
+                testId="open-transcript-btn"
+                onClick={() => setTranscriptOpen(true)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                <Icons.NotebookPen size={12} color={colors.textMuted} />
+                <text
+                  style={{
+                    fontSize: 11.5,
+                    color: colors.textMuted,
+                    fontFamily: FONT_SANS,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {'Transcript'}
+                </text>
+              </div>
+            </div>
+
+            {/* AskBar filling remaining width */}
+            <div style={{ flexGrow: 1, minWidth: 0 }}>
+              <AskBar
+                placeholder={recState !== 'idle' ? 'Ask about this live meeting…' : 'Ask anything…'}
+                onSubmit={(content) => sendChatMessage(null, content)}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
