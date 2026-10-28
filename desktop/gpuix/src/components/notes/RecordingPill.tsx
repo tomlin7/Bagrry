@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { motion } from '@gpuix/react'
 import { useBagrryStore } from '../../store/bagrry-store'
 import { Icons } from '../icons'
 import { FONT_SANS } from '../../theme'
@@ -41,23 +42,29 @@ export function RecordingPill() {
   const sysWidth = recState === 'recording' ? Math.min(32, Math.max(6, Math.round(vu.system * 32))) : 6
 
   return (
-    <div
-      testId="recording-pill"
-      style={{
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        height: 38,
-        paddingLeft: 8,
-        paddingRight: 10,
-        borderRadius: 9999,
-        backgroundColor: '#272725',
-        borderWidth: 1,
-        borderColor: '#3a3a37',
-        pointerEvents: 'auto',
-      }}
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
     >
+      <div
+        testId="recording-pill"
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          height: 38,
+          paddingLeft: 8,
+          paddingRight: 10,
+          borderRadius: 9999,
+          backgroundColor: '#272725',
+          borderWidth: 1,
+          borderColor: '#3a3a37',
+          pointerEvents: 'auto',
+        }}
+      >
       {/* 1. Dual horizontal VU meter box */}
       <div
         testId="pill-vu-meter"
@@ -85,9 +92,11 @@ export function RecordingPill() {
             overflow: 'hidden',
           }}
         >
-          <div
+          <motion.div
+            initial={false}
+            animate={{ width: micWidth }}
+            transition={{ duration: 0.08, ease: 'easeOut' }}
             style={{
-              width: micWidth,
               height: 3,
               borderRadius: 1.5,
               backgroundColor: '#c3dd4f',
@@ -105,9 +114,11 @@ export function RecordingPill() {
             overflow: 'hidden',
           }}
         >
-          <div
+          <motion.div
+            initial={false}
+            animate={{ width: sysWidth }}
+            transition={{ duration: 0.08, ease: 'easeOut' }}
             style={{
-              width: sysWidth,
               height: 3,
               borderRadius: 1.5,
               backgroundColor: '#7bd88f',
@@ -230,6 +241,7 @@ export function RecordingPill() {
       >
         <Icons.X size={12} color={hoverBtn === 'discard' ? '#ffffff' : '#888888'} />
       </div>
-    </div>
+      </div>
+    </motion.div>
   )
 }

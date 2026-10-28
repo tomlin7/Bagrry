@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { AnimatePresence, motion } from '@gpuix/react'
 import { useBagrryStore } from '../../store/bagrry-store'
 import { Icons } from '../icons'
 import { FONT_SANS } from '../../theme'
@@ -230,107 +231,113 @@ export function ActionItemsStrip() {
           </div>
         )}
 
-        {displayedItems.map((item, idx) => {
-          const isHover = hoverItem === item.id
-          return (
-            <div
-              key={item.id}
-              onMouseEnter={() => setHoverItem(item.id)}
-              onMouseLeave={() => setHoverItem(null)}
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingLeft: 12,
-                paddingRight: 12,
-                paddingTop: 9,
-                paddingBottom: 9,
-                borderBottomWidth: idx === displayedItems.length - 1 ? 0 : 1,
-                borderColor: colors.border,
-                backgroundColor: isHover ? colors.hover : 'transparent',
-              }}
-            >
-              {/* Checkbox button */}
-              <div
-                testId={`action-toggle-${item.id}`}
-                onClick={() => toggleActionItem(item.id)}
+        <AnimatePresence initial={false}>
+          {displayedItems.map((item, idx) => {
+            const isHover = hoverItem === item.id
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
+                onMouseEnter={() => setHoverItem(item.id)}
+                onMouseLeave={() => setHoverItem(null)}
                 style={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: 4,
-                  borderWidth: 1,
-                  borderColor: item.done ? colors.accent : colors.borderStrong,
-                  backgroundColor: item.done ? colors.accent : 'transparent',
                   display: 'flex',
+                  flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  flexShrink: 0,
+                  gap: 12,
+                  paddingLeft: 12,
+                  paddingRight: 12,
+                  paddingTop: 9,
+                  paddingBottom: 9,
+                  borderBottomWidth: idx === displayedItems.length - 1 ? 0 : 1,
+                  borderColor: colors.border,
+                  backgroundColor: isHover ? colors.hover : 'transparent',
                 }}
               >
-                {item.done && <Icons.Check size={12} color={colors.accentFg} />}
-              </div>
-
-              {/* Note link & details */}
-              <div
-                onClick={() => openNote(item.meeting_id)}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  flexGrow: 1,
-                  minWidth: 0,
-                  cursor: 'pointer',
-                }}
-              >
-                <text
-                  style={{
-                    fontSize: 13,
-                    color: item.done ? colors.textSubtle : colors.text,
-                    fontFamily: FONT_SANS,
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {item.task}
-                </text>
-                <text
-                  style={{
-                    fontSize: 11,
-                    color: colors.textSubtle,
-                    fontFamily: FONT_SANS,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {`${item.meeting_title}${item.owner ? ` · ${item.owner}` : ''}${item.deadline ? ` · ${item.deadline}` : ''}`}
-                </text>
-              </div>
-
-              {/* Delete action item */}
-              {isHover && (
+                {/* Checkbox button */}
                 <div
-                  testId={`action-delete-${item.id}`}
-                  onClick={(e: any) => {
-                    e.stopPropagation?.()
-                    deleteActionItem(item.id)
-                  }}
+                  testId={`action-toggle-${item.id}`}
+                  onClick={() => toggleActionItem(item.id)}
                   style={{
-                    width: 22,
-                    height: 22,
+                    width: 16,
+                    height: 16,
                     borderRadius: 4,
+                    borderWidth: 1,
+                    borderColor: item.done ? colors.accent : colors.borderStrong,
+                    backgroundColor: item.done ? colors.accent : 'transparent',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    backgroundColor: colors.hover,
+                    flexShrink: 0,
                   }}
                 >
-                  <Icons.Trash2 size={12} color={colors.danger} />
+                  {item.done && <Icons.Check size={12} color={colors.accentFg} />}
                 </div>
-              )}
-            </div>
-          )
-        })}
+
+                {/* Note link & details */}
+                <div
+                  onClick={() => openNote(item.meeting_id)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    flexGrow: 1,
+                    minWidth: 0,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <text
+                    style={{
+                      fontSize: 13,
+                      color: item.done ? colors.textSubtle : colors.text,
+                      fontFamily: FONT_SANS,
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.task}
+                  </text>
+                  <text
+                    style={{
+                      fontSize: 11,
+                      color: colors.textSubtle,
+                      fontFamily: FONT_SANS,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {`${item.meeting_title}${item.owner ? ` · ${item.owner}` : ''}${item.deadline ? ` · ${item.deadline}` : ''}`}
+                  </text>
+                </div>
+
+                {/* Delete action item */}
+                {isHover && (
+                  <div
+                    testId={`action-delete-${item.id}`}
+                    onClick={(e: any) => {
+                      e.stopPropagation?.()
+                      deleteActionItem(item.id)
+                    }}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      backgroundColor: colors.hover,
+                    }}
+                  >
+                    <Icons.Trash2 size={12} color={colors.danger} />
+                  </div>
+                )}
+              </motion.div>
+            )
+          })}
+        </AnimatePresence>
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Select, SelectContent, SelectTrigger } from '@gpuix/react'
+import { AnimatePresence, motion, Select, SelectContent, SelectTrigger } from '@gpuix/react'
 import { useBagrryStore } from '../../store/bagrry-store'
 import { Icons } from '../icons'
 import { FONT_DISPLAY, FONT_SANS } from '../../theme'
@@ -127,32 +127,39 @@ export function NotePage({ noteId }: NotePageProps) {
       }}
     >
       {/* Toast Notification */}
-      {notification && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 12,
-            right: 24,
-            paddingLeft: 14,
-            paddingRight: 14,
-            paddingTop: 8,
-            paddingBottom: 8,
-            borderRadius: 8,
-            backgroundColor: colors.elevated,
-            borderWidth: 1,
-            borderColor: colors.borderStrong,
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          <Icons.Check size={13} color={colors.accent} />
-          <text style={{ fontSize: 12, fontWeight: '500', color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-            {notification}
-          </text>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {notification && (
+          <motion.div
+            key="note-notification"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 24,
+              paddingLeft: 14,
+              paddingRight: 14,
+              paddingTop: 8,
+              paddingBottom: 8,
+              borderRadius: 8,
+              backgroundColor: colors.elevated,
+              borderWidth: 1,
+              borderColor: colors.borderStrong,
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Icons.Check size={13} color={colors.accent} />
+            <text style={{ fontSize: 12, fontWeight: '500', color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+              {notification}
+            </text>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main editor scroll area */}
       <div
@@ -587,18 +594,28 @@ export function NotePage({ noteId }: NotePageProps) {
           </div>
 
           {/* Main content body */}
-          {tab === 'notes' ? (
-            <NoteEditor
-              noteId={noteId}
-              content={scratchDraft}
-              onChange={handleScratchCommit}
-              onEnhance={handleEnhance}
-              onExtractActions={handleExtractActions}
-              onDraftEmail={handleDraftEmail}
-            />
-          ) : (
-            <EnhancedNotes noteId={noteId} json={note.enhanced_notes_json} />
-          )}
+          <AnimatePresence initial={false}>
+            <motion.div
+              key={tab}
+              initial={false}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
+              style={{ width: '100%', display: 'flex', flexDirection: 'column' }}
+            >
+              {tab === 'notes' ? (
+                <NoteEditor
+                  noteId={noteId}
+                  content={scratchDraft}
+                  onChange={handleScratchCommit}
+                  onEnhance={handleEnhance}
+                  onExtractActions={handleExtractActions}
+                  onDraftEmail={handleDraftEmail}
+                />
+              ) : (
+                <EnhancedNotes noteId={noteId} json={note.enhanced_notes_json} />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
 

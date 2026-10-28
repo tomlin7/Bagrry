@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { AnimatePresence, motion } from '@gpuix/react'
 import { useBagrryStore } from '../../store/bagrry-store'
 import { FONT_SANS } from '../../theme'
 import type { SettingsTab } from '../../types'
@@ -45,32 +46,44 @@ export function SettingsPage({ tab }: SettingsPageProps) {
         position: 'relative',
       }}
     >
-      {savedNotice && (
-        <div
-          testId="settings-toast-notice"
-          style={{
-            position: 'absolute',
-            top: 16,
-            right: 28,
-            paddingLeft: 14,
-            paddingRight: 14,
-            paddingTop: 8,
-            paddingBottom: 8,
-            borderRadius: 8,
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.borderStrong,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          <div style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent }} />
-          <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-            {savedNotice}
-          </text>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {savedNotice && (
+          <motion.div
+            key="settings-toast-notice"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            style={{
+              position: 'absolute',
+              top: 16,
+              right: 28,
+            }}
+          >
+            <div
+              testId="settings-toast-notice"
+              style={{
+                paddingLeft: 14,
+                paddingRight: 14,
+                paddingTop: 8,
+                paddingBottom: 8,
+                borderRadius: 8,
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.borderStrong,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <div style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent }} />
+              <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                {savedNotice}
+              </text>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div
         style={{
@@ -82,18 +95,28 @@ export function SettingsPage({ tab }: SettingsPageProps) {
           flexDirection: 'column',
         }}
       >
-        {tab === 'preferences' && <PreferencesTab onNotice={showSaved} />}
-        {tab === 'profile' && <ProfileTab onNotice={showSaved} />}
-        {tab === 'calendar' && <CalendarTab onNotice={showSaved} />}
-        {tab === 'notifications' && <NotificationsTab onNotice={showSaved} />}
-        {tab === 'connectors' && <ConnectorsTab onNotice={showSaved} />}
-        {tab === 'help' && <GetHelpTab onNotice={showSaved} />}
-        {tab === 'workspace-general' && <WorkspaceGeneralTab onNotice={showSaved} />}
-        {tab === 'members' && <MembersTab onNotice={showSaved} />}
-        {tab === 'spaces' && <SpacesTab onNotice={showSaved} />}
-        {tab === 'analytics' && <AnalyticsTab />}
-        {tab === 'billing' && <BillingTab onNotice={showSaved} />}
-        {tab === 'referrals' && <ReferralsTab onNotice={showSaved} />}
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={tab}
+            initial={false}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            style={{ width: '100%', display: 'flex', flexDirection: 'column' }}
+          >
+            {tab === 'preferences' && <PreferencesTab onNotice={showSaved} />}
+            {tab === 'profile' && <ProfileTab onNotice={showSaved} />}
+            {tab === 'calendar' && <CalendarTab onNotice={showSaved} />}
+            {tab === 'notifications' && <NotificationsTab onNotice={showSaved} />}
+            {tab === 'connectors' && <ConnectorsTab onNotice={showSaved} />}
+            {tab === 'help' && <GetHelpTab onNotice={showSaved} />}
+            {tab === 'workspace-general' && <WorkspaceGeneralTab onNotice={showSaved} />}
+            {tab === 'members' && <MembersTab onNotice={showSaved} />}
+            {tab === 'spaces' && <SpacesTab onNotice={showSaved} />}
+            {tab === 'analytics' && <AnalyticsTab />}
+            {tab === 'billing' && <BillingTab onNotice={showSaved} />}
+            {tab === 'referrals' && <ReferralsTab onNotice={showSaved} />}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   )
