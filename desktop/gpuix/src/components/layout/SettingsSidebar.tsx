@@ -140,6 +140,7 @@ export function SettingsSidebar({ tab, width = SIDEBAR_WIDTH }: SettingsSidebarP
           return (
             <div
               key={entry.tab}
+              testId={`settings-nav-${entry.tab}`}
               onClick={() => go(entry.tab)}
               onMouseEnter={() => setHoverItem(entry.tab)}
               onMouseLeave={() => setHoverItem(null)}
@@ -197,6 +198,7 @@ export function SettingsSidebar({ tab, width = SIDEBAR_WIDTH }: SettingsSidebarP
           return (
             <div
               key={entry.tab}
+              testId={`settings-nav-${entry.tab}`}
               onClick={() => go(entry.tab)}
               onMouseEnter={() => setHoverItem(entry.tab)}
               onMouseLeave={() => setHoverItem(null)}
@@ -225,10 +227,27 @@ export function SettingsSidebar({ tab, width = SIDEBAR_WIDTH }: SettingsSidebarP
                   color: isActive ? colors.text : colors.textMuted,
                   fontFamily: FONT_SANS,
                   whiteSpace: 'nowrap',
+                  flexGrow: 1,
                 }}
               >
                 {entry.label}
               </text>
+              {entry.tab === 'referrals' && (
+                <div
+                  style={{
+                    paddingLeft: 6,
+                    paddingRight: 6,
+                    paddingTop: 1,
+                    paddingBottom: 1,
+                    borderRadius: 9999,
+                    backgroundColor: colors.accentSubtle,
+                  }}
+                >
+                  <text style={{ fontSize: 10, fontWeight: '600', color: colors.accent, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                    {'New'}
+                  </text>
+                </div>
+              )}
             </div>
           )
         })}

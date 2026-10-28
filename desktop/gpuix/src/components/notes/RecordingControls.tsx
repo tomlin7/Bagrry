@@ -56,7 +56,7 @@ export function RecordingControls({ noteId, compact = false }: RecordingControls
 
       {/* Pause / Resume button */}
       <div
-        testId="pause-recording-btn"
+        testId="panel-pause-recording-btn"
         onClick={pauseRecording}
         onMouseEnter={() => setHoverBtn('pause')}
         onMouseLeave={() => setHoverBtn(null)}
@@ -82,7 +82,7 @@ export function RecordingControls({ noteId, compact = false }: RecordingControls
 
       {/* Stop button */}
       <div
-        testId="stop-recording-btn"
+        testId="panel-stop-recording-btn"
         onClick={stopRecording}
         onMouseEnter={() => setHoverBtn('stop')}
         onMouseLeave={() => setHoverBtn(null)}
@@ -103,7 +103,7 @@ export function RecordingControls({ noteId, compact = false }: RecordingControls
       {/* Discard button */}
       {!compact && (
         <div
-          testId="discard-recording-btn"
+          testId="panel-discard-recording-btn"
           onClick={discardAudio}
           onMouseEnter={() => setHoverBtn('discard')}
           onMouseLeave={() => setHoverBtn(null)}

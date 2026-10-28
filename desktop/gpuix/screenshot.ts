@@ -29,6 +29,13 @@ try {
     await Bun.sleep(400)
     await capture('bagrry-note-editor')
 
+    // 2a. Live Recording Pill in action
+    await app.getByTestId('start-recording-btn').click()
+    await Bun.sleep(600)
+    await capture('bagrry-recording-pill')
+    await app.getByTestId('stop-recording-btn').click()
+    await Bun.sleep(400)
+
     // 2b. Open Attendees Floating Popover
     await app.getByTestId('attendees-picker-chip').click()
     await Bun.sleep(400)
@@ -51,10 +58,25 @@ try {
     await Bun.sleep(400)
     await capture('bagrry-directory-people')
 
-    // 6. Settings Page
+    // 6. Settings Page (Preferences)
     await app.getByTestId('user-profile-button').click()
     await Bun.sleep(400)
-    await capture('bagrry-settings')
+    await capture('bagrry-settings-preferences')
+
+    // 6b. Settings Connectors
+    await app.getByTestId('settings-nav-connectors').click()
+    await Bun.sleep(400)
+    await capture('bagrry-settings-connectors')
+
+    // 6c. Settings Billing
+    await app.getByTestId('settings-nav-billing').click()
+    await Bun.sleep(400)
+    await capture('bagrry-settings-billing')
+
+    // 6d. Settings Analytics
+    await app.getByTestId('settings-nav-analytics').click()
+    await Bun.sleep(400)
+    await capture('bagrry-settings-analytics')
   } finally {
     await app.close()
   }

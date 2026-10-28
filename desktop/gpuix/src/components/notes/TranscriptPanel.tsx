@@ -3,6 +3,7 @@ import { useBagrryStore } from '../../store/bagrry-store'
 import { Icons } from '../icons'
 import { FONT_MONO, FONT_SANS } from '../../theme'
 import { RecordingControls } from './RecordingControls'
+import { RecordingPill } from './RecordingPill'
 
 interface TranscriptPanelProps {
   noteId: string
@@ -41,49 +42,14 @@ export function TranscriptPanel({ noteId }: TranscriptPanelProps) {
           position: 'absolute',
           left: 0,
           right: 0,
-          bottom: 24,
+          bottom: 20,
           display: 'flex',
           justifyContent: 'center',
           pointerEvents: 'none',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 10,
-            borderRadius: 9999,
-            backgroundColor: colors.surface2,
-            borderWidth: 1,
-            borderColor: colors.border,
-            paddingLeft: 12,
-            paddingRight: 12,
-            paddingTop: 6,
-            paddingBottom: 6,
-            pointerEvents: 'auto',
-          }}
-        >
-          <RecordingControls noteId={noteId} compact />
-          <div
-            onClick={() => setTranscriptMinimized(false)}
-            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-          >
-            <text style={{ fontSize: 12, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-              {recState === 'recording' ? 'Live Transcribing…' : 'Transcript'}
-            </text>
-            {recordingStartedAt && (
-              <text style={{ fontSize: 11, fontFamily: FONT_MONO, color: colors.textSubtle, whiteSpace: 'nowrap' }}>
-                {formatElapsed(Date.now() - recordingStartedAt)}
-              </text>
-            )}
-          </div>
-          <div
-            onClick={() => setTranscriptOpen(false)}
-            style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-          >
-            <Icons.X size={12} color={colors.textSubtle} />
-          </div>
+        <div style={{ pointerEvents: 'auto' }}>
+          <RecordingPill />
         </div>
       </div>
     )

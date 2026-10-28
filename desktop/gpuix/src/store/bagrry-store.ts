@@ -1,11 +1,13 @@
 import { create } from 'zustand'
 import {
   type ActionItem,
+  type ApiKeyItem,
   type CalendarEvent,
   type ChatMessage,
   type ChatSession,
   type Company,
   type EnhancedDoc,
+  type FeedbackItem,
   type Folder,
   type Meeting,
   type Person,
@@ -193,6 +195,40 @@ const SEED_RECIPES: Recipe[] = [
   { id: 'rcp_actions', name: 'Extract action items', icon: 'check-square', prompt_template: 'Extract every action item, owner, and implied deadline into a checklist.' },
 ]
 
+const SEED_TEMPLATES: Template[] = [
+  {
+    id: 'tpl_standard',
+    name: 'Standard Meeting',
+    icon: 'file-text',
+    prompt_template: 'Summarize meeting discussions, main decisions reached, and next steps with owners.',
+    structure_json: '{"sections":["Summary","Decisions","Next Steps"]}',
+  },
+  {
+    id: 'tpl_1on1',
+    name: '1-on-1 Review',
+    icon: 'user-check',
+    prompt_template: 'Focus on personal growth, feedback exchange, priorities for the next week, and blockers.',
+    structure_json: '{"sections":["Personal Updates","Feedback","Priorities","Blockers"]}',
+  },
+  {
+    id: 'tpl_sprint',
+    name: 'Engineering Sprint Sync',
+    icon: 'code',
+    prompt_template: 'Cover sprint progress, technical architecture decisions, blockers, and deployments.',
+    structure_json: '{"sections":["Sprint Goals","Technical Decisions","Blockers","Release Plan"]}',
+  },
+]
+
+const SEED_API_KEYS: ApiKeyItem[] = [
+  {
+    id: 'key_1',
+    label: 'Raycast extension',
+    kind: 'personal',
+    token: 'bgy_live_884920194820194820',
+    created_at: '2026-10-25T12:00:00Z',
+  },
+]
+
 const SEED_CHAT_SESSIONS: ChatSession[] = [
   { id: 'chat_1', title: 'Decisions from Q4 Roadmap Sync', space_id: null, created_at: '2026-10-28T15:10:00Z', updated_at: '2026-10-28T15:15:00Z' },
   { id: 'chat_2', title: 'Vertex Systems API Integration', space_id: null, created_at: '2026-10-27T17:00:00Z', updated_at: '2026-10-27T17:20:00Z' },
@@ -241,6 +277,11 @@ interface BagrryStore {
   people: Person[]
   companies: Company[]
   recipes: Recipe[]
+  templates: Template[]
+  apiKeys: ApiKeyItem[]
+  feedbacks: FeedbackItem[]
+  billingPlan: 'basic' | 'business' | 'enterprise'
+  referralCode: string
   chatSessions: ChatSession[]
   chatMessages: Record<string, ChatMessage[]>
   settings: Record<string, string>
@@ -281,6 +322,16 @@ interface BagrryStore {
   createChatSession: (title: string) => ChatSession
   deleteChatSession: (id: string) => void
   setSetting: (key: string, value: string) => void
+  setProfile: (name: string, email: string, workspace: string) => void
+  addTemplate: (name: string, promptTemplate: string) => Template
+  addRecipe: (name: string, promptTemplate: string) => Recipe
+  createApiKey: (label: string, kind: 'personal' | 'workspace') => string
+  revokeApiKey: (id: string) => void
+  submitFeedback: (kind: 'problem' | 'feature', body: string) => void
+  setBillingPlan: (plan: 'basic' | 'business' | 'enterprise') => void
+  resetCalendar: () => void
+  importCalendarEvents: (events: CalendarEvent[]) => void
+  deleteAllData: () => void
 }
 
 let recInterval: any = null
@@ -351,6 +402,11 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
   people: SEED_PEOPLE,
   companies: SEED_COMPANIES,
   recipes: SEED_RECIPES,
+  templates: SEED_TEMPLATES,
+  apiKeys: SEED_API_KEYS,
+  feedbacks: [],
+  billingPlan: 'business',
+  referralCode: 'BAGRRY-ALEX-77',
   chatSessions: SEED_CHAT_SESSIONS,
   chatMessages: SEED_CHAT_MESSAGES,
   settings: {
@@ -378,7 +434,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
       recordingMeetingId: targetId,
       recordingStartedAt: Date.now(),
       transcriptOpen: true,
-      transcriptMinimized: false,
+      transcriptMinimized: true,
     })
     if (recInterval) clearInterval(recInterval)
     recInterval = setInterval(() => {
@@ -671,6 +727,78 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
   setSetting: (key, value) => {
     set({
       settings: { ...get().settings, [key]: value },
+    })
+  },
+
+  setProfile: (name, email, workspace) => {
+    set({ profile: { name, email, workspace } })
+  },
+
+  addTemplate: (name, promptTemplate) => {
+    const t: Template = {
+      id: `tpl_${Date.now()}_${++entitySeq}`,
+      name,
+      icon: 'file-text',
+      prompt_template: promptTemplate,
+      structure_json: '{"sections":["Summary","Decisions","Next Steps"]}',
+    }
+    set({ templates: [...get().templates, t] })
+    return t
+  },
+
+  addRecipe: (name, promptTemplate) => {
+    const r: Recipe = {
+      id: `rcp_${Date.now()}_${++entitySeq}`,
+      name,
+      icon: 'sparkles',
+      prompt_template: promptTemplate,
+    }
+    set({ recipes: [...get().recipes, r] })
+    return r
+  },
+
+  createApiKey: (label, kind) => {
+    const token = `bgy_live_${Math.random().toString(36).slice(2)}${Date.now()}`
+    const item: ApiKeyItem = {
+      id: `key_${Date.now()}_${++entitySeq}`,
+      label: label || `${kind === 'personal' ? 'Personal' : 'Workspace'} key`,
+      kind,
+      token,
+      created_at: new Date().toISOString(),
+    }
+    set({ apiKeys: [item, ...get().apiKeys] })
+    return token
+  },
+
+  revokeApiKey: (id) => {
+    set({ apiKeys: get().apiKeys.filter((k) => k.id !== id) })
+  },
+
+  submitFeedback: (kind, body) => {
+    const item: FeedbackItem = {
+      id: `fb_${Date.now()}_${++entitySeq}`,
+      kind,
+      body,
+      created_at: new Date().toISOString(),
+    }
+    set({ feedbacks: [item, ...get().feedbacks] })
+  },
+
+  setBillingPlan: (billingPlan) => set({ billingPlan }),
+
+  resetCalendar: () => set({ calendarEvents: [] }),
+
+  importCalendarEvents: (events) => {
+    set({ calendarEvents: [...get().calendarEvents, ...events] })
+  },
+
+  deleteAllData: () => {
+    set({
+      meetings: [],
+      actionItems: [],
+      calendarEvents: [],
+      chatSessions: [],
+      chatMessages: {},
     })
   },
 }))

@@ -222,4 +222,87 @@ describeNative('Bagrry comprehensive integration suite', () => {
 
     await app.close()
   })
+
+  it('navigates all 12 settings tabs and exercises workspace/account controls', async () => {
+    const { render, renderer } = createTestRoot({ width: 1200, height: 800 })
+    render(<BagrryApp />)
+    const app = await connectTest(renderer)
+
+    // Open Settings via user profile button
+    await app.getByTestId('user-profile-button').click()
+    expect(useBagrryStore.getState().route.kind).toBe('settings')
+
+    // 1. Preferences tab
+    const prefSwitch = app.getByTestId('pref-indicator-switch')
+    await prefSwitch.waitFor({ timeoutMs: 5000 })
+    await prefSwitch.click()
+    expect(useBagrryStore.getState().settings['live_indicator']).toBe('false')
+
+    // 2. Profile tab
+    await app.getByTestId('settings-nav-profile').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'profile' })
+    await app.getByTestId('save-profile-btn').click()
+
+    // 3. Calendar tab
+    await app.getByTestId('settings-nav-calendar').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'calendar' })
+    await app.getByTestId('import-ics-btn').click()
+    expect(useBagrryStore.getState().calendarEvents.length).toBeGreaterThan(0)
+
+    // 4. Notifications tab
+    await app.getByTestId('settings-nav-notifications').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'notifications' })
+    await app.getByTestId('notify-scheduled-switch').click()
+
+    // 5. Connectors tab
+    await app.getByTestId('settings-nav-connectors').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'connectors' })
+    await app.getByTestId('create-personal-key-btn').click()
+    expect(useBagrryStore.getState().apiKeys.length).toBeGreaterThan(0)
+
+    // 6. Help tab
+    await app.getByTestId('settings-nav-help').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'help' })
+    await app.getByTestId('submit-feedback-btn').click()
+    expect(useBagrryStore.getState().feedbacks.length).toBeGreaterThan(0)
+
+    // 7. Workspace General tab
+    await app.getByTestId('settings-nav-workspace-general').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'workspace-general' })
+    await app.getByTestId('save-workspace-btn').click()
+
+    // 8. Members tab
+    await app.getByTestId('settings-nav-members').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'members' })
+    const initialPeople = useBagrryStore.getState().people.length
+    // Type name and add
+    const memberNameInput = app.getByTestId('member-name-input')
+    await memberNameInput.click()
+    useBagrryStore.getState().addPerson('Test Attendee', 'test@example.com')
+    expect(useBagrryStore.getState().people.length).toBe(initialPeople + 1)
+
+    // 9. Spaces tab
+    await app.getByTestId('settings-nav-spaces').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'spaces' })
+
+    // 10. Analytics tab
+    await app.getByTestId('settings-nav-analytics').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'analytics' })
+    const text = renderer.getPaintedText().join(' ')
+    expect(text).toContain('Notes captured')
+    expect(text).toContain('Hours recorded')
+
+    // 11. Billing tab
+    await app.getByTestId('settings-nav-billing').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'billing' })
+    await app.getByTestId('switch-plan-enterprise').click()
+    expect(useBagrryStore.getState().billingPlan).toBe('enterprise')
+
+    // 12. Referrals tab
+    await app.getByTestId('settings-nav-referrals').click()
+    expect(useBagrryStore.getState().route).toEqual({ kind: 'settings', tab: 'referrals' })
+    await app.getByTestId('copy-referral-btn').click()
+
+    await app.close()
+  })
 })

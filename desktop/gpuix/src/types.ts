@@ -179,3 +179,19 @@ export function routeKey(route: Route): string {
       return route.kind
   }
 }
+
+export interface ApiKeyItem {
+  id: string
+  label: string
+  kind: 'personal' | 'workspace'
+  token: string
+  created_at: string
+}
+
+export interface FeedbackItem {
+  id: string
+  kind: 'problem' | 'feature'
+  body: string
+  created_at: string
+}
+

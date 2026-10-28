@@ -7,6 +7,7 @@ import { NoteEditor } from '../notes/NoteEditor'
 import { EnhancedNotes } from '../notes/EnhancedNotes'
 import { TranscriptPanel } from '../notes/TranscriptPanel'
 import { RecordingControls } from '../notes/RecordingControls'
+import { RecordingPill } from '../notes/RecordingPill'
 import { AskBar } from '../chat/AskBar'
 
 interface NotePageProps {
@@ -28,7 +29,9 @@ export function NotePage({ noteId }: NotePageProps) {
   const colors = useBagrryStore((s) => s.colors)
   const transcriptOpen = useBagrryStore((s) => s.transcriptOpen)
   const setTranscriptOpen = useBagrryStore((s) => s.setTranscriptOpen)
+  const setTranscriptMinimized = useBagrryStore((s) => s.setTranscriptMinimized)
   const recState = useBagrryStore((s) => s.recState)
+  const startRecording = useBagrryStore((s) => s.startRecording)
 
   const [tab, setTab] = useState<'notes' | 'enhanced'>('notes')
   const [titleDraft, setTitleDraft] = useState(note?.title ?? '')
@@ -602,85 +605,122 @@ export function NotePage({ noteId }: NotePageProps) {
       {/* Slide-out floating transcript panel */}
       {transcriptOpen && <TranscriptPanel noteId={noteId} />}
 
-      {/* Docked bottom composer + recording capsule (when transcript is closed) */}
+      {/* Floating Bottom Bar (when transcript is closed) */}
       {!transcriptOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 16,
-            display: 'flex',
-            justifyContent: 'center',
-            pointerEvents: 'none',
-          }}
-        >
+        recState !== 'idle' ? (
           <div
             style={{
-              width: '100%',
-              maxWidth: 680,
-              paddingLeft: 24,
-              paddingRight: 24,
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 20,
               display: 'flex',
-              flexDirection: 'row',
+              justifyContent: 'center',
               alignItems: 'center',
-              gap: 10,
-              pointerEvents: 'auto',
+              pointerEvents: 'none',
             }}
           >
-            {/* Recording Controls Capsule with Transcript toggle button */}
+            <div style={{ pointerEvents: 'auto' }}>
+              <RecordingPill />
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 16,
+              display: 'flex',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+            }}
+          >
             <div
               style={{
+                width: '100%',
+                maxWidth: 680,
+                paddingLeft: 24,
+                paddingRight: 24,
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 8,
-                borderRadius: 9999,
-                borderWidth: 1,
-                borderColor: colors.borderStrong,
-                backgroundColor: colors.surface,
-                paddingLeft: 6,
-                paddingRight: 10,
-                paddingTop: 4,
-                paddingBottom: 4,
-                flexShrink: 0,
+                gap: 10,
+                pointerEvents: 'auto',
               }}
             >
-              <RecordingControls noteId={noteId} compact />
+              {/* Idle recording mic button + Transcript button */}
               <div
-                testId="open-transcript-btn"
-                onClick={() => setTranscriptOpen(true)}
                 style={{
                   display: 'flex',
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 4,
-                  cursor: 'pointer',
+                  gap: 8,
+                  borderRadius: 9999,
+                  borderWidth: 1,
+                  borderColor: colors.borderStrong,
+                  backgroundColor: colors.surface,
+                  paddingLeft: 6,
+                  paddingRight: 10,
+                  paddingTop: 4,
+                  paddingBottom: 4,
+                  flexShrink: 0,
                 }}
               >
-                <Icons.NotebookPen size={12} color={colors.textMuted} />
-                <text
+                <div
+                  testId="start-recording-btn"
+                  onClick={() => startRecording(noteId)}
                   style={{
-                    fontSize: 11.5,
-                    color: colors.textMuted,
-                    fontFamily: FONT_SANS,
-                    whiteSpace: 'nowrap',
+                    width: 28,
+                    height: 28,
+                    borderRadius: 9999,
+                    backgroundColor: colors.danger,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
                   }}
                 >
-                  {'Transcript'}
-                </text>
+                  <Icons.Mic size={14} color="#ffffff" />
+                </div>
+                <div
+                  testId="open-transcript-btn"
+                  onClick={() => {
+                    setTranscriptOpen(true)
+                    setTranscriptMinimized(false)
+                  }}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Icons.NotebookPen size={12} color={colors.textMuted} />
+                  <text
+                    style={{
+                      fontSize: 11.5,
+                      color: colors.textMuted,
+                      fontFamily: FONT_SANS,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {'Transcript'}
+                  </text>
+                </div>
+              </div>
+
+              {/* AskBar filling remaining width */}
+              <div style={{ flexGrow: 1, minWidth: 0 }}>
+                <AskBar
+                  placeholder="Ask anything…"
+                  onSubmit={(content) => sendChatMessage(null, content)}
+                />
               </div>
             </div>
-
-            {/* AskBar filling remaining width */}
-            <div style={{ flexGrow: 1, minWidth: 0 }}>
-              <AskBar
-                placeholder={recState !== 'idle' ? 'Ask about this live meeting…' : 'Ask anything…'}
-                onSubmit={(content) => sendChatMessage(null, content)}
-              />
-            </div>
           </div>
-        </div>
+        )
       )}
     </div>
   )

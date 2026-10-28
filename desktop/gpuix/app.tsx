@@ -21,6 +21,7 @@ import { CommandPalette } from './src/components/CommandPalette'
 import { Onboarding } from './src/components/Onboarding'
 import { LiveMeetingIndicator } from './src/components/layout/LiveMeetingIndicator'
 import { CreateFolderDialog } from './src/components/layout/CreateFolderDialog'
+import { RecordingPill } from './src/components/notes/RecordingPill'
 import { readWindowState } from './src/shell/state'
 
 export function BagrryApp(_props?: any) {
@@ -31,6 +32,7 @@ export function BagrryApp(_props?: any) {
   const createMeeting = useBagrryStore((s) => s.createMeeting)
   const back = useBagrryStore((s) => s.back)
   const colors = useBagrryStore((s) => s.colors)
+  const recState = useBagrryStore((s) => s.recState)
 
   const [sidebarWidth, setSidebarWidth] = useState(240)
   const [resizing, setResizing] = useState<'left' | null>(null)
@@ -121,6 +123,26 @@ export function BagrryApp(_props?: any) {
           {route.kind === 'people' && <PeoplePage />}
           {route.kind === 'companies' && <CompaniesPage />}
           {route.kind === 'settings' && <SettingsPage tab={route.tab} />}
+
+          {/* Floating Recording Pill across non-note screens */}
+          {route.kind !== 'note' && recState !== 'idle' && (
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 20,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <div style={{ pointerEvents: 'auto' }}>
+                <RecordingPill />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
