@@ -17,9 +17,13 @@ export function SettingsPage({ tab }: SettingsPageProps) {
   const setSetting = useBagrryStore((s) => s.setSetting)
 
   const [nameDraft, setNameDraft] = useState(profile.name)
+  const [emailDraft, setEmailDraft] = useState(profile.email)
   const [workspaceDraft, setWorkspaceDraft] = useState(profile.workspace)
   const [apiKeyDraft, setApiKeyDraft] = useState('gsk_live_994827103947201948')
   const [webhookDraft, setWebhookDraft] = useState('https://api.bagrry.dev/v1/webhook')
+  const [icsFeedDraft, setIcsFeedDraft] = useState('https://calendar.google.com/calendar/ical/alex%40bagrry.dev/private-abc/basic.ics')
+  const [speakerTags, setSpeakerTags] = useState(true)
+  const [autoEnhance, setAutoEnhance] = useState(true)
   const [savedNotice, setSavedNotice] = useState<string | null>(null)
 
   const showSaved = (msg = 'Changes saved') => {
@@ -123,7 +127,7 @@ export function SettingsPage({ tab }: SettingsPageProps) {
               </div>
             </div>
 
-            {/* Audio configuration */}
+            {/* Audio configuration & Transcription */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <text style={{ fontSize: 13, fontWeight: '500', color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
                 {'Audio & Transcription Engine'}
@@ -137,7 +141,7 @@ export function SettingsPage({ tab }: SettingsPageProps) {
                   borderColor: colors.border,
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 8,
+                  gap: 12,
                 }}
               >
                 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -148,6 +152,7 @@ export function SettingsPage({ tab }: SettingsPageProps) {
                     {'Default System Device'}
                   </text>
                 </div>
+
                 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
                     {'System Audio Loopback (WASAPI)'}
@@ -158,6 +163,121 @@ export function SettingsPage({ tab }: SettingsPageProps) {
                     </text>
                   </div>
                 </div>
+
+                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                      {'Speaker Diarization Tags'}
+                    </text>
+                    <text style={{ fontSize: 11, color: colors.textSubtle, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                      {'Tag transcript segments by "Me" vs "Attendees"'}
+                    </text>
+                  </div>
+                  <div
+                    onClick={() => {
+                      setSpeakerTags(!speakerTags)
+                      showSaved(speakerTags ? 'Speaker tags disabled' : 'Speaker tags enabled')
+                    }}
+                    style={{
+                      width: 36,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: speakerTags ? colors.accent : colors.surface2,
+                      borderWidth: 1,
+                      borderColor: speakerTags ? colors.accent : colors.borderStrong,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: speakerTags ? 'flex-end' : 'flex-start',
+                      paddingLeft: 2,
+                      paddingRight: 2,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: speakerTags ? colors.accentFg : colors.textSubtle }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                      {'Automatic AI Enhancement'}
+                    </text>
+                    <text style={{ fontSize: 11, color: colors.textSubtle, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                      {'Generate executive summary & action items upon recording stop'}
+                    </text>
+                  </div>
+                  <div
+                    onClick={() => {
+                      setAutoEnhance(!autoEnhance)
+                      showSaved(autoEnhance ? 'Auto-enhancement disabled' : 'Auto-enhancement enabled')
+                    }}
+                    style={{
+                      width: 36,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: autoEnhance ? colors.accent : colors.surface2,
+                      borderWidth: 1,
+                      borderColor: autoEnhance ? colors.accent : colors.borderStrong,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: autoEnhance ? 'flex-end' : 'flex-start',
+                      paddingLeft: 2,
+                      paddingRight: 2,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: autoEnhance ? colors.accentFg : colors.textSubtle }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Keyboard Shortcuts Reference */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <text style={{ fontSize: 13, fontWeight: '500', color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                {'Keyboard Shortcuts'}
+              </text>
+              <div
+                style={{
+                  borderRadius: 10,
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  overflow: 'hidden',
+                }}
+              >
+                {[
+                  { key: 'Ctrl + K', desc: 'Open Command Palette' },
+                  { key: 'Ctrl + N', desc: 'Create new meeting note' },
+                  { key: 'Ctrl + \\', desc: 'Toggle navigation sidebar' },
+                  { key: 'Ctrl + Shift + R', desc: 'Start or pause recording' },
+                  { key: 'Ctrl + Shift + S', desc: 'Stop recording & auto-enhance' },
+                ].map((sc, i) => (
+                  <div
+                    key={sc.key}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingLeft: 12,
+                      paddingRight: 12,
+                      paddingTop: 8,
+                      paddingBottom: 8,
+                      borderBottomWidth: i === 4 ? 0 : 1,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    <text style={{ fontSize: 12.5, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                      {sc.desc}
+                    </text>
+                    <div style={{ paddingLeft: 6, paddingRight: 6, paddingTop: 2, paddingBottom: 2, borderRadius: 4, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border }}>
+                      <text style={{ fontSize: 11, fontFamily: FONT_MONO, color: colors.textMuted, whiteSpace: 'nowrap' }}>
+                        {sc.key}
+                      </text>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -188,6 +308,27 @@ export function SettingsPage({ tab }: SettingsPageProps) {
                 }}
                 onChange={(e: any) => setNameDraft(e.value ?? '')}
                 onSubmit={() => showSaved('Profile name updated')}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <text style={{ fontSize: 12, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                {'Email Address'}
+              </text>
+              <input
+                value={emailDraft}
+                style={{
+                  height: 34,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: colors.borderStrong,
+                  backgroundColor: colors.surface,
+                  paddingLeft: 10,
+                  paddingRight: 10,
+                  fontSize: 13,
+                  color: colors.text,
+                }}
+                onChange={(e: any) => setEmailDraft(e.value ?? '')}
+                onSubmit={() => showSaved('Email updated')}
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -286,15 +427,38 @@ export function SettingsPage({ tab }: SettingsPageProps) {
               }}
             >
               <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS }}>
-                {'Bagrry can read ICS calendar feeds to notify you when calls start and auto-attach meeting attendees.'}
+                {'Bagrry reads ICS calendar feeds to notify you when calls start and auto-attach meeting attendees.'}
               </text>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <text style={{ fontSize: 12, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'ICS Subscription URL'}
+                </text>
+                <input
+                  value={icsFeedDraft}
+                  style={{
+                    height: 34,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: colors.borderStrong,
+                    backgroundColor: colors.surface2,
+                    paddingLeft: 10,
+                    paddingRight: 10,
+                    fontSize: 12,
+                    fontFamily: FONT_MONO,
+                    color: colors.text,
+                  }}
+                  onChange={(e: any) => setIcsFeedDraft(e.value ?? '')}
+                />
+              </div>
+
               <div
-                onClick={() => showSaved('Calendar feed re-synced')}
+                onClick={() => showSaved('Calendar feed synchronized (2 upcoming events)')}
                 style={{
                   alignSelf: 'flex-start',
-                  paddingLeft: 12,
-                  paddingRight: 12,
-                  height: 28,
+                  paddingLeft: 14,
+                  paddingRight: 14,
+                  height: 30,
                   borderRadius: 6,
                   backgroundColor: colors.solid,
                   display: 'flex',
@@ -317,9 +481,12 @@ export function SettingsPage({ tab }: SettingsPageProps) {
             <text style={{ fontSize: 20, fontFamily: FONT_DISPLAY, fontWeight: '600', color: colors.text, whiteSpace: 'nowrap' }}>
               {'Notifications'}
             </text>
-            <div style={{ padding: 14, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            <div style={{ padding: 14, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, display: 'flex', flexDirection: 'column', gap: 8 }}>
               <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS }}>
                 {'Meeting start reminders and recording notifications are enabled.'}
+              </text>
+              <text style={{ fontSize: 12, color: colors.textSubtle, fontFamily: FONT_SANS }}>
+                {'Windows system notifications will alert you 2 minutes before any scheduled calendar call.'}
               </text>
             </div>
           </div>
@@ -329,15 +496,49 @@ export function SettingsPage({ tab }: SettingsPageProps) {
         {tab === 'help' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <text style={{ fontSize: 20, fontFamily: FONT_DISPLAY, fontWeight: '600', color: colors.text, whiteSpace: 'nowrap' }}>
-              {'Get Help'}
+              {'System Diagnostics & Help'}
             </text>
-            <div style={{ padding: 14, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS }}>
-                {'Bagrry runs 100% on-device on GPU with GPUIX. Transcripts and scratchpads never leave your machine.'}
-              </text>
-              <text style={{ fontSize: 12, color: colors.textSubtle, fontFamily: FONT_SANS }}>
-                {'Version 0.22.0 · Native Win32 GPU Build'}
-              </text>
+            <div style={{ padding: 14, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'Rendering Engine'}
+                </text>
+                <text style={{ fontSize: 12, color: colors.textSubtle, fontFamily: FONT_MONO, whiteSpace: 'nowrap' }}>
+                  {'GPUIX (DirectX 12 / Vulkan Native)'}
+                </text>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'Window Management'}
+                </text>
+                <text style={{ fontSize: 12, color: colors.textSubtle, fontFamily: FONT_MONO, whiteSpace: 'nowrap' }}>
+                  {'Win32 FFI Modal Loop (user32.dll)'}
+                </text>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'Audio Capture'}
+                </text>
+                <text style={{ fontSize: 12, color: colors.textSubtle, fontFamily: FONT_MONO, whiteSpace: 'nowrap' }}>
+                  {'WASAPI Loopback + DirectSound'}
+                </text>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'Storage'}
+                </text>
+                <text style={{ fontSize: 12, color: colors.textSubtle, fontFamily: FONT_MONO, whiteSpace: 'nowrap' }}>
+                  {'100% On-Device SQLite'}
+                </text>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <text style={{ fontSize: 13, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'App Version'}
+                </text>
+                <text style={{ fontSize: 12, color: colors.accent, fontFamily: FONT_MONO, whiteSpace: 'nowrap' }}>
+                  {'v0.22.0'}
+                </text>
+              </div>
             </div>
           </div>
         )}

@@ -3,7 +3,7 @@
  * Ported 1:1 from desktop/tauri to native GPUIX desktop architecture.
  */
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { render } from '@gpuix/react'
 import { useBagrryStore } from './src/store/bagrry-store'
 import { SidebarRail } from './src/components/layout/SidebarRail'
@@ -19,7 +19,7 @@ import { CompaniesPage } from './src/components/pages/CompaniesPage'
 import { SettingsPage } from './src/components/pages/SettingsPage'
 import { CommandPalette } from './src/components/CommandPalette'
 import { Onboarding } from './src/components/Onboarding'
-import { readWindowState, saveWindowState } from './src/shell/state'
+import { readWindowState } from './src/shell/state'
 
 export function BagrryApp(_props?: any) {
   const route = useBagrryStore((s) => s.route)
@@ -29,6 +29,10 @@ export function BagrryApp(_props?: any) {
   const createMeeting = useBagrryStore((s) => s.createMeeting)
   const back = useBagrryStore((s) => s.back)
   const colors = useBagrryStore((s) => s.colors)
+
+  const [sidebarWidth, setSidebarWidth] = useState(240)
+  const [resizing, setResizing] = useState<'left' | null>(null)
+  const resizeOrigin = useRef({ startX: 0, startWidth: 240 })
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -70,8 +74,18 @@ export function BagrryApp(_props?: any) {
       }}
     >
       {/* Sliding Collapsible Sidebar Rail */}
-      <SidebarRail open={sidebarOpen}>
-        <Sidebar />
+      <SidebarRail
+        open={sidebarOpen}
+        width={sidebarWidth}
+        isResizing={resizing === 'left'}
+        onStartResize={(e: any) => {
+          if (e.button === 0) {
+            resizeOrigin.current = { startX: e.x ?? 0, startWidth: sidebarWidth }
+            setResizing('left')
+          }
+        }}
+      >
+        <Sidebar width={sidebarWidth} />
       </SidebarRail>
 
       {/* Main Content Column */}
@@ -107,6 +121,29 @@ export function BagrryApp(_props?: any) {
           {route.kind === 'settings' && <SettingsPage tab={route.tab} />}
         </div>
       </div>
+
+      {/* Full-screen Resizing Overlay */}
+      {resizing !== null && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            cursor: 'col-resize',
+            backgroundColor: '#00000001',
+          }}
+          onMouseMove={(e: any) => {
+            const currentX = e.x ?? 0
+            if (resizing === 'left') {
+              const newWidth = Math.max(180, Math.min(480, currentX))
+              setSidebarWidth(newWidth)
+            }
+          }}
+          onMouseUp={() => setResizing(null)}
+        />
+      )}
 
       {/* Modals & Overlays */}
       <CommandPalette />

@@ -1,7 +1,7 @@
 {
-  "name": "hiroshi",
-  "version": "0.21.0",
-  "description": "Multi-Agent Orchestration Cockpit rendered on the GPU with GPUIX",
+  "name": "bagrry",
+  "version": "0.22.0",
+  "description": "Bagrry · On-device AI meeting notes rendered natively with GPUIX",
   "private": true,
   "type": "module",
   "scripts": {

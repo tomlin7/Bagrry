@@ -17,6 +17,8 @@ const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 
 export function ComingUp() {
   const calendarEvents = useBagrryStore((s) => s.calendarEvents)
+  const meetings = useBagrryStore((s) => s.meetings)
+  const openNote = useBagrryStore((s) => s.openNote)
   const startRecording = useBagrryStore((s) => s.startRecording)
   const createMeeting = useBagrryStore((s) => s.createMeeting)
   const colors = useBagrryStore((s) => s.colors)
@@ -27,25 +29,86 @@ export function ComingUp() {
   const monthName = MONTHS[today.getMonth()]
   const weekdayName = WEEKDAYS[today.getDay()]
 
-  const handleStartFromCalendar = (title: string) => {
-    const note = createMeeting(title)
-    startRecording(note.id)
+  const handleStartFromCalendar = (title: string, eventId: string) => {
+    // Check if a note already exists for this event
+    const existing = meetings.find((m) => m.calendar_event_id === eventId)
+    if (existing) {
+      startRecording(existing.id)
+      openNote(existing.id)
+    } else {
+      const note = createMeeting(title)
+      startRecording(note.id)
+    }
+  }
+
+  const handleOpenEventNote = (title: string, eventId: string) => {
+    const existing = meetings.find((m) => m.calendar_event_id === eventId)
+    if (existing) {
+      openNote(existing.id)
+    } else {
+      const note = createMeeting(title)
+      openNote(note.id)
+    }
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', marginBottom: 24 }}>
-      <text
+      <div
         style={{
-          fontSize: 26,
-          fontFamily: FONT_DISPLAY,
-          fontWeight: '600',
-          color: colors.text,
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           marginBottom: 12,
-          whiteSpace: 'nowrap',
         }}
       >
-        {'Coming up'}
-      </text>
+        <text
+          style={{
+            fontSize: 26,
+            fontFamily: FONT_DISPLAY,
+            fontWeight: '600',
+            color: colors.text,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {'Coming up'}
+        </text>
+
+        <div
+          onClick={() => {
+            const note = createMeeting('Ad-hoc Meeting')
+            startRecording(note.id)
+          }}
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 5,
+            paddingLeft: 10,
+            paddingRight: 10,
+            paddingTop: 4,
+            paddingBottom: 4,
+            borderRadius: 6,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+            cursor: 'pointer',
+          }}
+        >
+          <Icons.Plus size={12} color={colors.text} />
+          <text
+            style={{
+              fontSize: 11.5,
+              fontWeight: '500',
+              color: colors.text,
+              fontFamily: FONT_SANS,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {'Quick record'}
+          </text>
+        </div>
+      </div>
 
       {/* Coming up card */}
       <div
@@ -142,6 +205,7 @@ export function ComingUp() {
                 key={ev.id}
                 onMouseEnter={() => setHoverEvent(ev.id)}
                 onMouseLeave={() => setHoverEvent(null)}
+                onClick={() => handleOpenEventNote(ev.title, ev.id)}
                 style={{
                   display: 'flex',
                   flexDirection: 'row',
@@ -150,6 +214,7 @@ export function ComingUp() {
                   borderRadius: 8,
                   padding: 8,
                   backgroundColor: isHover ? colors.hover : 'transparent',
+                  cursor: 'pointer',
                 }}
               >
                 {/* Event Avatar */}
@@ -208,7 +273,10 @@ export function ComingUp() {
                 {/* Quick record button */}
                 <div
                   testId={`record-event-${ev.id}`}
-                  onClick={() => handleStartFromCalendar(ev.title)}
+                  onClick={(e: any) => {
+                    e.stopPropagation?.()
+                    handleStartFromCalendar(ev.title, ev.id)
+                  }}
                   style={{
                     display: 'flex',
                     flexDirection: 'row',

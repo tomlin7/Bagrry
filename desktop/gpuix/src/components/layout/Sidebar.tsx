@@ -3,20 +3,24 @@ import { useBagrryStore } from '../../store/bagrry-store'
 import { Icons } from '../icons'
 import { FONT_DISPLAY, FONT_MONO, FONT_SANS, SIDEBAR_WIDTH } from '../../theme'
 import { SettingsSidebar } from './SettingsSidebar'
-import { handleTitlebarMouseDown } from '../../window-drag'
+import { handleTitlebarMouseDown, updateWindowDrag, endWindowDrag } from '../../window-drag'
 import { MY_NOTES_SPACE, TEAM_SPACE } from '../../types'
 
-export function Sidebar() {
+interface SidebarProps {
+  width?: number
+}
+
+export function Sidebar({ width = SIDEBAR_WIDTH }: SidebarProps) {
   const route = useBagrryStore((s) => s.route)
 
   if (route.kind === 'settings') {
-    return <SettingsSidebar tab={route.tab} />
+    return <SettingsSidebar tab={route.tab} width={width} />
   }
 
-  return <AppSidebar />
+  return <AppSidebar width={width} />
 }
 
-function AppSidebar() {
+function AppSidebar({ width = SIDEBAR_WIDTH }: SidebarProps) {
   const route = useBagrryStore((s) => s.route)
   const navigate = useBagrryStore((s) => s.navigate)
   const openSettings = useBagrryStore((s) => s.openSettings)
@@ -51,7 +55,7 @@ function AppSidebar() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        width: SIDEBAR_WIDTH,
+        width,
         height: '100%',
         backgroundColor: colors.sidebar,
         borderRightWidth: 1,
@@ -69,8 +73,11 @@ function AppSidebar() {
           paddingLeft: 12,
           paddingRight: 12,
           gap: 8,
+          pointerEvents: 'auto',
         }}
         onMouseDown={(e: any) => handleTitlebarMouseDown(undefined, e)}
+        onMouseMove={() => updateWindowDrag()}
+        onMouseUp={() => endWindowDrag()}
       >
         <div
           testId="brand-home"

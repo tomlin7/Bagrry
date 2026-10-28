@@ -3,9 +3,11 @@ import { useBagrryStore } from '../../store/bagrry-store'
 import { Icons } from '../icons'
 import { FONT_SANS, SIDEBAR_WIDTH } from '../../theme'
 import type { SettingsTab } from '../../types'
+import { handleTitlebarMouseDown, updateWindowDrag, endWindowDrag } from '../../window-drag'
 
 interface SettingsSidebarProps {
   tab: SettingsTab
+  width?: number
 }
 
 interface NavItem {
@@ -32,7 +34,7 @@ const WORKSPACE_NAV: NavItem[] = [
   { tab: 'referrals', label: 'Referrals', icon: Icons.Gift },
 ]
 
-export function SettingsSidebar({ tab }: SettingsSidebarProps) {
+export function SettingsSidebar({ tab, width = SIDEBAR_WIDTH }: SettingsSidebarProps) {
   const profile = useBagrryStore((s) => s.profile)
   const navigate = useBagrryStore((s) => s.navigate)
   const back = useBagrryStore((s) => s.back)
@@ -48,15 +50,16 @@ export function SettingsSidebar({ tab }: SettingsSidebarProps) {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        width: SIDEBAR_WIDTH,
+        width,
         height: '100%',
         backgroundColor: colors.sidebar,
         borderRightWidth: 1,
         borderColor: colors.border,
       }}
     >
-      {/* Profile header */}
+      {/* Profile header / drag handle */}
       <div
+        testId="titlebar-drag-settings-sidebar"
         style={{
           display: 'flex',
           flexDirection: 'row',
@@ -65,7 +68,11 @@ export function SettingsSidebar({ tab }: SettingsSidebarProps) {
           padding: 12,
           borderBottomWidth: 1,
           borderColor: colors.border,
+          pointerEvents: 'auto',
         }}
+        onMouseDown={(e: any) => handleTitlebarMouseDown(undefined, e)}
+        onMouseMove={() => updateWindowDrag()}
+        onMouseUp={() => endWindowDrag()}
       >
         <div
           style={{

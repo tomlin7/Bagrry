@@ -35,6 +35,7 @@ function formatTime(dateStr: string): string {
 export function NoteList({ notes, emptyMessage = 'No notes yet' }: NoteListProps) {
   const openNote = useBagrryStore((s) => s.openNote)
   const deleteMeeting = useBagrryStore((s) => s.deleteMeeting)
+  const duplicateMeeting = useBagrryStore((s) => s.duplicateMeeting)
   const recordingMeetingId = useBagrryStore((s) => s.recordingMeetingId)
   const recState = useBagrryStore((s) => s.recState)
   const colors = useBagrryStore((s) => s.colors)
@@ -219,27 +220,55 @@ export function NoteList({ notes, emptyMessage = 'No notes yet' }: NoteListProps
                     {formatTime(note.date)}
                   </text>
 
-                  {/* Delete button on hover */}
+                  {/* Hover action buttons */}
                   {isHover && (
                     <div
-                      testId={`delete-note-${note.id}`}
-                      onClick={(e: any) => {
-                        e.stopPropagation?.()
-                        deleteMeeting(note.id)
-                      }}
                       style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 6,
                         display: 'flex',
+                        flexDirection: 'row',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        backgroundColor: colors.hover,
+                        gap: 4,
                         flexShrink: 0,
                       }}
                     >
-                      <Icons.Trash2 size={13} color={colors.danger} />
+                      <div
+                        testId={`duplicate-note-${note.id}`}
+                        onClick={(e: any) => {
+                          e.stopPropagation?.()
+                          duplicateMeeting(note.id)
+                        }}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          backgroundColor: colors.hover,
+                        }}
+                      >
+                        <Icons.Copy size={13} color={colors.textMuted} />
+                      </div>
+                      <div
+                        testId={`delete-note-${note.id}`}
+                        onClick={(e: any) => {
+                          e.stopPropagation?.()
+                          deleteMeeting(note.id)
+                        }}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          backgroundColor: colors.hover,
+                        }}
+                      >
+                        <Icons.Trash2 size={13} color={colors.danger} />
+                      </div>
                     </div>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useBagrryStore } from '../../store/bagrry-store'
-import { handleTitlebarMouseDown } from '../../window-drag'
+import { handleTitlebarMouseDown, updateWindowDrag, endWindowDrag } from '../../window-drag'
 import { Icons } from '../icons'
 import { WindowControls } from './WindowControls'
 import { FONT_SANS } from '../../theme'
@@ -23,6 +23,7 @@ export function TitleBar() {
   const recordingMeetingId = useBagrryStore((s) => s.recordingMeetingId)
   const openNote = useBagrryStore((s) => s.openNote)
   const createMeeting = useBagrryStore((s) => s.createMeeting)
+  const meetings = useBagrryStore((s) => s.meetings)
   const colors = useBagrryStore((s) => s.colors)
 
   const [hoverBtn, setHoverBtn] = useState<string | null>(null)
@@ -37,6 +38,7 @@ export function TitleBar() {
   }, [recState, recordingStartedAt])
 
   const showNewNote = route.kind === 'home' || route.kind === 'space' || route.kind === 'shared'
+  const currentNote = route.kind === 'note' ? meetings.find((m) => m.id === route.noteId) : null
 
   if (route.kind === 'settings') {
     return (
@@ -104,8 +106,10 @@ export function TitleBar() {
         {/* Drag handle */}
         <div
           testId="titlebar-drag-header"
-          style={{ flexGrow: 1, height: '100%' }}
+          style={{ flexGrow: 1, height: '100%', pointerEvents: 'auto' }}
           onMouseDown={(e: any) => handleTitlebarMouseDown(undefined, e)}
+          onMouseMove={() => updateWindowDrag()}
+          onMouseUp={() => endWindowDrag()}
         />
 
         <WindowControls />
@@ -229,9 +233,38 @@ export function TitleBar() {
       {/* Empty space for window dragging */}
       <div
         testId="titlebar-drag-header"
-        style={{ flexGrow: 1, height: '100%' }}
+        style={{ flexGrow: 1, height: '100%', pointerEvents: 'auto' }}
         onMouseDown={(e: any) => handleTitlebarMouseDown(undefined, e)}
+        onMouseMove={() => updateWindowDrag()}
+        onMouseUp={() => endWindowDrag()}
       />
+
+      {/* Note Title indicator */}
+      {currentNote && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            marginRight: 8,
+            maxWidth: 240,
+            overflow: 'hidden',
+          }}
+        >
+          <text
+            style={{
+              fontSize: 12,
+              color: colors.textSubtle,
+              fontFamily: FONT_SANS,
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {currentNote.title}
+          </text>
+        </div>
+      )}
 
       {/* + New note solid pill button */}
       {showNewNote && (

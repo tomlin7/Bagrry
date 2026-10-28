@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { connectTest } from '@gpuix/react/automation'
 import { createTestRoot, hasNativeTestRenderer } from '@gpuix/react/testing'
 import { BagrryApp } from './app'
-import { useBagrryStore } from './src/store/bagrry-store'
+import { useBagrryStore, SEED_ACTION_ITEMS } from './src/store/bagrry-store'
 
 const describeNative = hasNativeTestRenderer ? describe : describe.skip
 
@@ -22,6 +22,7 @@ describeNative('Bagrry desktop application', () => {
       recState: 'idle',
       paletteOpen: false,
       onboardingOpen: false,
+      actionItems: JSON.parse(JSON.stringify(SEED_ACTION_ITEMS)),
     })
   })
 
@@ -136,6 +137,46 @@ describeNative('Bagrry desktop application', () => {
     // Close palette
     await app.getByTestId('command-palette-backdrop').click()
     expect(useBagrryStore.getState().paletteOpen).toBe(false)
+
+    await app.close()
+  })
+
+  it('renders rich note editor with formatting toolbar and extracts AI actions', async () => {
+    const { render, renderer } = createTestRoot({ width: 1200, height: 800 })
+    render(<BagrryApp />)
+    const app = await connectTest(renderer)
+
+    // Open note
+    await app.getByTestId('note-row-note_roadmap_sync').click()
+
+    // Rich note editor formatting toolbar items should be painted
+    const painted = renderer.getPaintedText().join(' ')
+    expect(painted).toContain('H1')
+    expect(painted).toContain('H2')
+    expect(painted).toContain('Summarise')
+    expect(painted).toContain('Actions')
+    expect(painted).toContain('Email')
+
+    // AI action button Extract Actions
+    const initialActionsCount = useBagrryStore.getState().actionItems.length
+    await app.getByTestId('extract-actions-btn').click()
+    expect(useBagrryStore.getState().actionItems.length).toBeGreaterThan(initialActionsCount)
+
+    await app.close()
+  })
+
+  it('toggles and manages action items', async () => {
+    const { render, renderer } = createTestRoot({ width: 1200, height: 800 })
+    render(<BagrryApp />)
+    const app = await connectTest(renderer)
+
+    // Find the first action item
+    const firstItem = useBagrryStore.getState().actionItems[0]
+    expect(firstItem.done).toBe(false)
+
+    // Click toggle on first action item
+    await app.getByTestId(`action-toggle-${firstItem.id}`).click()
+    expect(useBagrryStore.getState().actionItems.find((i) => i.id === firstItem.id)?.done).toBe(true)
 
     await app.close()
   })

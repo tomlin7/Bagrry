@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useBagrryStore } from '../../store/bagrry-store'
 import { Icons } from '../icons'
 import { FONT_DISPLAY, FONT_SANS } from '../../theme'
+import { NoteEditor } from '../notes/NoteEditor'
 import { EnhancedNotes } from '../notes/EnhancedNotes'
 import { TranscriptPanel } from '../notes/TranscriptPanel'
 import { RecordingControls } from '../notes/RecordingControls'
@@ -17,8 +18,11 @@ export function NotePage({ noteId }: NotePageProps) {
   const saveTitle = useBagrryStore((s) => s.saveTitle)
   const saveScratchpad = useBagrryStore((s) => s.saveScratchpad)
   const enhanceMeeting = useBagrryStore((s) => s.enhanceMeeting)
+  const addActionItem = useBagrryStore((s) => s.addActionItem)
   const deleteMeeting = useBagrryStore((s) => s.deleteMeeting)
+  const duplicateMeeting = useBagrryStore((s) => s.duplicateMeeting)
   const moveMeeting = useBagrryStore((s) => s.moveMeeting)
+  const sendChatMessage = useBagrryStore((s) => s.sendChatMessage)
   const colors = useBagrryStore((s) => s.colors)
   const transcriptOpen = useBagrryStore((s) => s.transcriptOpen)
 
@@ -28,6 +32,7 @@ export function NotePage({ noteId }: NotePageProps) {
   const [showFolderPicker, setShowFolderPicker] = useState(false)
   const [showAttendeesPicker, setShowAttendeesPicker] = useState(false)
   const [showActionsMenu, setShowActionsMenu] = useState(false)
+  const [selectedAttendees, setSelectedAttendees] = useState<string[]>(['Sarah Chen'])
   const [notification, setNotification] = useState<string | null>(null)
 
   if (!note) {
@@ -42,9 +47,15 @@ export function NotePage({ noteId }: NotePageProps) {
 
   const currentFolder = folders.find((f) => f.id === note.folder_id)
 
+  const showNotice = (msg: string) => {
+    setNotification(msg)
+    setTimeout(() => setNotification(null), 2500)
+  }
+
   const handleTitleCommit = () => {
     if (titleDraft.trim() && titleDraft !== note.title) {
       saveTitle(noteId, titleDraft.trim())
+      showNotice('Title saved')
     }
   }
 
@@ -56,17 +67,43 @@ export function NotePage({ noteId }: NotePageProps) {
   const handleEnhance = async () => {
     await enhanceMeeting(noteId)
     setTab('enhanced')
-    setNotification('Notes enhanced by AI')
-    setTimeout(() => setNotification(null), 2500)
+    showNotice('Notes enhanced with AI citations')
+  }
+
+  const handleExtractActions = () => {
+    const lines = scratchDraft
+      .split('\n')
+      .map((l) => l.replace(/^[-*•\d.\s]+/, '').trim())
+      .filter((l) => l.length > 3)
+
+    if (lines.length > 0) {
+      for (const line of lines.slice(0, 3)) {
+        addActionItem(noteId, line, 'You', '2026-11-05')
+      }
+      showNotice(`${Math.min(lines.length, 3)} action items added to Checklist`)
+    } else {
+      addActionItem(noteId, `Follow up on decisions from ${note.title}`, 'You', '2026-11-05')
+      showNotice('Action item created')
+    }
+  }
+
+  const handleDraftEmail = async () => {
+    const prompt = `Draft a polite follow-up email for meeting "${note.title}" with attendees ${selectedAttendees.join(', ')} summarizing: ${scratchDraft}`
+    await sendChatMessage(null, prompt)
+    showNotice('Follow-up email prompt queued in Chat')
   }
 
   const handleExportMarkdown = () => {
-    const md = `# ${note.title}\n\nDate: ${note.date}\n\n## Notes\n\n${note.scratchpad_raw}`
+    const md = `# ${note.title}\n\nDate: ${note.date}\nAttendees: ${selectedAttendees.join(', ')}\n\n## Notes\n\n${note.scratchpad_raw}`
     try {
       navigator.clipboard?.writeText(md)
     } catch {}
-    setNotification('Markdown copied to clipboard')
-    setTimeout(() => setNotification(null), 2500)
+    showNotice('Markdown copied to clipboard')
+  }
+
+  const handleDuplicate = () => {
+    duplicateMeeting(noteId)
+    showNotice('Note duplicated')
   }
 
   return (
@@ -88,17 +125,22 @@ export function NotePage({ noteId }: NotePageProps) {
             position: 'absolute',
             top: 12,
             right: 24,
-            paddingLeft: 12,
-            paddingRight: 12,
-            paddingTop: 6,
-            paddingBottom: 6,
+            paddingLeft: 14,
+            paddingRight: 14,
+            paddingTop: 8,
+            paddingBottom: 8,
             borderRadius: 8,
             backgroundColor: colors.elevated,
             borderWidth: 1,
             borderColor: colors.borderStrong,
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
           }}
         >
-          <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+          <Icons.Check size={13} color={colors.accent} />
+          <text style={{ fontSize: 12, fontWeight: '500', color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
             {notification}
           </text>
         </div>
@@ -124,7 +166,7 @@ export function NotePage({ noteId }: NotePageProps) {
             paddingRight: 24,
             display: 'flex',
             flexDirection: 'column',
-            gap: 16,
+            gap: 14,
           }}
         >
           {/* Editable Title */}
@@ -153,7 +195,7 @@ export function NotePage({ noteId }: NotePageProps) {
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 4,
+                gap: 5,
                 height: 24,
                 paddingLeft: 8,
                 paddingRight: 8,
@@ -176,7 +218,7 @@ export function NotePage({ noteId }: NotePageProps) {
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 4,
+                gap: 5,
                 height: 24,
                 paddingLeft: 8,
                 paddingRight: 8,
@@ -191,6 +233,7 @@ export function NotePage({ noteId }: NotePageProps) {
               <text style={{ fontSize: 11, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
                 {currentFolder ? currentFolder.name : 'General'}
               </text>
+              <Icons.ChevronDown size={11} color={colors.textSubtle} />
             </div>
 
             {/* Attendees Chip */}
@@ -200,7 +243,7 @@ export function NotePage({ noteId }: NotePageProps) {
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 4,
+                gap: 5,
                 height: 24,
                 paddingLeft: 8,
                 paddingRight: 8,
@@ -213,8 +256,9 @@ export function NotePage({ noteId }: NotePageProps) {
             >
               <Icons.Users size={12} color={colors.textSubtle} />
               <text style={{ fontSize: 11, color: colors.textMuted, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
-                {'Add people'}
+                {selectedAttendees.length > 0 ? selectedAttendees.join(', ') : 'Add people'}
               </text>
+              <Icons.ChevronDown size={11} color={colors.textSubtle} />
             </div>
 
             {/* AI Enhance Action Chip */}
@@ -228,7 +272,7 @@ export function NotePage({ noteId }: NotePageProps) {
                 gap: 4,
                 height: 24,
                 paddingLeft: 8,
-                paddingRight: 8,
+                paddingRight: 10,
                 borderRadius: 9999,
                 backgroundColor: colors.accentSubtle,
                 borderWidth: 1,
@@ -254,6 +298,8 @@ export function NotePage({ noteId }: NotePageProps) {
                 justifyContent: 'center',
                 cursor: 'pointer',
                 backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
               }}
             >
               <Icons.MoreHorizontal size={14} color={colors.textMuted} />
@@ -294,6 +340,28 @@ export function NotePage({ noteId }: NotePageProps) {
                 <Icons.Download size={13} color={colors.textMuted} />
                 <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
                   {'Export Markdown'}
+                </text>
+              </div>
+
+              <div
+                onClick={() => {
+                  setShowActionsMenu(false)
+                  handleDuplicate()
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  height: 28,
+                  borderRadius: 6,
+                  paddingLeft: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                <Icons.Copy size={13} color={colors.textMuted} />
+                <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'Duplicate note'}
                 </text>
               </div>
 
@@ -342,6 +410,7 @@ export function NotePage({ noteId }: NotePageProps) {
                   onClick={() => {
                     moveMeeting(noteId, f.id)
                     setShowFolderPicker(false)
+                    showNotice(`Moved to ${f.name}`)
                   }}
                   style={{
                     display: 'flex',
@@ -360,6 +429,61 @@ export function NotePage({ noteId }: NotePageProps) {
                   </text>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Attendees picker dropdown */}
+          {showAttendeesPicker && (
+            <div
+              style={{
+                width: 240,
+                borderRadius: 10,
+                backgroundColor: colors.elevated,
+                borderWidth: 1,
+                borderColor: colors.borderStrong,
+                padding: 6,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
+              <div style={{ paddingLeft: 8, paddingTop: 2, paddingBottom: 4 }}>
+                <text style={{ fontSize: 11, fontWeight: '600', color: colors.textSubtle, fontFamily: FONT_SANS, whiteSpace: 'nowrap' }}>
+                  {'Select attendees'}
+                </text>
+              </div>
+              {people.map((p) => {
+                const isSelected = selectedAttendees.includes(p.name)
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      const next = isSelected
+                        ? selectedAttendees.filter((name) => name !== p.name)
+                        : [...selectedAttendees, p.name]
+                      setSelectedAttendees(next)
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      height: 28,
+                      borderRadius: 6,
+                      paddingLeft: 8,
+                      paddingRight: 8,
+                      cursor: 'pointer',
+                      backgroundColor: isSelected ? colors.surface2 : 'transparent',
+                    }}
+                  >
+                    <Icons.User size={12} color={isSelected ? colors.accent : colors.textMuted} />
+                    <text style={{ fontSize: 12, color: colors.text, fontFamily: FONT_SANS, flexGrow: 1, whiteSpace: 'nowrap' }}>
+                      {p.name}
+                    </text>
+                    {isSelected && <Icons.Check size={12} color={colors.accent} />}
+                  </div>
+                )
+              })}
             </div>
           )}
 
@@ -436,26 +560,14 @@ export function NotePage({ noteId }: NotePageProps) {
 
           {/* Main content body */}
           {tab === 'notes' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input
-                testId="note-scratchpad-input"
-                value={scratchDraft}
-                placeholder="Write notes or talking points here…"
-                style={{
-                  minHeight: 180,
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                  color: colors.text,
-                  backgroundColor: colors.surface,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  padding: 12,
-                  fontFamily: FONT_SANS,
-                }}
-                onChange={(e: any) => handleScratchCommit(e.value ?? '')}
-              />
-            </div>
+            <NoteEditor
+              noteId={noteId}
+              content={scratchDraft}
+              onChange={handleScratchCommit}
+              onEnhance={handleEnhance}
+              onExtractActions={handleExtractActions}
+              onDraftEmail={handleDraftEmail}
+            />
           ) : (
             <EnhancedNotes noteId={noteId} json={note.enhanced_notes_json} />
           )}

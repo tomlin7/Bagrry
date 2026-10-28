@@ -68,7 +68,7 @@ const SEED_CALENDAR: CalendarEvent[] = [
   },
 ]
 
-const SEED_ACTION_ITEMS: ActionItem[] = [
+export const SEED_ACTION_ITEMS: ActionItem[] = [
   {
     id: 'act_1',
     meeting_id: 'note_roadmap_sync',
@@ -271,6 +271,9 @@ interface BagrryStore {
   deleteFolder: (id: string) => void
   toggleActionItem: (id: string) => void
   addActionItem: (meetingId: string, task: string, owner?: string, deadline?: string | null) => void
+  deleteActionItem: (id: string) => void
+  addPerson: (name: string, email?: string) => Person
+  addCompany: (name: string, domain?: string) => Company
   sendChatMessage: (sessionId: string | null, content: string) => Promise<string>
   createChatSession: (title: string) => ChatSession
   deleteChatSession: (id: string) => void
@@ -278,6 +281,7 @@ interface BagrryStore {
 }
 
 let recInterval: any = null
+let entitySeq = 0
 
 export const useBagrryStore = create<BagrryStore>((set, get) => ({
   route: { kind: 'home' },
@@ -418,7 +422,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
 
   createMeeting: (title = 'Untitled note', folderId = null) => {
     const newNote: Meeting = {
-      id: `note_${Date.now()}`,
+      id: `note_${Date.now()}_${++entitySeq}`,
       folder_id: folderId,
       title: title || 'Untitled note',
       date: new Date().toISOString(),
@@ -448,7 +452,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
     if (!original) throw new Error('Note not found')
     const dup: Meeting = {
       ...original,
-      id: `note_${Date.now()}`,
+      id: `note_${Date.now()}_${++entitySeq}`,
       title: `${original.title} (Copy)`,
       updated_at: new Date().toISOString(),
     }
@@ -519,7 +523,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
 
   createFolder: (name, isShared) => {
     const newFolder: Folder = {
-      id: `fld_${Date.now()}`,
+      id: `fld_${Date.now()}_${++entitySeq}`,
       parent_id: null,
       name,
       is_shared: isShared,
@@ -554,7 +558,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
   addActionItem: (meetingId, task, owner = 'You', deadline = null) => {
     const meeting = get().meetings.find((m) => m.id === meetingId)
     const newItem: ActionItem = {
-      id: `act_${Date.now()}`,
+      id: `act_${Date.now()}_${++entitySeq}`,
       meeting_id: meetingId,
       meeting_title: meeting?.title ?? 'Meeting',
       owner,
@@ -565,6 +569,36 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
     set({ actionItems: [newItem, ...get().actionItems] })
   },
 
+  deleteActionItem: (id) => {
+    set({ actionItems: get().actionItems.filter((item) => item.id !== id) })
+  },
+
+  addPerson: (name, email = '') => {
+    const newPerson: Person = {
+      id: `usr_${Date.now()}_${++entitySeq}`,
+      name,
+      email: email || null,
+      domain: email ? email.split('@')[1] || null : null,
+      company_id: null,
+      note_count: 0,
+      last_note_at: null,
+    }
+    set({ people: [newPerson, ...get().people] })
+    return newPerson
+  },
+
+  addCompany: (name, domain = '') => {
+    const newCompany: Company = {
+      id: `cmp_${Date.now()}_${++entitySeq}`,
+      name,
+      domain: domain || null,
+      note_count: 0,
+      last_note_at: null,
+    }
+    set({ companies: [newCompany, ...get().companies] })
+    return newCompany
+  },
+
   sendChatMessage: async (sessionId, content) => {
     let sid = sessionId
     if (!sid) {
@@ -573,7 +607,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
       get().navigate({ kind: 'chat', sessionId: sid })
     }
     const userMsg: ChatMessage = {
-      id: `msg_${Date.now()}`,
+      id: `msg_${Date.now()}_${++entitySeq}`,
       session_id: sid,
       role: 'user',
       content,
@@ -590,7 +624,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
     // Simulate smart AI reply from meeting knowledge
     await new Promise((r) => setTimeout(r, 300))
     const assistantMsg: ChatMessage = {
-      id: `msg_${Date.now() + 1}`,
+      id: `msg_${Date.now()}_${++entitySeq}`,
       session_id: sid,
       role: 'assistant',
       content: `I reviewed your meeting notes across **Bagrry**. Regarding "${content}":\n\n- In **Q4 Product Roadmap Sync**, the team confirmed full migration to native GPUIX with Win32 FFI dragging for seamless performance.\n- Action items have been scheduled and assigned to respective owners.\n\nLet me know if you would like me to draft an email or create new action items!`,
@@ -607,7 +641,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
 
   createChatSession: (title) => {
     const session: ChatSession = {
-      id: `chat_${Date.now()}`,
+      id: `chat_${Date.now()}_${++entitySeq}`,
       title: title || 'New chat',
       space_id: null,
       created_at: new Date().toISOString(),
