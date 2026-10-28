@@ -1,0 +1,148 @@
+---
+title: "Development"
+sidebarTitle: "Development"
+description: "The integration suite, the CI, and the automation API."
+---
+
+## The test suite
+
+`bun run test` runs the integration suite on the GPU test renderer. The real
+app is mounted, painted and hit tested, so the tests drive the same tree the
+user sees.
+
+```bash
+bun run test
+bunx vitest run titlebar-drag.test.tsx   # one file
+```
+
+| file | what it covers |
+| :--- | :--- |
+| `app.test.tsx` | the cockpit: the sidebar, the threads, the palette, the right panel, the composer, the settings |
+| `titlebar-drag.test.tsx` | the window: the drag, the double click, the maximize button |
+| `integration.ts` | two real windows, the daemon, durable runs, inboxes, provider tools, workspace surfaces and reconnects |
+| `engine/test/` | real SQLite, daemon lifetimes, provider fixtures, checkpoints, tools and shell lifecycle |
+| `engine/test/execution.test.ts` | shared admission, cancellation, low RAM, deadlines, duplicate claims and durable UI replay |
+| `engine/test/execution-daemon.test.ts` | HTTP provider → shell tool → response, competing sessions, command restart, deadlines and native process containment |
+| `engine/test/prompt-drafts.test.ts` | durable input, dropped requests/acknowledgements, one CLI execution after restart/retry, concurrent edits and storage failure |
+| `projects.integration.ts` | native task/project draft isolation, window restart, explicit discard, offline input and deliberate retry, in source and packaged windows |
+| `settings.integration.ts` | imported usage/rates, date filters/charts, scratch/project menus, network opt-in and token rotation in source and packaged windows |
+| `engine/test/usage.test.ts` | durable attempt accounting, retries, cache/rate estimates, history snapshot/fork deduplication, partial files and persisted pricing |
+| `engine/test/network-access.test.ts` | real network listener auth/CORS, local-only administration, token/connection rotation, port-conflict rollback and restart |
+| `scripts/browser-smoke.ts` | published Wasm renderer, canvas/input readiness and a demo composer reply in Chrome |
+| `scripts/smoke-window.ts` | packaged launcher and `--dev` script startup, OS window visibility, minimize, clean close and sidecar survival |
+
+### Two things the test renderer cannot do
+
+- **Exit animations never settle.** The renderer only paints on demand, so an
+  `AnimatePresence` exit keeps the element in the tree forever. Assert on the
+  painted state when a row is removed.
+- **A sliding panel has to settle before it is clicked.** The automation
+  clicks the last painted bounds, so freeze the clock, advance it, and wait
+  until the element stops moving.
+
+```ts
+await app.clock.pause()
+await app.getByTestId('panel-right-open').click()
+await app.clock.fastForward(300)
+await app.clock.resume()
+```
+
+## The CI
+
+`.github/workflows/ci.yml` runs:
+
+| job | runner | what it runs |
+| :--- | :--- | :--- |
+| `typecheck` | `ubuntu-latest` | `bun run typecheck` |
+| `engine` | `ubuntu-latest` | `bun run test:engine` |
+| `test` | `macos-latest`, `windows-latest` | `bun run test` |
+
+The test job is not on Linux: the native test renderer only ships with the
+GPUIX builds that carry the `test-support` feature, and on Linux the suites
+skip themselves.
+
+`integration.yml` drives source and compiled windows on Windows, checks intentional
+close does not restart the packaged cockpit, and runs the browser preview smoke.
+`release.yml` packages and smoke-tests the compiled cockpit and engine on Windows,
+macOS and Linux, then extracts the actual archive and runs its binaries outside
+the checkout. The engine suite also tests incomplete, corrupt and inconsistent
+release artifacts against the publication gate. Tag builds publish signed release
+provenance and delta manifests only after all platforms pass. The aggregate
+`verify complete release` job downloads all three platforms and delta chunks and
+checks the actual publication inputs on every PR, without publishing a release.
+
+The install is `bun install --frozen-lockfile`, so the lockfile and
+`package.json` cannot drift apart. `.bun-version` pins Bun for the local
+runtime and for CI.
+
+## Driving the app
+
+`@gpuix/react/automation` gives a Playwright shaped API over the GPU
+renderer. It drives the real input pipeline, not a DOM.
+
+```ts
+import { launch } from '@gpuix/react/automation'
+
+const app = await launch({
+  command: 'bun',
+  args: ['app.tsx'],
+  env: { GPUIX_BACKGROUND: '1' },
+})
+
+await app.getByTestId('composer').waitFor({ timeoutMs: 60_000 })
+await app.getByTestId('send').click()
+await app.screenshot({ path: 'screenshots/after-send.png' })
+await app.close()
+```
+
+`GPUIX_BACKGROUND=1` opens the window without taking the keyboard. Use it
+whenever you drive the app yourself.
+
+`screenshot.ts` uses an isolated `HIROSHI_HOME` and temporary workspace, captures
+the current controls, closes its window and stops its daemon in cleanup. It needs
+a desktop session and GPU. Windows hosted runners support real window tests;
+macOS hosted runners do not provide a desktop session.
+
+## Browser preview
+
+`bun run web:dev` serves the preview at `http://127.0.0.1:4173` (override `PORT`).
+`bun run web:build` only checks the bundle. `web-entry.tsx` mounts the published
+GPUIX Wasm renderer with demo conversations and no engine. The native window
+dragging and geometry adapters are replaced with no-ops; OS window controls are
+hidden. Workspace operations and model calls need the desktop engine.
+
+The preview has been verified in headless Chrome with software WebGPU on Windows.
+`bun run test:web` waits for the rendered canvas keyboard target, sends a demo
+prompt through GPUIX automation, asserts the reply and captures
+`screenshots/browser-preview.png`. It creates its own Chrome profile and removes
+it afterward. Set `HIROSHI_CHROME` for a Chrome/Chromium executable elsewhere;
+the default is the standard Windows Chrome install path. Hosting elsewhere must
+preserve the server's COOP/COEP headers for Wasm shared memory.
+
+## Resource limits on Windows
+
+Run builds and automated tests sequentially through `scripts/run-guarded.ps1`:
+
+```powershell
+& ./scripts/run-guarded.ps1 -Executable (Get-Command bun.exe).Source -Arguments @('run','test:web') -MaxProcesses 12 -MemoryMB 3072 -TimeoutSeconds 75
+```
+
+The guard assigns a suspended child to a Windows Job Object before it starts.
+The kernel caps total process count and committed memory, including detached
+descendants. The guard logs peak tree memory and free system RAM every ten
+seconds, aborts at the free-memory floor or timeout, and kills the whole tree on
+exit. It refuses to start when free memory is already low. Desktop integration
+uses the same 12-process/3072 MB cap with a 300-second deadline; builds use
+3 processes/2048 MB. Do not put app launches inside retry loops.
+
+## The rules that matter
+
+The repository carries its own rules, in `AGENTS.md` and in the
+`hiroshi-gpuix` skill. The ones that bite most often:
+
+- A drag region needs `pointerEvents: 'auto'` and the three mouse handlers.
+- An unfilled `div` has no hitbox, so an empty region is dead.
+- There is no `zIndex`; the tree order is the stacking order.
+- A `<text>` with several children wraps. Use one template literal.
+- Never use Unicode symbols for icons; they resolve to Windows emojis. Use
+  the SVG set in `assets/icons/`.

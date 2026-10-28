@@ -1,0 +1,100 @@
+---
+title: "Workspace surfaces"
+description: "Real commands, files, Git changes and page content beside the run."
+---
+
+The right panel's surfaces use the attached session's workspace. The engine owns
+filesystem and Git access; the cockpit reads typed responses and the durable run
+feed. Open the panel, then choose a surface from its cards or the plus menu.
+
+## Terminal
+
+Commands run in the session workspace through the daemon, with live output,
+exit codes and cancellation. Closing the window leaves commands running.
+Model-requested `shell` calls appear in the same surface with their actual input,
+permission/execution status and result, including stdout, stderr and exit code.
+They use the [tool permission gate](/tools); displaying a command never grants it
+permission to execute.
+
+## Files
+
+Files lists the workspace one directory at a time. Open a folder, use **Up**, or
+select a file to read its current contents below the directory list. Git change
+markers come from the same review as the Review surface. Directory markers also
+indicate changed descendants. Untracked files are marked `?`.
+
+The view refreshes after run, tool and rewind state changes and every three
+seconds while open. **Refresh** rereads external edits immediately. The model's
+`list_files` tool uses the same directory reader, and `read_file` reads the same
+workspace files.
+
+Paths cannot escape the workspace through parent paths or symlinks/junctions.
+Git metadata and engine-owned data are excluded from the file surface. Directory
+lists stop at 500 entries. File previews stop at 256 KiB with an explicit marker;
+binary files show their size rather than replacement characters. Deleting a
+selected file reports that it is unavailable instead of keeping old content.
+
+## Review
+
+Review shows the branch against its merge base, including pending workspace and
+index changes. Automatic selection prefers the remote default branch, then a
+local `main` or `master` other than the current branch, then `HEAD`. The selected
+base is displayed; enter another ref or commit and press **Review** to change it.
+An unborn repository compares against an empty tree. Non-repositories and nested
+workspace roots display an explanation instead of invented changes.
+
+The list includes committed branch changes, staged/unstaged changes and untracked
+files. The native diff paints the real Git patch, with untracked text included.
+Binary changes are identified. Untracked symlinks require review and commit
+through Git rather than a misleading content preview. External diff and text conversion programs are
+not invoked. Preview limits and unresolved conflicts are explicit.
+
+## Commit and push
+
+Open **Commit or push** from the environment menu. Its list comes from the same
+Git review, with already committed files distinguished from pending changes.
+**Including unstaged changes** previews the complete pending workspace patch;
+turn it off to preview and commit only the staged patch. The user's index is
+unchanged by reading the review.
+
+**Commit**, **Commit and push**, and **Push** create real daemon runs. Commit
+messages are passed as literal Git arguments, never shell code. The run is
+recorded before Git starts, and its output, failure and exit code remain visible
+in the dialog and Terminal. A commit failure stops the sequence before push.
+If commit succeeded but push failed, use **Push** after resolving the remote
+problem. Git's configured identity, hooks, signing and upstream remain in force;
+there is no force push or automatic upstream selection.
+
+The engine rejects stale review revisions and refuses commits while engine work
+is active, a rewind is pending, conflicts exist or a review is truncated. Reading
+and committing requires the workspace to be the Git repository root. External
+editors and processes can still modify files, so keep them idle during a commit;
+the engine coordinates its runners, not every process on the computer.
+
+## Browser
+
+The native browser pane is a **page reader**. Enter an HTTP or HTTPS URL, including
+a local development server, and press **Open**. It loads real HTML or text in the
+pane, decodes headings/body text, and offers HTTP/HTTPS links. **Back**, **Next**
+and **Reload** operate on a bounded 50-page history that survives switching
+surfaces in the same window.
+
+GPUIX currently has no embedded webview API. This pane does not run JavaScript,
+render CSS layouts, submit forms, keep login cookies or replace a full browser.
+Scripted pages carry that explanation. It sends no daemon bearer token or provider
+credentials to websites. Responses are limited to 512 KiB and ten seconds;
+redirect destinations are validated, unsupported content types are rejected, and
+HTTP failures remain visible. This history is window navigation state and is not
+part of a model transcript or checkpoint.
+
+## Integration tests
+
+`bun run test:engine` checks actual workspace boundaries and Git repositories,
+branch/staged patches, binary revisions, stale commit rejection, literal messages,
+staged-only commits and push success/failure against a temporary bare remote.
+HTTP fixtures check page content, redirect rules, links and preview bounds.
+
+Native renderer tests drive file, diff, browser-history and commit controls.
+`bun run test:integration` drives the real desktop: it opens a model-changed file,
+checks its change marker and diff, creates a real Git commit, observes a
+model-started shell command, and navigates local pages with back/forward history.

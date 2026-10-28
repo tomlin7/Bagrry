@@ -1,0 +1,114 @@
+---
+title: "The window"
+sidebarTitle: "The window"
+description: "Hiroshi has no native titlebar. The custom chrome draws the window and drags it."
+---
+
+Hiroshi paints its own chrome across the whole window and never shows the
+native OS titlebar. `titlebarTransparent: true` in the `render()` call is
+what does it, and it is not conditional on the platform: a native titlebar on
+Windows would be a second titlebar on top of the first.
+
+<Warning>
+  Do not reintroduce `titlebarTransparent: process.platform !== 'win32'`.
+  It gives Windows back its own caption, which is exactly what the custom
+  chrome avoids.
+</Warning>
+
+## Dragging
+
+On **Windows**, there is no caption to grab, so the app moves the window itself. The press
+records where the window and the cursor are, every move pushes the window by
+the cursor delta, and the release lets go.
+
+```tsx
+<div
+  style={{ flexGrow: 1, height: '100%', pointerEvents: 'auto' }}
+  onMouseDown={(e: any) => handleTitlebarMouseDown(renderer, e)}
+  onMouseMove={() => updateWindowDrag()}
+  onMouseUp={() => endWindowDrag()}
+/>
+```
+
+Three things are needed on a drag region:
+
+1. **`pointerEvents: 'auto'`**. An unfilled in-flow `div` gets no GPUI hitbox
+   at all, so without it the press never reaches the handler.
+2. **All three handlers on the same element.** GPUIX arms the pointer capture
+   on the press only when the element also listens for moves.
+3. **A region that does not cover the buttons.** The title text and the empty
+   space drag; the controls do not.
+
+The drag lives in `src/window-drag.ts`. It resolves the window handle from
+the foreground window, verifies the process id, and moves the window with
+`SetWindowPos`. A release that lands outside the window never reaches the
+titlebar, so the move handler checks the button state and ends the drag
+itself.
+
+On **macOS**, the app retains the original AppKit mouse-down event before GPUI
+delivers it to JavaScript. A titlebar press must match that event's window and
+coordinates while the left button is still held. Stale, repeated and unrelated
+requests fail. Tracking is queued on the Cocoa main thread through
+[`performWindowDragWithEvent:`](https://developer.apple.com/documentation/appkit/nswindow/performdrag(with:)?language=objc),
+so JavaScript does not wait inside the native drag loop. AppKit owns subsequent
+movement and release; native traffic lights and Spaces remain under OS control.
+The same handler covers the conversation, sidebar, surface and settings titlebars.
+
+On **Linux**, dragging the custom titlebar is deliberately disabled. GPUIX 0.11.0
+does not expose the compositor move request/Wayland input serial needed to do this
+correctly. Use your desktop's Move Window menu action or configured shortcut.
+General settings shows this limitation. Native chrome remains hidden on all
+platforms; do not change `titlebarTransparent` to work around it.
+
+The browser preview has no native window and does not drag the browser.
+
+## Development and verification
+
+`bun run dev` builds the macOS Cocoa helper before starting the source window.
+If running `bun app.tsx` directly on macOS, first run
+`bun scripts/build-window-macos.ts`. The packaged app carries the same helper
+beside its executable.
+
+GPU hit tests cover all four drag regions and existing double-click behavior on
+Windows/macOS. `bun scripts/test-window-macos.ts` compiles and runs the production
+Objective-C bridge against controlled window/event objects, verifying event
+identity, flipped coordinates, ownership, release races, stale requests and
+asynchronous dispatch. It does not generate physical mouse input or claim to
+measure window movement on a hosted macOS runner. The OS tracking call itself is
+AppKit's native implementation. Windows real-window integration remains in CI.
+
+## Maximize, restore, and the double click
+
+The maximize button and a double click on the titlebar share one toggle.
+
+<Note>
+  The native zoom only maximizes on Windows, it never restores. The restore
+  goes through `ShowWindow(SW_RESTORE)`, which also clears the zoomed state.
+  A plain window move restores the rectangle but leaves `IsZoomed` true, so
+  the next click would restore again instead of maximizing.
+</Note>
+
+The double click is detected from the timestamps and the positions of two
+presses, because GPUIX `<div />` elements have no `onDoubleClick`.
+
+## Why Windows does not use the OS move loop
+
+The obvious way to drag a custom titlebar is to hand the drag to the OS
+modal move loop:
+
+```ts
+SendMessageW(hwnd, WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0)
+SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0)
+```
+
+Both are dropped by the GPUI Windows backend. Measured against a live
+Hiroshi window: the press arrives, the handle resolves, the call returns, and
+the window moves zero pixels. So the app moves the window itself.
+
+<Info>
+  GPUIX exposes no window move API. The native renderer has
+  `minimizeWindow`, `zoomWindow`, `toggleFullscreen`, `activateWindow`,
+  `setWindowTitle` and `getWindowSize`, and nothing to move a window with.
+  A `startWindowDrag` or `setWindowPosition` in `packages/native` would take
+  the FFI out of every app.
+</Info>

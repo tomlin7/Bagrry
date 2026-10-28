@@ -1,0 +1,396 @@
+---
+title: "The engine"
+sidebarTitle: "The engine"
+description: "The local daemon that owns runs and steps, the database it writes, and how the cockpit attaches to it."
+---
+
+Hiroshi does not run a command inside the window.
+
+A detached local daemon — the engine — owns every run. The cockpit is a client
+of that daemon: it sends commands, follows one event feed and draws what it is
+told. Close the window while a command is running and the command finishes.
+Open a second window and it attaches to the same runs, mid-flight.
+
+```
+cockpit (React)  ──HTTP──▶  hiroshi-engine (bun)  ──▶  SQLite (engine.db)
+        ▲                        │
+        └──────── SSE ───────────┘
+```
+
+## What the engine owns
+
+| concept | what it is |
+| :--- | :--- |
+| session | a workspace, a title, the messages sent in it and the runs started in it |
+| prompt | an admitted intent: waiting in the inbox, or delivered as a message |
+| message | a line of the transcript: operator intent or a model's answer |
+| step | one model call, durable before it streams: provider, attempts, output, claim |
+| tool call | one effect, durable before it happens; the shell is the first tool |
+| run | one command: its shell, its output, its exit code, its end |
+| event | the append-only log every projection is built from |
+
+The engine owns admitted prompts and run state. The cockpit saves unsent input
+and unconfirmed submissions locally in `composer.db`, scoped to task and workspace.
+It commits this input before a prompt RPC and keeps the original idempotency key
+for deliberate retries after a lost acknowledgement. A second window cannot
+overwrite a newer draft revision. A late acknowledgement only clears the revision
+that was sent. Storage failures leave input visible and block submission.
+
+A fresh window hydrates run state from one snapshot and then follows the feed from the
+watermark that snapshot carried, so there is no gap and no double-draw.
+
+## Durability
+
+A run is written down before it has any effect:
+
+1. The `run.started` event is committed **before** the shell is spawned.
+2. Output is batched into `run.output` events, so a burst of lines costs one
+   transaction rather than one per line.
+3. `run.ended` records the exit code, the duration and the truncation flag.
+
+If the machine dies in the middle of a run, the next start finds the run still
+marked `running` and settles it as `interrupted`, with a final output line that
+says the run was not resumed. A daemon never silently forgets work, and never
+pretends a dead run is still going.
+
+Output is bounded. A run that prints megabytes does not fill the database: the
+engine keeps the first and last slices and marks the run truncated.
+
+## Execution limits
+
+Every daemon has one admission controller shared by every session. Model
+attempts, tool calls, direct commands and workspace maintenance consume its
+capacity. A shell tool reuses its tool admission; it does not wait for a
+second slot. Provider attempts release capacity before their tool continuation.
+
+Create `execution.json` in the Hiroshi data directory to override defaults:
+
+```json
+{
+  "maxActive": 2,
+  "maxQueued": 64,
+  "queueTimeoutMs": 60000,
+  "timeoutMs": 120000,
+  "processMemoryMB": 512,
+  "maxProcesses": 8
+}
+```
+
+The default free-memory floor is the larger of 1024 MB and one eighth of system
+RAM. Windows samples available physical RAM, Linux uses `MemAvailable`, and
+macOS estimates available RAM from free plus inactive pages. `minFreeMemoryMB`
+overrides the floor. Limits are validated at daemon startup;
+unknown keys, non-integers and values outside conservative bounds are rejected.
+Restart the daemon after editing limits. Provider credentials stay in their
+existing configuration and never enter execution records.
+
+Admission is FIFO within the live queue. The execution log and session snapshot
+record queued/running/terminal state, admission and execution deadlines, and
+reasons such as capacity, low memory and timeout. The cockpit shows waiting
+work in the composer and transcript. Daemon settings show configured ceilings
+and the RAM sample taken at connection; `/v1/health` returns a current sample.
+The scheduler checks free RAM every 250 ms. A low-memory sample blocks new work
+and aborts active work. Cancellation or expiry removes a waiter permanently.
+An abort-ignoring effect keeps its slot until it actually settles.
+
+| Platform | Enforcement |
+| :--- | :--- |
+| Windows | A command gate waits for IPC admission until it has joined a Job Object. The job caps committed memory and total processes, including the gate, and disallows breakaway. Detached descendants created normally inherit the job. Gate exit, cancellation or daemon death terminates its job. The daemon also has an outer job covering synchronous Git maintenance and all its children. |
+| macOS / Linux | Commands run in a separate process group. Group cleanup handles ordinary descendants; sampled aggregate RSS and process counts are checked every 500 ms. These are monitored limits, not hard ceilings. Processes that deliberately create another session can escape the group. |
+
+These are resource controls, not a security sandbox. They do not contain work
+delegated to an external service or privileged system process. Commands still
+have the account permissions described by the tool approval.
+
+Checkpoint Git remains serialized and synchronous: it must acquire shared
+capacity or leave the prompt durably pending, with a visible checkpoint error.
+Capacity or RAM recovery retries only those blocked preparations. Each Git
+invocation has an eight-second timeout and bounded captured output. On POSIX,
+synchronous checkpoint Git has leader timeouts rather than process-group
+containment; hooks, global Git configuration and external clean filters are
+disabled for its managed object database.
+
+On restart, previously running effects are interrupted. Commands and tools
+whose effects may have started are never replayed. Queued commands retain their
+original deadline and saved argv, and may start once. Queued tools revalidate
+their pinned definition and current permissions after admission. A queued model
+attempt does not spend another attempt solely because the daemon restarted.
+Protocol 14 adds task-owned CLI conversation events and explicit fresh-session
+recovery. Schema migration 11 adds durable bindings and unique vendor ownership
+without deleting existing history. Older clients refuse the newer protocol;
+restart the daemon deliberately after upgrading when existing work has settled.
+Older stateless CLI transcripts require explicit fresh-conversation recovery
+before admitting another prompt. The fresh action archives its binding and
+retains Hiroshi history; it never replays an interrupted step. See
+[CLI continuation and recovery](providers#capability-evidence).
+
+## The step
+
+A step is one model call, and it is written down before the provider is asked
+for anything:
+
+1. `step.started` commits the provider, the model, attempt 1, the claim (the
+   daemon's pid) and `status: running`.
+2. `step.output` carries the text as it streams, bounded like run output.
+3. `step.completed` writes the assistant message and releases the claim in one
+   transaction.
+
+The laws a step keeps:
+
+- **One step per prompt.** The step names the message it answers, and a unique
+  index enforces it. A delivered prompt that already has a step never gets a
+  second one.
+- **A retry is the same step.** A retryable provider failure — a rate limit, a
+  transport failure with no output — increments `attempt` on the same row and
+  records `step.retry` with the delay: up to three attempts, jittered
+  exponential backoff. The cockpit can show the retry because it is an event,
+  not a hidden loop.
+- **Retries only happen before output.** Once text has reached the transcript,
+  a failure fails the step with the text kept, marked `stream_truncated` and
+  not retried. Replaying it would duplicate the answer, which is the one thing
+  a retry must not do.
+- **A crash resumes the claim.** On startup a running step with no output is
+  continued as its next attempt with the same id (`step.resumed`). A running
+  step that had produced output fails with `engine_restart_mid_stream`; it is
+  never re-run from the beginning.
+- **A shutdown is not an ending.** `stopAll` aborts the provider without
+  writing an ending, so the claim survives for the next start. An operator's
+  interrupt is an ending: `step.cancelled` with the reason.
+
+The built-in `local` provider answers deterministically — it echoes the newest
+prompt — so the whole lifecycle runs without credentials or a network.
+`--provider-delay <ms>` (or `HIROSHI_PROVIDER_DELAY_MS`) holds each chunk,
+which is how the tests get a window in which to kill the daemon.
+[Provider adapters](/providers) add configured models behind the same seam.
+
+## Tool calls
+
+A tool call is an effect written down before it happens. A run is the first
+tool: `run.started` commits the run and its `shell` call in the same
+transaction, before the process exists, and `run.ended` ends both with the exit
+code and, when there is a reason, the sentence that says what it was. A call
+that is still `running` when the engine dies is settled as `interrupted` with
+that reason on the next start; it is never replayed. The same row will carry
+model-requested tools, and `step_id` says which step asked for one. See
+[tools and permissions](/tools) for the gate, results and recovery contract.
+
+## Checkpoints
+
+Prompt delivery commits a [workspace checkpoint](/checkpoints) before model work
+begins. Rewind restores files and the active conversation together, retaining
+older branches as readable history. Its durable journal and safety checkpoint
+allow recovery without replaying model or tool effects. Checkpoint refs and
+objects live in an independent Git database; the user's index and HEAD stay put.
+
+## The session inbox
+
+A prompt is not a message yet when it arrives. It is admitted to the session's
+inbox first, as its own durable fact (`prompt.admitted`), and delivered to the
+transcript later (`prompt.delivered`) when the engine reaches a safe boundary.
+That ordering is what makes steering possible: the client can keep talking
+while a command is going, and the prompt is on disk before anything can act on
+it.
+
+- **Admission is idempotent.** A client sends a `key` with each prompt. The
+  first admission wins; a retry with the same key returns the same item,
+  whether it is still waiting or already delivered, and never turns into a
+  second prompt.
+- **Two modes.** `steer` and `queue`. Both wait while the session is busy; at
+  the boundary every steer is delivered before anything queued, each in
+  admission order. A steer does not stop the step it is steered past: it lands
+  after the answer that was already streaming.
+- **A boundary is no work in flight.** A prompt waits while a run is executing
+  and while a step is streaming. The run's end and the step's end both ask the
+  inbox to deliver, so the transcript keeps its order: the answer to the prompt
+  in flight comes before the prompt that arrived during it.
+- **An interrupt stops the step, then the runs.** `POST
+  /v1/sessions/:id/interrupt` cancels the session's step with the operator's
+  reason, then writes a `cancelled` ending for every run, each with a line
+  carrying that reason. The endings are a boundary, so whatever was waiting is
+  delivered immediately after — and may start the next step.
+- **A crash does not strand the queue.** On startup the engine settles the runs
+  a dead process left behind, resumes or fails the steps it claimed, and then
+  delivers the pending inbox: a prompt admitted before the crash is in the
+  transcript instead of waiting for a boundary that will never come.
+
+`GET /v1/sessions/:id` carries the pending `inbox`, so a fresh window knows
+what is waiting before it follows the feed.
+
+## The wire
+
+Desktop discovery, RPC, event feeds and shutdown use a direct loopback transport,
+so inherited HTTP proxies cannot intercept daemon traffic or its bearer token.
+External provider requests retain their configured proxy behavior; no shell or
+system proxy setting needs to be changed.
+
+A live daemon that fails a health check is reported as unreachable. Its
+discovery file and startup lock are preserved instead of launching another
+database writer. Failed startup waits for an explicit retry in Daemon settings;
+normal feed reconnection still resumes from the last event sequence.
+
+- **HTTP** on loopback, one JSON response per request, typed errors with a
+  stable `code`.
+- **One SSE feed** (`/v1/events`) that replays from a sequence number and then
+  follows. Every event carries its `seq`; a client that reconnects asks for
+  everything after the last one it applied.
+- **One shape module** (`engine/src/protocol.ts`): the shapes, the event union
+  and the operations table. The daemon routes on the table and the cockpit's
+  client is built from it, so a command cannot exist on one side of the wire
+  and not the other, and no client hand writes a path or a `fetch`.
+- **One event union**: `EventPayloads` maps every event type to its body, so a
+  subscriber sees the payload without a cast and the store refuses to record an
+  event whose body does not belong to its type.
+- **A bearer token** minted per daemon start, compared in constant time. It
+  lives in the discovery file with owner-only permissions, and it never leaves
+  the machine.
+- **A protocol version** in the handshake. A cockpit that speaks another
+  protocol reports the mismatch and leaves the daemon alone: it may be running
+  commands for someone else.
+
+## The feed
+
+The feed is one hub, not one subscription per window. The engine encodes an
+event once, as it is recorded, and hands the same bytes to every connection: a
+second window costs a pointer, not a `JSON.stringify`.
+
+Each connection has its own queue, and the queue has a capacity. A window that
+stops reading fills its queue and is closed with an `overflow` frame that names
+the reason; the run, the other windows and the order they see never change. The
+client knows the last sequence it applied, so it reconnects from there.
+
+Every connection opens with a `hello` frame carrying `lastSeq`, the durable edge
+at that moment. The feed replays from the client's watermark to that edge, one
+page at a time as the socket asks for a frame, then follows live. The connection
+joins the live fan-out *before* the watermark is read, and on the daemon's single
+thread nothing can be recorded in between, so an event is either in the replay
+or on the live feed: never both, never neither. A `lastSeq` **behind** the
+watermark the client asked from means the log lost ground (a different
+database), and the client takes a fresh snapshot instead of waiting for events
+that cannot come.
+
+An idle connection gets a comment heartbeat every fifteen seconds, so a proxy or
+a sleeping laptop does not silently turn a live feed into a dead one.
+
+## Active history and compaction
+
+Before every provider attempt the engine reloads the durable messages and builds
+an active request. The provider declares its context window and reserved output;
+the request budget includes message framing, instructions and serialized tools.
+Without a tokenizer the estimator conservatively counts one UTF-8 byte per token.
+The local provider uses a 32,768 token window and reserves 1,024 for output.
+
+When the request is too large, a `context.compacted` event commits a summary and
+an inclusive message sequence boundary in one transaction. The active request
+contains that summary plus a bounded recent window starting at a user turn.
+System messages and the newest prompt remain intact. A request that cannot fit
+those values fails with `context_overflow`; the prompt is never silently cut.
+Compaction is on by default; `--no-compaction` or `HIROSHI_COMPACTION=off` disables
+new boundaries and fails oversized requests before the provider is called.
+
+The summary is deterministic and extractive: the original goal, labeled excerpts
+of recent covered messages, and an explicit omitted-message count. It does not
+make another model call or invent decisions. Repeated compactions rebuild from
+the original durable prefix rather than recursively summarizing a summary.
+Older details may be omitted from active history; every original message remains
+in the database and in the session snapshot.
+
+A provider reports overflow with `ProviderError('context_overflow', ...)`. Before
+any output, this triggers one forced compaction and a rebuild of the **same
+step**, independently of transient backoff retries. A second overflow or overflow
+after output fails with a clear reason. The forced boundary is durable, so a
+restart cannot grant another overflow recovery to the same step. This rebuild
+keeps the step allowance and attempt number; ordinary transient retries still
+increment the attempt as before.
+
+Instructions are `{ source, text }` values, separate from transcript messages.
+The default loader rereads the workspace's `AGENTS.md` each attempt. Adapters can
+supply additional instruction sources through the context options. A
+`context.prepared` event records the request estimate, model budget, active
+boundary, SHA-256 source hashes and names of sources added, edited or removed.
+It does not store the rendered instruction prose in that ledger.
+
+The Terminal's **Show context** control opens the full durable transcript,
+compaction summaries at their original boundaries, and changed source names.
+Both the session snapshot and the event reducer carry these records, so a
+reconnecting or second cockpit sees the same history.
+
+## The data directory
+
+| platform | directory |
+| :--- | :--- |
+| Windows | `%LOCALAPPDATA%\Hiroshi` |
+| macOS | `~/Library/Application Support/Hiroshi` |
+| Linux | `$XDG_STATE_HOME/hiroshi`, else `~/.local/state/hiroshi` |
+
+`HIROSHI_HOME` overrides it. Inside:
+
+| file | what it is |
+| :--- | :--- |
+| `engine.db` | the event log and the projections, in SQLite |
+| `engine.json` | the discovery file: url, pid, token, protocol, version |
+| `engine.lock` | who is starting a daemon right now |
+| `logs/engine.log` | the daemon's own log, including why it refused to start |
+
+## Lifecycle
+
+The cockpit never kills a daemon it did not need to kill.
+
+- **Start**: the cockpit reads `engine.json`. If it is missing or stale, it
+  spawns the engine detached, with no pipes back to the window, and waits for
+  the file to appear.
+- **Adopt**: two windows starting at the same moment race for a startup lock.
+  The loser finds the winner's registry and attaches instead of starting a
+  second daemon.
+- **Restart**: the daemon settings page stops the process and starts a new one.
+  That is the only place the cockpit asks a daemon to exit.
+- **Crash**: a killed daemon leaves its registry behind. The next start reports
+  the stale pid, discards it and takes over the same database.
+
+## The CLI
+
+The same binary the cockpit spawns is usable on its own:
+
+```bash
+bun engine/src/index.ts serve    # start in the foreground
+bun engine/src/index.ts status   # what is running, on which port, since when
+bun engine/src/index.ts stop     # ask it to shut down
+bun engine/src/index.ts version  # engine version and protocol
+```
+
+`serve` is the default, so `bun run engine` starts the daemon. `--provider-delay
+<ms>` holds the local provider between chunks, which is useful for watching a
+stream arrive or for reproducing a crash mid-step. The cockpit looks for a
+standalone `hiroshi-engine` binary next to itself before it falls back to the
+checkout, which is how a packaged build runs without `bun`.
+
+## In the cockpit
+
+The right panel's **Terminal** surface is the engine's, not a mock: a command
+there becomes a run, its output arrives on the feed, and the composer shows the
+real exit code. Above the inbox is the latest step: its provider, model,
+status, attempt and the first line of its answer, or the code and sentence of
+its failure. Below it is the session's inbox: what was admitted and is still
+waiting, with its mode, a `STEER`/`QUEUE` switch and an interrupt action while
+work is going. Demo fixtures remain available in tests;
+the main composer now shows the engine transcript and streams model output,
+while the Terminal keeps the step and inbox controls. The
+**Daemon** settings page shows the process, the protocol, the database and the
+session count, with the one button that restarts it.
+
+## Tests
+
+The engine has its own suite, because it does not need a GPU, a window or a
+test renderer:
+
+```bash
+bun run test:engine
+```
+
+Those tests spawn real daemons on throwaway data directories and then try to
+break the promise: they close the client, attach a second one, and kill the
+daemon in the middle of a run and in the middle of a step. One of them starts
+the engine from a separate launcher process that exits immediately, and then
+asks the engine to run a command — the check that a run outlives the window.
+The step tests use a scripted provider, so a rate limit, a stream that dies
+after its first chunk and a claimed row left by a crash are all produced
+exactly when the test wants them.

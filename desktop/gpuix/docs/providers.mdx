@@ -1,0 +1,296 @@
+---
+title: "Providers and models"
+description: "Configure model adapters, local credentials and provider policy."
+---
+
+The engine owns the model catalog. The cockpit reads it from `GET /v1/models`;
+its model picker does not invent remote model names. The built-in `local/echo`
+model works without credentials or a network connection.
+
+## Configure a provider
+
+Create `providers.json` in the [engine data directory](/engine#the-data-directory).
+The file selects adapters and declares the models you want to offer. For example:
+
+```json
+{
+  "defaultModel": "work/chat",
+  "providers": [
+    {
+      "id": "work",
+      "adapter": "openai",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "models": [
+        {
+          "id": "chat",
+          "model": "YOUR_PROVIDER_MODEL_ID",
+          "label": "Work chat",
+          "contextWindow": 32768,
+          "reservedOutput": 1024
+        }
+      ]
+    }
+  ],
+  "policy": [
+    { "provider": "*", "action": "allow" }
+  ]
+}
+```
+
+Replace `YOUR_PROVIDER_MODEL_ID` and the example limits with those of the model
+your account supports. `work/chat` is the catalog identity: the prompt and step
+keep that identity durably. The adapter translates it into the provider's own
+model id at the API boundary.
+
+Set the named environment variable before launching Hiroshi. The configuration
+stores the variable's name, not its value. Restart the daemon after changing the
+configuration or credentials. An already-running daemon keeps its configuration.
+
+| Adapter | API | Default credential variable |
+| :--- | :--- | :--- |
+| `openai` | OpenAI Responses | `OPENAI_API_KEY` |
+| `anthropic` | Anthropic Messages | `ANTHROPIC_API_KEY` |
+
+Both adapters use streaming HTTP. `baseURL` optionally overrides the API root,
+including its `/v1` prefix. Remote endpoints require HTTPS; loopback HTTP is
+supported for local servers and integration tests. Redirects are not followed.
+
+Credentials stay inside the engine's adapter instances and are used only for
+provider authentication. They are excluded from the catalog, durable model
+records and logs. HTTP and streaming errors use bounded, classified messages;
+the engine does not copy provider error prose into the transcript. OpenAI
+requests set `store: false`.
+
+## Installed CLI responses
+
+Open **Settings → Providers** and refresh to check Agy, Cursor Agent, Pi and
+Grok. Checks run serially inside one shared execution slot, with per-command
+deadlines, process/RAM limits and bounded output. They use help, version, model
+metadata and Cursor's JSON sign-in status; refresh never sends an AI prompt or
+opens login. Cancel preserves the last completed inventory. Startup loads the
+cache without launching CLIs and resets cached sign-in evidence to unknown.
+
+Each agent row shows its observed version, executable, listed model count and
+status. Click the row to expand manual paths and setup controls; the switch
+enables or disables the agent.
+
+The model picker in Settings and the composer shares a searchable catalog.
+Use the icon rail to filter by provider, or star models and open the favorites
+filter. Stars do not select a model or change the default. Favorites persist in
+`model-favorites.json` in the engine data directory and reload when the picker
+opens. In search, Up/Down chooses a result, Enter selects it, and Escape closes
+the picker.
+
+Discovery searches absolute PATH entries and known user installation locations.
+Windows Cursor and Pi wrappers are resolved through known Node installation
+layouts; wrapper scripts are never interpreted. A manual absolute executable
+and optional absolute JS entry point handle installations outside these paths.
+Missing, unsupported, disabled, signed-out and policy-blocked states have
+explicit explanations. Installed does not imply authenticated: Pi, Agy and Grok
+can remain **sign-in unknown** until a request provides evidence. No credential
+file contents, account identity or raw probe output are returned or stored.
+
+Enable/disable, manual paths, Cursor workspace trust and the default agent/model
+are stored atomically in `agents.json` in the engine data directory. Changes
+reach all windows through the engine feed. Settings and the composer use this
+same catalog; defaults survive restart. Replacing/removing an executable changes
+its catalog identity and leaves a stale selection visibly unavailable. It never
+silently redirects a queued request or substitutes local echo. Sign in through
+the CLI itself, then refresh. Model-list output is metadata, not proof of account
+access; “CLI default” explicitly leaves availability unknown. Disabling a CLI
+prevents new/queued requests; an already running request can be cancelled in the
+cockpit. Manual HTTP/CLI configuration in `providers.json` remains supported.
+
+`agy-cli`, `cursor-cli`, `pi-cli` and `grok-cli` implement CLI contract version 2: one response-only
+submission per durable engine step. They use the CLI's own sign-in and do not
+need an API credential in Hiroshi. The following manual configuration is an
+alternative to Settings:
+
+```json
+{
+  "defaultModel": "cursor/chat",
+  "providers": [{
+    "id": "cursor",
+    "adapter": "cursor-cli",
+    "command": ["/absolute/path/to/cursor-agent"],
+    "models": [{
+      "id": "chat", "model": "default", "label": "Cursor",
+      "contextWindow": 32768, "reservedOutput": 1024
+    }]
+  }]
+}
+```
+
+On Windows, point to a real executable. For Cursor's Node installation use
+`"command": ["C:/absolute/version/node.exe", "C:/absolute/version/index.js"]`.
+Shell wrappers (`.cmd`, `.bat`, `.ps1`), shell strings and extra command flags
+are rejected. Paths are visible in local Providers settings; credentials never
+leave the CLI. The configured model `default` lets the CLI choose its current
+default; any other value is passed as an explicit model id. This is not an
+account-model discovery result. Configure context limits conservatively.
+
+Cursor is invoked with `--print --mode ask --output-format stream-json
+--stream-partial-output`. It must already trust the workspace, or you must
+explicitly set `"trustWorkspace": true` in that provider's configuration.
+Hiroshi does not pass `--force`, `--yolo` or `--approve-mcps`. Workspace trust
+is distinct from tool approval. Profiles with global or project startup hooks
+are rejected for this response-only slice.
+
+Agy's `--mode plan` is a prompt prefix, not a permission gate. A configured
+Agy provider remains marked **policy required** unless its existing
+`~/.gemini/antigravity-cli/settings.json` has `"toolPermission": "strict"`
+and `permissions.deny` contains `write_file(*)`, `command(*)`,
+`unsandboxed(*)`, `mcp(*)` and `execute_url(*)`. Global/project hooks are
+unsupported. Hiroshi never rewrites these global settings. The stream must
+also acknowledge `permission_mode: "strict"`. This conservative prerequisite
+restricts other uses of that CLI profile too; a per-invocation approval bridge
+is tracked in #64. Do not weaken the gate to get a response.
+
+Prompts and the bounded active conversation/instructions go over stdin, not
+command-line arguments. Grok instead reads a private temporary prompt file,
+removed after exit/cancellation; its path is the only prompt argument. Each
+task owns its native conversation. The first invocation receives Hiroshi's
+bounded active history; later turns send every newly delivered user prompt
+exactly once, resuming only that task's recorded vendor ID. Cursor uses
+`--resume`, Agy uses `--conversation`, Grok uses an explicit `--session-id`
+then `--resume`, and Pi uses an engine-owned format-3 `--session` file.
+Hiroshi never selects the last conversation in a repository. Same-folder tasks
+and explicitly replaced conversations retain distinct native identities.
+CLI-managed instructions may also load; scoped instruction equivalence and
+provenance are tracked in #52. Native CLI tools do not become Hiroshi tool
+requests, and no remote tool output is treated as assistant text. Unexpected
+write/tool activity fails the response; that observation is not itself a
+pre-effect permission gate.
+
+Every invocation runs inside the admitted model slot and inherited execution
+limits. The default 512 MiB process budget may be insufficient for an installed
+CLI: the observed Agy startup exceeded 1 GiB. Set `processMemoryMB` in
+`execution.json` deliberately, subject to the shared free-RAM admission floor;
+never remove limits. Stdout and stderr share a 1 MiB total cap, each NDJSON
+line is limited to 128 KiB, and the assistant answer to 256 KiB. A successful
+terminal result and exit code zero are both required. Unknown stream schemas,
+failed sign-in, missing executables, truncation and nonzero exits produce
+classified failures without copying raw diagnostics into the transcript.
+CLI requests are not automatically retried. Before submission, Hiroshi durably
+records the adapter contract, executable fingerprint, observed CLI version
+(when available), model/profile references, workspace and conversation identity.
+Changes to those references or instructions, a transcript rewind, missing native
+history, and uncertain exits require **Start fresh CLI conversation** above the
+composer. This explicit action retains old vendor ownership and saved Hiroshi
+history, then releases queued work; it never reruns the interrupted step. Older
+stateless history also requires this transition. `default` remains the CLI's
+own model selection, not a promise of a particular remote model.
+
+A reconnect only observes. On restart, a durably recorded successful CLI exit
+can finish committing its saved answer once without another invocation. Other
+interrupted submissions fail explicitly, including before stdout, and hold
+queued work for recovery. Missing Pi session files are never silently recreated
+on resume. Terminal ID mismatches fail before publishing text; Grok reports its
+ID at the terminal event, so its bound response is buffered until that event.
+Cancellation and deadline expiry stop the owned process tree; platform
+containment limits are described in the engine guide.
+
+### Capability evidence
+
+| CLI | Response path | Current boundary |
+| :--- | :--- | :--- |
+| Agy | `--input-format stream-json --output-format stream-json --disable-slash-commands` | Installed 1.1.27 metadata and real process fixtures pass; an installed authenticated response was observed in earlier adapter acceptance. Existing always-proceed profiles are blocked; strict permissions and side-effect denials are required. |
+| Cursor Agent | Print-mode NDJSON with partial output, Ask mode | Installed `2026.10.19-6bbf2c4` completed an authenticated two-turn nonce-recall check through Hiroshi across a daemon restart, reusing the same explicit vendor ID. JSON status provides sign-in evidence. Workspace trust is explicit. |
+| Pi | JSON session format 3, text deltas, assistant stop and final `agent_settled` | Real executable protocol fixtures pass; no installed live-account acceptance claimed. All tools, extensions, MCP, skills, prompt templates and auto-approval are disabled. Native context files are skipped; Hiroshi supplies instructions. |
+| Grok | `streaming-json` text and successful `EndTurn` | Installed 1.0.70 completed an authenticated two-turn nonce-recall check through Hiroshi across a daemon restart, reusing the same explicit vendor ID. Empty tool allowlist, deny-all policy, no subagents/web search and one turn. Hook profiles are rejected. |
+
+All four support cancellation and task-owned native continuation, verified by
+real daemon/process fixtures with restarts, duplicate delivery and crash injection.
+Installed help metadata confirms the Agy, Cursor and Grok resume switches;
+this is not live-account acceptance of every resume path. Coding tools and
+approval bridging (#64) remain unavailable. Agy, Cursor and Grok may also load their native instructions; Pi
+uses supplied instructions only. These are response adapters, not coding agents.
+
+For an opt-in installed-account check, run
+`scripts/smoke-cli-continuation.ts --agent cursor|agy|grok|pi --allow-live`
+through the guarded runner. This performs two response-only submissions in a
+temporary repository, restarts only its owned daemon, and checks nonce recall
+under the same vendor ID. It may incur account charges; it is excluded from the
+default suite and never modifies global permissions to make an agent pass.
+For example, on Windows:
+
+```powershell
+& ./scripts/run-guarded.ps1 -Executable (Get-Command bun).Source -Arguments @('scripts/smoke-cli-continuation.ts','--agent','grok','--allow-live') -MemoryMB 2304 -MaxProcesses 10 -TimeoutSeconds 150
+```
+
+The protocols follow the official [Agy headless guide](https://www.antigravity.google/docs/cli/headless/),
+[Agy permission rules](https://www.antigravity.google/docs/permissions?tab=cli),
+[Cursor output format](https://cursor.com/docs/cli/reference/output-format) and
+[Cursor modes](https://cursor.com/docs/cli/reference/parameters),
+[Pi CLI](https://pi.dev/docs/latest/cli),
+[Pi JSON lifecycle](https://pi.dev/docs/latest/json) and
+[Grok headless scripting](https://docs.x.ai/build/cli/headless-scripting).
+Real CLI executable fixtures and real-daemon integration exercise split UTF-8,
+duplicate Cursor flushes, final-result reconciliation, private thinking exclusion,
+auth/trust failures, output caps, cancellation, detached descendants, idempotent
+submission and completed/interrupted restart behavior. Discovery tests cover
+restart, changed/missing executables, empty PATH, expired sign-in, cancellation,
+selection conflicts and all four response protocols. Native Settings tests and
+the source/packaged window test drive refresh and shared default selection into
+an actual CLI response. CI needs no CLI account.
+
+## Provider policy
+
+Policy rules match the configured provider `id`, or `*` for every provider. The
+last matching rule wins; the default is allow. This policy is independent of
+whether the provider has credentials.
+
+```json
+{
+  "policy": [
+    { "provider": "*", "action": "deny" },
+    { "provider": "local", "action": "allow" },
+    { "provider": "work", "action": "allow" }
+  ]
+}
+```
+
+Denied models remain visible in the picker with a denial label. Choosing one
+produces a durable failed step with `provider_denied`, which the transcript
+shows. No provider request is made. A model without a credential is marked as
+needing one and fails with `credentials_missing`. A removed model fails with
+`model_unavailable`; a pending prompt never silently switches to another model.
+
+## Streaming and recovery
+
+The main composer sends prompts to the engine with their selected catalog model.
+The inbox preserves that selection across queueing and restart. An idempotency
+key keeps the first admission, including its model choice.
+
+Text streams into the transcript through `step.output`. Reasoning summaries and
+tool-call starts, argument deltas and completions become bounded `step.part`
+records and feed events. OpenAI item ids are mapped to the provider's function
+call ids; Anthropic block indices are mapped to tool-use ids. A completed text
+answer replaces its streaming row with one committed assistant message.
+
+Completed tool requests enter the [tool permission gate](/tools). Calls and
+results retain their provider ids, and each continuation is a new durable model
+step. Denials are returned as transcript facts. OpenAI encrypted reasoning and
+Anthropic thinking signatures are preserved for continuations. Reasoning
+summaries are displayed when emitted; adapters do not force a reasoning mode.
+
+Any text, reasoning or tool output prevents automatic replay after failure or
+restart. A stream without a terminal completion event fails explicitly. A rate
+limit or transport failure before output can use the step's bounded retry policy.
+Context overflow uses the existing one-compaction recovery rule.
+
+The adapter mappings follow the official [OpenAI streaming event reference](https://developers.openai.com/api/reference/resources/responses/streaming-events)
+and [Anthropic streaming guide](https://platform.claude.com/docs/en/build-with-claude/streaming).
+
+## Tests and extension
+
+`bun run test:engine` exercises both adapters against local HTTP fixture servers
+and starts real daemon processes with isolated configuration. It verifies partial
+output on the live feed, credential isolation, policy denial, cancellation and
+recovery after a crash before text has arrived. These tests need no live API keys.
+Native UI tests exercise catalog-backed selection and denial labels.
+
+To add a provider, implement the normalized `Provider` interface and register its
+factory, endpoint and credential variable in `engine/src/providers/catalog.ts`.
+Configuration then declares its offered models. The step runner, durable log,
+transport protocol and cockpit need no provider-specific branches.

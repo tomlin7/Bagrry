@@ -1,0 +1,120 @@
+---
+title: "Desktop shell and releases"
+sidebarTitle: "Shell and releases"
+description: "A packaged sidecar, bounded window recovery, local window preferences and verified delta updates."
+---
+
+## Install
+
+Download a platform archive from [GitHub Releases](https://github.com/hiroshi-os/Hiroshi/releases/latest).
+Windows x64, macOS arm64 and Linux x64 are supported by the pinned Bun/GPUIX
+artifacts. Extract the complete archive: the cockpit and `hiroshi-engine` must
+stay together. macOS ships `Hiroshi.app`. Git is required for workspace
+checkpoints and Git surfaces; Bun is included in the compiled executables.
+
+Intel macOS is not packaged because GPUIX 0.11.0 has no published x64 macOS
+binding. Native Windows arm64 is not packaged with the pinned Bun 1.3.5 runtime;
+[Bun added that target in 1.3.10](https://bun.com/blog/bun-v1.3.10).
+The three supported targets are tested independently before publication.
+
+The release workflow checks package/tag/changelog agreement, builds both
+executables, creates the download archive, then extracts it into a temporary
+directory outside the checkout. It verifies the archive checksum, the exact
+payload and embedded manifest, every file's size/hash, executable permissions
+on Unix targets and the version file. The extracted cockpit reports its version
+and the extracted engine completes a real local-provider step with isolated data.
+It publishes only after all three platforms succeed. SHA-256 files accompany the
+archives. GitHub/Sigstore provenance signs the archives and delta manifests:
+
+```sh
+gh attestation verify <archive> --repo hiroshi-os/Hiroshi --signer-workflow hiroshi-os/Hiroshi/.github/workflows/release.yml
+```
+
+Before extracting on Linux/macOS, check the downloaded checksum:
+
+```sh
+shasum -a 256 -c hiroshi-<version>-<platform>-<arch>.tar.gz.sha256
+```
+
+On Windows, compare `Get-FileHash <archive> -Algorithm SHA256` with the adjacent
+`.sha256` file. Checksums detect corruption; the attestation establishes provenance.
+Publication validates all platform checksums and extracted payloads again before
+creating a GitHub draft. Missing or damaged archives, manifests or new delta
+chunks block publication. Only verified files are uploaded, and the draft becomes
+public after every upload succeeds.
+
+For local verification after `bun run build`, run `bun scripts/release.ts` then
+`bun run test:archive`. On Windows, put each command through the resource guard
+below; the archive check uses 6 processes, 1536 MB and a 60-second deadline.
+
+These signatures establish build provenance. Apple notarization and Windows
+Authenticode publisher certificates are not included; the operating system may
+show an unknown-publisher warning.
+
+## Process ownership and recovery
+
+The compiled entry starts one window child. A heartbeat detects a stalled
+window; crashes and stalls permit at most three sequential replacements.
+Intentional closure ends supervision. The detached engine remains independent,
+so replacing a window does not replay effects or kill its runs. Existing engine
+release and protocol versions must both match; a mismatch is shown in Settings.
+The restart control is explicit because another window may still be using it.
+
+The compiler sets the packaged-runtime identity explicitly. Bun 1.3.5 does not
+provide `Bun.isStandaloneExecutable`. Engine-launch depth and supervisor-depth
+guards reject recursive launch attempts before another child can start.
+
+## Window preferences
+
+`<HIROSHI_HOME>/shell.json` holds versioned preferences per launch workspace:
+normal size/position, display, maximize state, selected session, sidebar sizes,
+and the open surface. Native bounds are restored on Windows and macOS. Missing
+displays clamp the window into an available work area. Linux restores size and
+layout; compositor-controlled placement is left to the desktop environment.
+Preferences are separate from the engine database and contain no transcript.
+
+## Deep links
+
+```text
+hiroshi://session/ses_example?file=src/main.ts&line=42
+```
+
+The session must exist in the local engine. File paths are relative to that
+session's workspace. Invalid links, parent escapes, absolute paths and invalid
+line numbers are rejected. The Files surface shows the requested source line.
+Register the installed executable using `hiroshi --register-links` (on macOS,
+`Hiroshi.app/Contents/MacOS/hiroshi --register-links`). Registration is per-user
+and happens only when that command is explicitly invoked. macOS receives URL
+Apple events; Windows/Linux launch a window with the URL argument.
+
+## Delta updates
+
+```sh
+hiroshi --update 0.12.0
+```
+
+The update command requires GitHub CLI (`gh`) to verify the manifest's signature,
+repository, release ref and signing workflow before downloading executable data.
+Installed 1 MiB chunks are reused by SHA-256; only missing gzip-compressed chunks
+are fetched. Every chunk and reconstructed file is checked. The complete version
+is staged under `<HIROSHI_HOME>/updates/<version>` atomically. A verification or
+hash failure removes the incomplete staging directory.
+
+The command prints the staged location. Close the old cockpit and launch the new
+version there (macOS: its `Hiroshi.app`). Existing executables and the running
+engine are untouched. Once in-flight work finishes, use the explicit engine
+restart if the new cockpit reports a version mismatch.
+
+## Guarded local testing
+
+On Windows, builds and desktop tests can run inside an OS Job Object:
+
+```powershell
+& ./scripts/run-guarded.ps1 -Executable (Get-Command bun.exe).Source -Arguments @('run','test:integration') -MaxProcesses 12 -MemoryMB 3072 -TimeoutSeconds 180
+```
+
+The process starts suspended and enters containment before execution. Descendants
+inherit the job, including detached children. The kernel enforces the process and
+memory limits. The runner reports peak process-tree memory and available system
+RAM, stops at its free-memory floor or timeout, and terminates remaining children
+on exit. The guard is also used for the Windows desktop CI test.

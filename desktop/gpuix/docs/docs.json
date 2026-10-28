@@ -1,0 +1,64 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Hiroshi",
+  "description": "A GPU-native multi-agent orchestration cockpit. No Electron, no web view: the whole interface is painted on the GPU through GPUIX.",
+  "theme": "mint",
+  "colors": {
+    "primary": "#E2795B",
+    "light": "#FBF1ED",
+    "dark": "#1A1A1A"
+  },
+  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/hiroshi-os/Hiroshi"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Get Started",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "index",
+              "getting-started"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "The Cockpit",
+        "groups": [
+          {
+            "group": "Inside the app",
+            "pages": [
+              "architecture",
+              "engine",
+              "cockpit",
+              "shell",
+              "providers",
+              "tools",
+              "checkpoints",
+              "surfaces",
+              "window"
+            ]
+          },
+          {
+            "group": "Working on Hiroshi",
+            "pages": [
+              "development",
+              "versioning"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "hiroshi",
+  "version": "0.21.0",
+  "description": "Multi-Agent Orchestration Cockpit rendered on the GPU with GPUIX",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "bun scripts/build-window-macos.ts",
+    "dev": "bun --hot app.tsx",
+    "build": "bun scripts/build.ts",
+    "test:archive": "bun scripts/smoke-archive.ts",
+    "web:dev": "bun web.ts",
+    "web:build": "bun web.ts --build",
+    "test:web": "bun scripts/browser-smoke.ts",
+    "screenshot": "bun screenshot.ts",
+    "test": "vitest run",
+    "test:engine": "bun test engine",
+    "test:integration": "bun integration.ts",
+    "test:projects": "bun projects.integration.ts",
+    "test:settings": "bun settings.integration.ts",
+    "test:cli": "bun cli.integration.ts",
+    "engine": "bun engine/src/index.ts",
+    "engine:status": "bun engine/src/index.ts status",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gpuix/react": "^0.11.0",
+    "@types/mdast": "^4.0.4",
+    "ajv": "^8.20.0",
+    "htmlparser2": "^12.0.0",
+    "react": "^19.2.4",
+    "safe-mdx": "1.14.0",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "@types/react": "^19.2.0",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.18"
+  }
+}

@@ -1,0 +1,79 @@
+---
+title: "Engine-backed cockpit"
+sidebarTitle: "Transcript and usage"
+description: "One session, an ordered transcript, engine-aware commands and durable provider usage."
+---
+
+The desktop attaches to a workspace session. Its sidebar lists real sessions;
+New Task creates one, and selecting a session switches the transcript and every
+engine command together. Closing a window leaves the engine running. A second
+window attached to that session draws the same facts.
+
+## Open a project
+
+The project button below the composer opens a native folder chooser, a manual
+absolute-path field and recent projects. Choose an existing readable directory.
+Cancelling or rejecting a selection keeps the current task. Non-Git folders work;
+Review explains when Git history is unavailable.
+
+Each task owns a canonical directory and a durable filesystem identity. Opening
+another project does not move running commands, prompts, CLI working directories,
+instructions, approvals or checkpoints. The sidebar shows tasks from the selected
+workspace identity. Unsent text is cleared when switching tasks; panel preferences
+are restored per project. Provider configuration remains shared.
+
+The last selected project and task reopen when the window restarts. Missing or
+inaccessible directories keep readable history with an explanation. A replacement
+at the same path cannot inherit execution or saved tool approvals. Reopen a moved
+or replaced folder explicitly to start a new workspace; existing tasks are never
+silently relocated. Folder identity is rechecked before queued effects start.
+
+## Transcript
+
+The engine builds the transcript from its durable event sequence. The snapshot
+and live feed use the same projector. Reasoning summaries, answer deltas, tool
+requests and results, permission waits, retries, context compaction, command
+boundaries and rewinds retain publication order. Committing an assistant message
+does not duplicate its streamed answer. Private provider state is never displayed.
+
+Rewinding selects the active conversation without deleting earlier history.
+Reopening reconstructs the same transcript from disk.
+
+## Composer and header
+
+The header shows the session title, delivered user turn count, run phase and
+pending prompt count. There is no Inspector panel.
+
+The composer shows **Send** when idle. During work, click its delivery control
+between **Queue** (when idle) and **Steer** (next safe boundary, ahead of queued
+input). Neither option interrupts an in-flight effect. The engine decides when
+a safe boundary is available; a window does not advance work itself.
+
+The model picker uses the engine catalog. Template reasoning, access and
+build/plan controls are absent from the connected composer because those local
+controls did not issue engine commands.
+
+## Usage
+
+Open Usage from the header or Settings. Counts belong to the selected session,
+including archived turns and retries. The screen shows model attempts, commands,
+tools and provider-reported input/output tokens by model. OpenAI Responses usage
+and Anthropic Messages cumulative usage are persisted as attempt-scoped parts.
+Anthropic cache-read and cache-creation input counts are included.
+
+Cumulative counters replace earlier counters for the same attempt; they are
+not summed twice. A partial stream may lack final counters. The reporting
+coverage is shown explicitly, and historical calls without provider counters
+remain unknown. Local echo has no provider token report.
+
+The adapters do not report a monetary charge. Cost is shown as **not reported**;
+Hiroshi does not apply a guessed price to estimated tokens.
+
+## Verification
+
+`engine/test/cockpit-daemon.test.ts` drives both real HTTP adapters through a
+retry, reasoning, tool approval, execution and continuation. Two independent
+feeds agree with the saved snapshot, including duplicate delivery, archived
+usage and daemon restart. `integration.ts` checks the main composer's steering,
+two actual background windows, Usage and reopening. Native tests paint the
+Usage screen and exercise Send/Queue/Steer controls.

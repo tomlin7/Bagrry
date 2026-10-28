@@ -1,0 +1,76 @@
+---
+title: "Getting started"
+sidebarTitle: "Getting started"
+description: "Install Bun, run the Hiroshi cockpit, and learn the commands."
+---
+
+Hiroshi is a Bun project. The GPUIX native addon ships prebuilt for macOS,
+Windows and Linux, so there is no Rust toolchain to install.
+
+<Steps>
+  <Step title="Install Bun">
+    The version is pinned in `.bun-version`, so install that one:
+
+    ```bash
+    bun --version
+    ```
+
+    ```bash
+    # macOS
+    brew install oven-sh/bun/bun
+    # Windows
+    powershell -c "irm bun.sh/install.ps1 | iex"
+    # Linux
+    curl -fsSL https://bun.sh/install | bash
+    ```
+  </Step>
+
+  <Step title="Get the code">
+    ```bash
+    git clone https://github.com/hiroshi-os/Hiroshi
+    cd Hiroshi
+    bun install --frozen-lockfile
+    ```
+
+    The install pulls `@gpuix/react` and the native addon for your platform.
+  </Step>
+
+  <Step title="Run the cockpit">
+    ```bash
+    bun run dev
+    ```
+
+    The window opens with the conversation sidebar, the transcript and the
+    composer. The titlebar at the top drags the window.
+  </Step>
+</Steps>
+
+## The commands
+
+| command | what it does |
+| :--- | :--- |
+| `bun run dev` | runs the cockpit with hot remounting |
+| `bun run build` | compiles the cockpit and engine sidecar into `dist/` |
+| `bun run test` | runs the integration suite on the GPU test renderer |
+| `bun run typecheck` | runs `tsc --noEmit` |
+| `bun run screenshot` | drives the running app and writes PNGs into `screenshots/` |
+| `bun run web:dev` | bundles the app for the browser on the Wasm renderer |
+| `bun run test:web` | renders the Wasm preview and sends a demo prompt in isolated Chrome |
+
+The browser preview uses demo data with native window dragging disabled; it does
+not connect to the engine. See [development](/development) for its verification
+and the Windows resource guard used to cap test memory and child processes.
+
+## The first minute
+
+- Click a conversation in the sidebar to open it.
+- Type in the composer and send. The model, the reasoning level, the access
+  mode and the mode are right below the field.
+- Open the environment menu with the button next to the title to commit, push
+  or compare a branch.
+- Open the command palette with the search action in the sidebar.
+
+<Note>
+  The app is `private` in `package.json`: it is not published to npm. The
+  version still follows the policy in [versioning](/versioning).
+</Note>

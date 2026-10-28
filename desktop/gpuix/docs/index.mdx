@@ -1,0 +1,49 @@
+---
+title: "Hiroshi: a GPU-native multi-agent orchestration cockpit"
+sidebarTitle: "Home"
+description: "Hiroshi is a multi-agent orchestration cockpit rendered on the GPU with GPUIX. No Electron, no web view."
+---
+
+Hiroshi is a desktop cockpit for multi-agent development. The whole
+interface is painted on the GPU through [GPUIX](https://github.com/remorses/gpuix),
+the React reconciler over Zed's native GPUI engine. There is no Electron, no
+web view and no DOM: the transcript, the composer and the window chrome are
+one GPU surface.
+
+<CardGroup cols={2}>
+  <Card title="Get started" icon="rocket" href="/getting-started">
+    Install Bun, run the cockpit, and learn the commands.
+  </Card>
+  <Card title="Architecture" icon="cpu" href="/architecture">
+    How the cockpit is put together and where each part lives.
+  </Card>
+  <Card title="The window" icon="window-maximize" href="/window">
+    The custom titlebar: dragging it, maximizing it, restoring it.
+  </Card>
+  <Card title="Development" icon="code" href="/development">
+    The integration suite, the CI, and the automation API.
+  </Card>
+</CardGroup>
+
+## What is in the cockpit
+
+- **The transcript** and the composer, with the model, the reasoning level, the
+  access mode and the build mode inline.
+- **The conversation sidebar**, grouped by time, with the project, the search
+  and the new task action.
+- **The thread header**, with run phase and turn count from the engine.
+- **The right panel**, with a browser, a terminal, a file browser and a review
+  surface.
+- **The environment menu**, with the commit and push flow and the branch
+  comparison.
+- **The command palette**, on the search action, with the conversations, the
+  usage and the workspace actions.
+- **A settings view** with six sections: general, appearance, providers,
+  skills, usage and daemon.
+
+## The window is ours
+
+Hiroshi never shows a native OS titlebar. The chrome spans the whole window
+and the titlebar drags it, which means the app moves the window itself. The
+[window guide](/window) explains how that works and why the OS modal move
+loop is not an option.

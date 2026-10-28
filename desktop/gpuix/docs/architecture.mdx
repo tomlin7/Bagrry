@@ -1,0 +1,80 @@
+---
+title: "Architecture"
+sidebarTitle: "Architecture"
+description: "How the Hiroshi cockpit is put together, and where each part lives."
+---
+
+Hiroshi is one React tree, painted on the GPU.
+
+```
+React (TypeScript)  ->  napi-rs  ->  GPUI (Rust)  ->  GPU
+```
+
+GPUIX turns the React tree into GPUI elements and sends them over a napi-rs
+bridge. There is no DOM, no layout engine of the browser and no web view.
+The canvas is the whole app.
+
+## The layout
+
+The cockpit is a row of three columns:
+
+1. **The conversation sidebar**, 252 px wide, resizable. The traffic light
+   clearance, the collapse action and the history buttons sit in its
+   titlebar strip, and the strip drags the window.
+2. **The main column**: the header with the thread title, the transcript, the
+   composer and the workspace footer.
+3. **The right panel**, a drawer with the surfaces. It has its own titlebar
+   strip, and that one drags the window too.
+
+The drawers animate their width. The resize handles live inside the sliding
+drawer as its last child, so they are never clipped and they never shift the
+layout.
+
+## The files
+
+| path | what lives there |
+| :--- | :--- |
+| `app.tsx` | the cockpit tree, local styles and preview fixtures |
+| `engine/src/` | the daemon: the wire, the store, runs, the server |
+| `src/engine/` | the cockpit's side: discovery, client, reducer, hook |
+| `src/window-drag.ts` | the Win32 plumbing behind the draggable titlebar |
+| `assets/icons/` | the icon set, as SVG |
+| `src/components/` | engine-backed transcript, tools, workspace and daemon views |
+| `src/shell/`, `desktop.ts` | packaged window lifecycle, preferences, links and updates |
+| `web-entry.tsx`, `web.ts` | browser fixture entry and Wasm bundler/server |
+| `src/window-drag-browser.ts`, `src/shell/geometry-browser.ts` | browser adapters with OS window operations disabled |
+| `app.test.tsx`, `titlebar-drag.test.tsx` | the integration suite |
+| `engine/test/` | the engine suite, run by `bun test engine` |
+| `integration.ts`, `screenshot.ts` | scripts that drive isolated real windows |
+| `scripts/browser-smoke.ts` | isolated headless Chrome rendering and composer check |
+
+## The events
+
+GPUIX maps DOM style props onto GPUI ones. A few rules matter when you write
+new UI:
+
+- An **unfilled in-flow `div` has no hitbox**, so it never receives a mouse
+  event. A region that has to be clickable needs `pointerEvents: 'auto'`.
+- A **drag needs three handlers on the same element**: `onMouseDown`,
+  `onMouseMove` and `onMouseUp`. GPUIX arms the pointer capture on the press
+  only when the element also listens for moves, and that capture is what
+  keeps a drag alive outside the element.
+- There is **no `zIndex`**. Stacking is the order of the tree: a later child
+  paints over an earlier one.
+- A `<text>` with several children wraps. Use one template literal and
+  `whiteSpace: 'nowrap'`.
+
+The rules and the reasons behind them live in the repository, in
+`AGENTS.md` and in the `hiroshi-gpuix` skill.
+
+## The surfaces
+
+The right panel holds four surfaces:
+
+- **Browser**, a local app or a URL
+- **Terminal**, a shell in the workspace; every command is a run of the
+  [engine](./engine), not of the window
+- **Files**, the workspace tree
+- **Review**, the changes of the branch
+
+The environment menu opens the review surface with the branch comparison.

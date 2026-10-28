@@ -1,0 +1,50 @@
+---
+title: "Versioning"
+sidebarTitle: "Versioning"
+description: "The version policy of Hiroshi, and where the changelog lives."
+---
+
+Hiroshi follows `0.MINOR.PATCH`.
+
+- The **major stays `0`** until the desktop shell and the app surface are
+  stable. A `1.0.0` would be a promise the project cannot keep yet.
+- The **minor counts the feature releases** and goes up to `255` before
+  `1.0.0`. `0.1.0` shipped the cockpit, `0.2.0` shipped the window work.
+- The **patch counts the fixes** inside a feature release.
+
+So the ceiling before the major bump is `0.255.x`.
+
+## Where the version lives
+
+In `package.json`, and nowhere else. A release is one number and one
+changelog entry.
+
+```json
+{
+  "name": "hiroshi",
+  "version": "0.2.0"
+}
+```
+
+The app is `private`, so it is not published to npm. The version still
+matters: it names the release in the changelog and in the CI.
+
+## The changelog
+
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and records what every release changed, in the added, fixed and changed
+groups.
+
+## The releases
+
+### 0.2.0
+
+The window work: the titlebar drags the window, the maximize button restores
+it, a double click zooms it. The integration suite rewritten against the
+current cockpit. The move to the released `@gpuix/react` 0.11.0, and the CI.
+
+### 0.1.0
+
+The cockpit itself: the transcript, the composer, the sidebar, the inspector,
+the right panel with the surfaces, the settings view, the custom titlebar and
+the resizable drawers.

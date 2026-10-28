@@ -1,0 +1,93 @@
+---
+title: "Tools and permissions"
+description: "Model-requested tools, durable approvals and complete results."
+---
+
+The engine registers `list_files`, `read_file`, `write_file` and `shell` and advertises their
+input schemas to configured models. A completed model step commits its assistant
+message and tool requests together before a runner can act. Requests and result
+messages retain both provider call ids and engine tool ids.
+
+## Answer in the cockpit
+
+Tools ask by default. The cockpit shows the name, description, workspace and
+complete input, with **Allow**, **Deny** and **Remember this exact request**.
+A pending question pauses the turn and survives closing the window or restarting
+the daemon. An answer travels through the typed protocol and resumes the turn.
+The interrupt control cancels a pending question or a running tool turn.
+
+Deny records a tool result and lets the model continue within its permissions.
+Repeating the same denied request in that turn cannot create another question.
+Remembered answers match the exact canonical input, workspace and registration
+revision; changing a tool registration requires a new approval.
+
+## Configure policy
+
+Create `tools.json` in the engine data directory, for example:
+
+```json
+{
+  "rules": [
+    { "tool": "*", "action": "ask" },
+    { "tool": "read_file", "action": "allow" },
+    { "tool": "shell", "action": "deny" }
+  ]
+}
+```
+
+Rules match an exact name or `*`; the last matching rule wins. The workspace can
+also contain `.hiroshi/tools.json` with the same shape. Repository policy can
+require asking or deny a tool, but cannot grant more access than the user's
+policy. A deny overrides saved approvals. Add `"alwaysAsk": true` to either file
+to require fresh answers for every otherwise permitted call, including calls
+that have saved answers. Policy files are read again before execution, so an
+approval cannot bypass a newly added denial. Invalid policies block execution.
+
+## Built-ins and limits
+
+| Tool | Behavior |
+| :--- | :--- |
+| `list_files` | Lists a workspace directory using the same reader as the Files surface, up to 500 entries. |
+| `read_file` | Reads a regular UTF-8 workspace file, up to 16 MiB. |
+| `write_file` | Atomically creates or replaces a workspace file; its parent must exist. |
+| `shell` | Runs in the workspace with the user's account privileges; default timeout 30 seconds, maximum 120 seconds, combined output limit 32 MiB. |
+
+File tools resolve real paths and reject paths outside the workspace, including
+junction escapes. The shell can access the network and other account resources;
+it is not a sandbox. Model-started subprocesses receive a limited environment
+that excludes provider credential variables.
+
+Every tool input and output is checked against its declared JSON Schema. A turn
+can make at most 32 model calls and a response can request at most 64 tools.
+Tools execute in order. Each continuation is a new durable step, with its own
+context budget, rather than an unrecorded provider loop.
+
+## Results and recovery
+
+The transcript includes a preview of at most 16 KiB plus an explicit truncation
+marker. The complete JSON result is retained under `tool-results/` in the engine
+data directory. **Open full output** fetches that managed file by tool id into a
+scrollable cockpit viewer; the API does not accept an arbitrary filesystem path.
+Context budgeting counts tool schemas, call metadata, results and provider state.
+
+The engine commits a running claim before invoking a runner. If it stops during
+execution, recovery records an interrupted result and never replays the effect.
+Queued calls and unanswered questions resume safely. A tool that finished its
+side effect immediately before a crash may therefore have an interrupted result;
+the engine does not promise transactional rollback of external effects.
+Historical requests from earlier versions remain unexecuted.
+
+## Extend the registry
+
+Register a `Tool` with `ToolRegistry.register`: `name`, `version`, `description`,
+`inputSchema`, `outputSchema` and asynchronous `run(input, context)`. The context
+contains the workspace, session id, call id and cancellation signal. Built-ins,
+plugins and external adapters use this contract; registering an existing name
+replaces its definition and runner together. Pending calls cannot execute a
+replacement under an earlier approval. Extension loading is a host integration;
+this release does not add a plugin installer or external transport.
+
+`bun run test:engine` uses real daemons and local OpenAI/Anthropic HTTP fixtures.
+It checks durable approvals, exactly-once dispatch, denials, recovery and complete
+large outputs without live API keys. `bun run test` checks native hit areas;
+`bun run test:integration` drives these flows through an actual desktop window.

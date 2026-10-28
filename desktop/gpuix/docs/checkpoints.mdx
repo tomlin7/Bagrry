@@ -1,0 +1,88 @@
+---
+title: "Checkpoints and rewind"
+description: "Restore workspace content and the active conversation to one durable boundary."
+---
+
+Every delivered prompt creates a **pre-prompt checkpoint**. It records the
+workspace's Git tree and the exact active message ids before that prompt enters
+the transcript. Queued prompts snapshot when they reach a safe delivery boundary,
+after the preceding turn's tools have finished. Repeating an admission key does
+not create a second checkpoint.
+
+## Restore from the cockpit
+
+Open **Show checkpoints** below the transcript, then choose **Restore before**
+for a prompt. Stop active commands, model calls and tool turns in the workspace
+first. A pending tool approval counts as active work.
+
+Before changing files, Hiroshi saves a **Before rewind** checkpoint of the current
+workspace and conversation. The restore then puts the files and active transcript
+back to the selected boundary and adds a rewind record. A new prompt continues
+from that state. Restoring a saved state can bring back the work you rewound.
+
+Earlier messages, tool results, steps and events are never deleted. **Show earlier
+history** opens archived messages. Only the restored branch and subsequent turns
+are sent to models; compaction from an archived branch is not reused. Restoring
+also cancels prompts still waiting in that session's inbox. Retrying their old
+admission keys returns the cancelled admission rather than sending them again.
+
+## What a checkpoint contains
+
+The engine uses Git's content addressing and workspace `.gitignore` rules in a
+separate local object database under `HIROSHI_HOME/checkpoints/`. Each checkpoint
+has a hidden `refs/hiroshi/checkpoints/…` ref. It never stages changes, resets
+HEAD, switches branches or changes the user's index. A workspace need not already
+be a Git repository.
+
+Checkpoints include unignored regular files and supported file symlinks, including
+untracked files, binary content and executable modes. Project clean filters and
+line-ending conversions are disabled in the private database, preserving the
+original bytes. Ignored content and engine data are excluded. Global ignore files
+and `.git/info/exclude` from the user's repository do not configure this separate
+database; put checkpoint exclusions in workspace `.gitignore` files.
+
+Empty directories, repository metadata and external effects such as network
+requests are not checkpointed. Nested repositories and submodules are rejected
+rather than implying their contents can be restored. Checkpoint content is limited
+to 128 MiB; ignore generated or large files before retrying an oversized prompt.
+Git must be installed. A failed snapshot leaves the prompt admitted and waiting,
+with a visible error, and starts no model call. Retrying the same prompt key after
+correcting the workspace retries delivery.
+
+A rewind applies an enumerated file plan, never a recursive clean. An ignored
+file that would be overwritten blocks the restore. Parent symlinks and junctions
+cannot redirect writes outside the workspace. Files added after the checkpoint
+are removed only when they belong to the saved current tree. The original Git
+index may consequently differ from the restored files; it is preserved as-is.
+
+## Recovery and coordination
+
+Before its first file effect, a rewind commits a journal containing its target,
+safety checkpoint, idempotency key and file plan. Only after the file plan
+finishes does one transaction switch the active conversation and commit the
+rewind message. Filesystem changes are recoverable across this boundary; a
+multi-file restore is not an atomic filesystem operation.
+
+Startup completes pending journals before starting work. It accepts saved or
+already restored file contents, so a partial restore can resume. If an unrelated
+later edit obstructs recovery, that edit is preserved and the journal's error
+remains visible. Commands, model work and tool dispatch in overlapping workspaces
+stay paused. After resolving the obstruction, **Retry rewind** reuses the durable
+request key. Recovery removes its own reserved `.hiroshi-rewind-…` temporary
+files. Keep editors and external processes from modifying files during a restore;
+Hiroshi coordinates its own runners, not every process on the computer.
+
+The command is `POST /v1/sessions/:id/rewind` with `checkpointID` and `key`. A
+session snapshot includes checkpoints, rewinds, all messages and active message
+ids. The feed carries checkpoint creation with prompt delivery and explicit
+rewind started, failed and completed events. Two clients apply the same completed
+boundary, and a reconnect reads the same durable view.
+
+## Integration coverage
+
+`bun run test:engine` tests real Git trees, binary and CRLF content, file/directory
+transitions, ignored obstructions, Git index isolation, model history after a
+rewind, two clients, daemon restart and partially applied journal recovery.
+Native GPUIX tests click restore/history/retry controls. `bun run test:integration`
+changes a file through a model tool, rewinds from the real desktop window, checks
+both file content and transcript, opens earlier history and reopens the cockpit.
