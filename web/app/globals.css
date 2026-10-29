@@ -1,57 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f7f2;
-  --foreground: #1c1914;
-  --oat: #5b6f00;
-  --muted: #5c574f;
+  --background: #fafaf7;
+  --foreground: #1c1c1a;
+  --accent: #c3dd4f;
+  --accent-fg: #1e2604;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-instrument);
-  --font-display: var(--font-fraunces);
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #161614;
+    --foreground: #f2f2ee;
+  }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.font-display {
-  font-family: var(--font-display), ui-serif, Georgia, serif;
+/* Subtle custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.paper-card {
-  background: linear-gradient(180deg, #fffcf7 0%, #f7f4ec 100%);
-  box-shadow: 0 1px 0 rgba(28, 25, 20, 0.04), 0 18px 40px -28px rgba(28, 25, 20, 0.35);
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.grain {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 9999px;
 }
 
-@keyframes drift {
-  0% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(4%, -6%, 0) scale(1.08); }
-  100% { transform: translate3d(0, 0, 0) scale(1); }
-}
-
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
-.orb {
-  animation: drift 14s ease-in-out infinite;
-}
-
-.marquee-track {
-  animation: marquee 32s linear infinite;
-}
-
-.ai-text {
-  color: #6b6560;
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 20.12);
+  }
 }
