@@ -31,13 +31,12 @@ export function WorksLikeMagic() {
             </div>
 
             {/* High-res Step 1 Screenshot */}
-            <div className="rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs">
+            <div className="h-[280px] w-full rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs relative">
               <Image
                 src="/assets/img_11.png"
                 alt="Bagrry finds your open loops"
-                width={800}
-                height={480}
-                className="w-full h-auto object-cover"
+                fill
+                className="object-cover object-top"
               />
             </div>
           </div>
@@ -57,13 +56,12 @@ export function WorksLikeMagic() {
             </div>
 
             {/* High-res Step 2 Screenshot */}
-            <div className="rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs">
+            <div className="h-[280px] w-full rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs relative">
               <Image
                 src="/assets/img_12.png"
                 alt="then closes them automatically"
-                width={800}
-                height={480}
-                className="w-full h-auto object-cover"
+                fill
+                className="object-cover object-top"
               />
             </div>
           </div>
