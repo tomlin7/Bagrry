@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Download } from 'lucide-react'
-import { Button } from './ui/button'
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -17,51 +16,50 @@ export function Navbar() {
   }, [])
 
   return (
-    <header className="fixed top-4 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+    <header className="fixed top-5 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
       <nav
-        className={`pointer-events-auto flex items-center gap-3 sm:gap-6 px-4 sm:px-6 py-2.5 rounded-full transition-all duration-300 border ${
+        className={`pointer-events-auto flex items-center justify-between w-full max-w-[860px] px-6 py-3 rounded-full transition-all duration-300 border ${
           scrolled
-            ? 'bg-white/90 dark:bg-[#1c1c1c]/90 backdrop-blur-md border-black/[0.1] dark:border-white/[0.1] shadow-[0_4px_20px_rgba(0,0,0,0.08)]'
-            : 'bg-white/75 dark:bg-[#1c1c1c]/75 backdrop-blur-sm border-black/[0.06] dark:border-white/[0.08] shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+            ? 'bg-white/95 backdrop-blur-md border-black/[0.1] shadow-[0_4px_24px_rgba(0,0,0,0.06)]'
+            : 'bg-white/85 backdrop-blur-sm border-black/[0.07] shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
         }`}
       >
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-6 h-6 rounded-md bg-[#c3dd4f] flex items-center justify-center text-[#1e2604] font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
+          <div className="w-7 h-7 rounded-lg bg-black text-white flex items-center justify-center font-bold text-xs tracking-tighter shadow-sm group-hover:scale-105 transition-transform">
             B
           </div>
-          <span className="font-semibold text-sm tracking-tight text-neutral-900 dark:text-neutral-100">
+          <span className="font-bold text-base tracking-tight text-neutral-900">
             Bagrry
           </span>
         </Link>
 
         {/* Navigation Links */}
-        <div className="hidden md:flex items-center gap-5 text-xs font-medium text-neutral-600 dark:text-neutral-400">
-          <a href="#works-like-magic" className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
+        <div className="hidden md:flex items-center gap-7 text-[14px] font-medium text-neutral-500">
+          <a href="#about" className="hover:text-black transition-colors">
+            About
+          </a>
+          <a href="#memory" className="hover:text-black transition-colors">
+            Memory
+          </a>
+          <a href="#works-like-magic" className="hover:text-black transition-colors">
             Works like magic
           </a>
-          <a href="#privacy" className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
-            Security & Memory
+          <a href="#privacy" className="hover:text-black transition-colors">
+            Privacy
           </a>
-          <a href="#mcp" className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
-            Memory MCP
-          </a>
-          <a href="#faqs" className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
+          <a href="#faqs" className="hover:text-black transition-colors">
             FAQs
           </a>
         </div>
 
-        {/* Right Action */}
-        <div className="flex items-center gap-2">
+        {/* Right Action Button */}
+        <div className="flex items-center gap-3">
           <a href="/download">
-            <Button
-              variant="dark"
-              size="sm"
-              className="rounded-full text-xs font-medium px-4 h-8 gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
-            >
+            <button className="h-[38px] px-5 rounded-full bg-black hover:bg-neutral-800 text-white text-[13px] font-medium transition-all flex items-center gap-2 shadow-sm hover:scale-[1.02] active:scale-[0.98]">
               <Download className="w-3.5 h-3.5" />
               <span>Download</span>
-            </Button>
+            </button>
           </a>
         </div>
       </nav>

@@ -61,7 +61,7 @@ const PLANS = [
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-[#fafaf7] dark:bg-[#161614] text-neutral-900 dark:text-neutral-100 flex flex-col justify-between antialiased">
+    <div className="min-h-screen bg-white text-neutral-900 flex flex-col justify-between antialiased">
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-6 pt-36 pb-24 text-center">

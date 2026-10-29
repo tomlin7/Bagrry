@@ -1,48 +1,50 @@
+'use client'
+
 import React from 'react'
 
 export function Footer() {
   return (
-    <footer className="py-16 border-t border-black/[0.06] dark:border-white/[0.06] text-neutral-500 text-xs">
-      <div className="max-w-[1140px] mx-auto px-6">
+    <footer className="py-16 border-t border-black/[0.08] bg-white text-neutral-500 text-sm">
+      <div className="max-w-[1024px] mx-auto px-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-12">
           {/* Brand & Tagline */}
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-5 h-5 rounded bg-[#c3dd4f] flex items-center justify-center text-[#1e2604] font-bold text-[10px]">
+              <div className="w-6 h-6 rounded-md bg-black text-white flex items-center justify-center font-bold text-xs tracking-tighter shadow-sm">
                 B
               </div>
-              <span className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">
+              <span className="font-bold text-neutral-900 text-base">
                 Bagrry
               </span>
             </div>
-            <p className="text-neutral-400">
-              Personal intelligence that comes to you.
+            <p className="text-neutral-500 text-sm">
+              Personal intelligence that comes to you
             </p>
           </div>
 
-          {/* Links */}
-          <div className="flex flex-wrap items-center gap-6 text-neutral-600 dark:text-neutral-400 font-medium">
-            <a href="#privacy" className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
+          {/* Legal Links matching projectminimi */}
+          <div className="flex flex-wrap items-center gap-6 text-[14px] text-neutral-600 font-medium">
+            <a href="#privacy" className="hover:text-black transition-colors">
               Privacy policy
             </a>
-            <a href="#terms" className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
+            <a href="#terms" className="hover:text-black transition-colors">
               Terms of service
             </a>
-            <a href="#refund" className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
+            <a href="#refund" className="hover:text-black transition-colors">
               Refund policy
             </a>
-            <a href="#mcp" className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
-              MCP Protocol
+            <a href="#disclosure" className="hover:text-black transition-colors">
+              Disclosure
             </a>
-            <a href="mailto:support@bagrry.dev" className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
+            <a href="mailto:support@bagrry.dev" className="hover:text-black transition-colors">
               Contact us
             </a>
           </div>
         </div>
 
-        <div className="pt-8 border-t border-black/[0.04] dark:border-white/[0.04] flex flex-col sm:flex-row items-center justify-between gap-4 text-neutral-400 text-[11px]">
-          <span>© 2026 Bagrry Intelligence, Inc. All rights reserved.</span>
-          <span>Rendered natively with GPUIX · Powered by Local Whisper & MCP</span>
+        <div className="pt-8 border-t border-black/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4 text-neutral-400 text-xs">
+          <span>© 2026 Bagrry Intelligence, Inc.</span>
+          <span>Local Whisper STT · SQLite WAL Storage · Model Context Protocol</span>
         </div>
       </div>
     </footer>

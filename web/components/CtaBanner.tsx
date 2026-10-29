@@ -1,46 +1,39 @@
+'use client'
+
 import React from 'react'
-import { Download, Apple } from 'lucide-react'
-import { Button } from './ui/button'
+import Image from 'next/image'
+import { Download } from 'lucide-react'
 
 export function CtaBanner() {
   return (
-    <section className="py-24 md:py-32 bg-neutral-900 text-white rounded-[2.5rem] mx-4 sm:mx-6 my-12 relative overflow-hidden text-center">
-      <div className="absolute inset-0 pointer-events-none opacity-25 bg-[radial-gradient(#c3dd4f_1px,transparent_1px)] [background-size:20px_20px]" />
+    <section className="py-24 md:py-32 bg-white overflow-hidden text-center">
+      <div className="max-w-[1024px] mx-auto px-6">
+        <div className="rounded-[32px] border border-black/[0.08] bg-[#f7f7f7] p-10 sm:p-16 md:p-20 relative overflow-hidden flex flex-col items-center shadow-xs">
+          <h2 className="text-[34px] sm:text-[44px] md:text-[48px] font-semibold tracking-tight text-black mb-4 leading-[1.15]">
+            Stay on top of your work
+          </h2>
+          <p className="text-[18px] sm:text-[21px] text-neutral-600 mb-10 max-w-md font-normal">
+            No setup needed. Just download and begin.
+          </p>
 
-      <div className="max-w-[800px] mx-auto px-6 relative z-10">
-        <h2 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4">
-          Stay on top of your work
-        </h2>
-        <p className="text-neutral-400 text-base md:text-xl leading-relaxed mb-10 max-w-xl mx-auto">
-          No setup needed. No meeting bots. Just download and begin taking notes that close your open loops.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
           <a href="/download">
-            <Button
-              variant="accent"
-              size="pill"
-              className="w-full sm:w-auto px-8 gap-2.5 hover:scale-[1.02] active:scale-[0.98] shadow-lg"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download for Windows</span>
-            </Button>
+            <button className="h-[54px] w-[250px] rounded-[10px] bg-black hover:bg-neutral-800 text-white font-medium text-[16px] transition-all flex items-center justify-center gap-3 shadow-md hover:scale-[1.01] active:scale-[0.99] mb-8">
+              <Download className="w-5 h-5" />
+              <span>Download for Mac</span>
+            </button>
           </a>
-          <a href="/download?platform=mac">
-            <Button
-              variant="dark"
-              size="pill"
-              className="w-full sm:w-auto px-7 gap-2.5 border border-white/20 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Apple className="w-4 h-4" />
-              <span>Download for macOS</span>
-            </Button>
-          </a>
-        </div>
 
-        <p className="text-xs text-neutral-500 font-mono">
-          Free unlimited notes · No credit card required
-        </p>
+          {/* Decorative illustration sticker matching projectminimi */}
+          <div className="relative mt-2">
+            <Image
+              src="/assets/img_20.png"
+              alt="Stay on top of your work sticker"
+              width={160}
+              height={120}
+              className="object-contain"
+            />
+          </div>
+        </div>
       </div>
     </section>
   )

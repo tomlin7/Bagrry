@@ -1,101 +1,82 @@
+'use client'
+
 import React from 'react'
-import { Card, CardTitle, CardDescription } from './ui/card'
-import { Button } from './ui/button'
+import Image from 'next/image'
 import { ArrowUpRight } from 'lucide-react'
 
 export function McpShowcase() {
   return (
-    <section id="mcp" className="py-24 md:py-32">
-      <div className="max-w-[1140px] mx-auto px-6">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#7e9900] dark:text-[#c3dd4f] block mb-3">
-            Ecosystem & Integrations
-          </span>
-          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+    <section id="memory" className="py-24 md:py-32 bg-white">
+      <div className="max-w-[1024px] mx-auto px-6">
+        <div className="text-center mb-16">
+          <h2 className="text-[34px] sm:text-[42px] font-semibold tracking-tight text-black">
             How does it work?
           </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-          {/* Pillar 1: Memory MCP */}
-          <Card className="p-8 md:p-10 flex flex-col justify-between relative overflow-hidden group">
+          {/* Card 1: Memory MCP */}
+          <div className="rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-10 flex flex-col justify-between overflow-hidden shadow-xs hover:border-black/[0.15] transition-all">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-neutral-900 text-white dark:bg-white dark:text-neutral-900">
-                  Standard Protocol
-                </span>
-                <span className="text-xs font-mono text-neutral-400">port 47821</span>
-              </div>
-
-              <CardTitle className="text-2xl md:text-3xl mb-3">
+              <h3 className="text-[26px] sm:text-[30px] font-semibold text-black mb-3 tracking-tight">
                 Memory MCP
-              </CardTitle>
-              <CardDescription className="text-base text-neutral-600 dark:text-neutral-400 mb-6">
-                Captures your personal meeting context so you never explain yourself to AI again. Plugs into Claude Desktop, Cursor, ChatGPT, and autonomous coding agents.
-              </CardDescription>
+              </h3>
+              <p className="text-[16px] sm:text-[18px] text-neutral-600 mb-8 leading-relaxed font-normal">
+                Captures your personal context so you never explain yourself to AI again.
+              </p>
 
-              {/* Code snippet showing MCP JSON-RPC call */}
-              <div className="p-4 rounded-2xl bg-neutral-900 text-neutral-200 text-xs font-mono leading-relaxed overflow-x-auto shadow-inner mb-6">
-                <div className="flex items-center justify-between text-neutral-500 text-[10px] pb-2 mb-2 border-b border-neutral-800">
-                  <span>POST /mcp · JSON-RPC 2.0</span>
-                  <span className="text-emerald-400">Connected</span>
-                </div>
-                <p className="text-neutral-400">{`// Claude asking Bagrry MCP for meeting context:`}</p>
-                <p className="text-emerald-400">{`mcp.tools.call("query_meetings", {`}</p>
-                <p className="pl-4 text-neutral-300">{`"query": "Q4 architecture decisions"`}</p>
-                <p className="text-emerald-400">{`})`}</p>
+              <div className="rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs mb-8">
+                <Image
+                  src="/assets/img_18.png"
+                  alt="Memory MCP"
+                  width={600}
+                  height={600}
+                  className="w-full h-auto object-cover"
+                />
               </div>
             </div>
 
-            <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="pill" className="gap-2 text-xs font-medium">
-                <span>Check out MCP specs</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </Button>
-            </a>
-          </Card>
-
-          {/* Pillar 2: Open Loops Inbox */}
-          <Card className="p-8 md:p-10 flex flex-col justify-between relative overflow-hidden group border-2 border-neutral-900/10 dark:border-white/15">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#c3dd4f] text-[#1e2604]">
-                  Active Core
-                </span>
-                <span className="text-xs font-mono text-neutral-400">Zero Missed Tasks</span>
-              </div>
+              <a
+                href="https://modelcontextprotocol.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-black/[0.15] bg-white hover:bg-neutral-50 text-neutral-900 text-sm font-medium transition-all shadow-xs"
+              >
+                <span>Check out MCP</span>
+                <ArrowUpRight className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
 
-              <CardTitle className="text-2xl md:text-3xl mb-3">
+          {/* Card 2: Open loops Inbox */}
+          <div className="rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-10 flex flex-col justify-between overflow-hidden shadow-xs hover:border-black/[0.15] transition-all relative">
+            <div>
+              <h3 className="text-[26px] sm:text-[30px] font-semibold text-black mb-3 tracking-tight">
                 Open loops Inbox
-              </CardTitle>
-              <CardDescription className="text-base text-neutral-600 dark:text-neutral-400 mb-6">
-                Uses your personal context and never lets you miss your commitments. Seamlessly tracks what you owe others and what others owe you.
-              </CardDescription>
+              </h3>
+              <p className="text-[16px] sm:text-[18px] text-neutral-600 mb-8 leading-relaxed font-normal">
+                Uses your personal context and never lets you miss your commitments.
+              </p>
 
-              {/* Task Cards Preview */}
-              <div className="space-y-2.5 mb-6">
-                <div className="p-3 rounded-xl bg-neutral-50 dark:bg-[#282826] border border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between text-xs">
-                  <span className="font-medium text-neutral-800 dark:text-neutral-200">
-                    Review native window drag benchmark numbers
-                  </span>
-                  <span className="font-mono text-neutral-400 text-[10px]">Oct 30</span>
-                </div>
-                <div className="p-3 rounded-xl bg-neutral-50 dark:bg-[#282826] border border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between text-xs">
-                  <span className="font-medium text-neutral-800 dark:text-neutral-200">
-                    Draft follow-up email to Vertex Systems leadership
-                  </span>
-                  <span className="font-mono text-neutral-400 text-[10px]">Today</span>
-                </div>
+              <div className="rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs mb-8">
+                <Image
+                  src="/assets/img_19.png"
+                  alt="Open loops Inbox"
+                  width={600}
+                  height={600}
+                  className="w-full h-auto object-cover"
+                />
               </div>
             </div>
 
-            {/* Playful Handwritten Note Badge */}
-            <div className="flex items-center gap-2 pt-4">
-              <span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 font-serif italic bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700/60 px-3 py-1.5 rounded-full shadow-sm">
+            {/* Handwritten annotation badge matching projectminimi */}
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-serif italic font-bold shadow-xs">
                 ✏️ You are here right now
               </span>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     </section>

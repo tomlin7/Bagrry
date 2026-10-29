@@ -1,32 +1,43 @@
-import React from 'react'
+'use client'
 
-const COMPANIES = [
-  'Linear',
-  'Vercel',
-  'Supabase',
-  'OpenAI',
-  'Stripe',
-  'Figma',
-  'Notion',
-  'Retool',
+import React from 'react'
+import Image from 'next/image'
+
+const LOGOS = [
+  { name: 'Anthropic', src: '/assets/img_02.png', width: 140, height: 23 },
+  { name: 'Google', src: '/assets/img_03.png', width: 90, height: 28 },
+  { name: 'WeWork', src: '/assets/img_04.png', width: 95, height: 26 },
+  { name: 'Emergent', src: '/assets/img_05.png', width: 120, height: 26 },
+  { name: 'Parallel AI', src: '/assets/img_06.png', width: 130, height: 25 },
+  { name: 'CRED', src: '/assets/img_07.png', width: 85, height: 28 },
+  { name: 'Blinkit', src: '/assets/img_08.png', width: 80, height: 24 },
+  { name: 'Composio', src: '/assets/img_09.png', width: 110, height: 26 },
 ]
 
 export function SocialProof() {
   return (
-    <section className="py-12 border-y border-black/[0.06] dark:border-white/[0.06] bg-neutral-50/50 dark:bg-neutral-900/30">
-      <div className="max-w-[1140px] mx-auto px-6 text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-400 dark:text-neutral-500 mb-6">
-          TRUSTED BY BUILDERS & TEAMS AT
-        </p>
+    <section className="py-12 border-y border-black/[0.05] bg-white overflow-hidden">
+      <div className="max-w-[1024px] mx-auto px-6 mb-8 text-center">
+        <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+          TRUSTED BY FOLKS AT
+        </span>
+      </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-8 md:gap-14">
-          {COMPANIES.map((company) => (
-            <span
-              key={company}
-              className="text-base md:text-lg font-bold tracking-tight text-neutral-400 hover:text-neutral-700 dark:text-neutral-600 dark:hover:text-neutral-300 transition-colors select-none"
+      <div className="relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_15%,black_85%,transparent)]">
+        <div className="flex items-center gap-16 animate-marquee w-max py-2">
+          {[...LOGOS, ...LOGOS].map((logo, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-center grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-200 cursor-pointer"
             >
-              {company}
-            </span>
+              <Image
+                src={logo.src}
+                alt={logo.name}
+                width={logo.width}
+                height={logo.height}
+                className="h-6 w-auto object-contain"
+              />
+            </div>
           ))}
         </div>
       </div>
