@@ -64,6 +64,11 @@ export function BagrryApp(_props?: any) {
     }
   }, [setPaletteOpen, toggleSidebar, createMeeting, back])
 
+  // Initial sync with local daemon server
+  useEffect(() => {
+    useBagrryStore.getState().syncWithServer()
+  }, [])
+
   return (
     <div
       testId="bagrry-root"

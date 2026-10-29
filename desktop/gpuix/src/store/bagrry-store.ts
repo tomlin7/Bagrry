@@ -23,6 +23,7 @@ import {
   routeKey,
 } from '../types'
 import { DARK_THEME, LIGHT_THEME, type BagrryColors } from '../theme'
+import { api } from '../api/client'
 
 const SEED_FOLDERS: Folder[] = [
   { id: 'fld_roadmap', parent_id: null, name: 'Product Roadmap', is_shared: false, icon: 'map', description: 'Q3 & Q4 product initiatives and feature specs' },
@@ -332,6 +333,7 @@ interface BagrryStore {
   resetCalendar: () => void
   importCalendarEvents: (events: CalendarEvent[]) => void
   deleteAllData: () => void
+  syncWithServer: () => Promise<void>
 }
 
 let recInterval: any = null
@@ -499,11 +501,13 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
     }
     set({ meetings: [newNote, ...get().meetings] })
     get().openNote(newNote.id)
+    api.createMeeting(newNote.title, newNote.folder_id).catch(() => {})
     return newNote
   },
 
   deleteMeeting: (id) => {
     set({ meetings: get().meetings.filter((m) => m.id !== id) })
+    api.deleteMeeting(id).catch(() => {})
     const r = get().route
     if (r.kind === 'note' && r.noteId === id) {
       get().back()
@@ -529,6 +533,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
         m.id === id ? { ...m, title, updated_at: new Date().toISOString() } : m
       ),
     })
+    api.saveTitle(id, title).catch(() => {})
   },
 
   saveScratchpad: (id, raw, json = null) => {
@@ -537,6 +542,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
         m.id === id ? { ...m, scratchpad_raw: raw, scratchpad_json: json, updated_at: new Date().toISOString() } : m
       ),
     })
+    api.saveScratchpad(id, raw).catch(() => {})
   },
 
   saveEnhancedNotes: (id, enhancedJson) => {
@@ -545,6 +551,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
         m.id === id ? { ...m, enhanced_notes_json: enhancedJson, updated_at: new Date().toISOString() } : m
       ),
     })
+    api.saveEnhancedNotes(id, enhancedJson).catch(() => {})
   },
 
   moveMeeting: (id, folderId) => {
@@ -553,11 +560,23 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
         m.id === id ? { ...m, folder_id: folderId, updated_at: new Date().toISOString() } : m
       ),
     })
+    api.moveMeeting(id, folderId).catch(() => {})
   },
 
   enhanceMeeting: async (id) => {
     const note = get().meetings.find((m) => m.id === id)
     if (!note) return
+
+    try {
+      const res = await api.enhanceMeeting(id)
+      if (res && res.enhanced_notes) {
+        get().saveEnhancedNotes(id, JSON.stringify(res.enhanced_notes))
+        return
+      }
+    } catch {
+      // offline / fallback
+    }
+
     const enhanced: EnhancedDoc = {
       sections: [
         {
@@ -594,6 +613,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
       description: null,
     }
     set({ folders: [...get().folders, newFolder] })
+    api.createFolder(name, isShared).catch(() => {})
     return newFolder
   },
 
@@ -601,6 +621,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
     set({
       folders: get().folders.map((f) => (f.id === id ? { ...f, name } : f)),
     })
+    api.renameFolder(id, name).catch(() => {})
   },
 
   deleteFolder: (id) => {
@@ -608,14 +629,18 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
       folders: get().folders.filter((f) => f.id !== id),
       meetings: get().meetings.map((m) => (m.folder_id === id ? { ...m, folder_id: null } : m)),
     })
+    api.deleteFolder(id).catch(() => {})
   },
 
   toggleActionItem: (id) => {
+    const target = get().actionItems.find((item) => item.id === id)
+    const newDone = target ? !target.done : false
     set({
       actionItems: get().actionItems.map((item) =>
-        item.id === id ? { ...item, done: !item.done } : item
+        item.id === id ? { ...item, done: newDone } : item
       ),
     })
+    api.toggleActionItem(id, newDone).catch(() => {})
   },
 
   addActionItem: (meetingId, task, owner = 'You', deadline = null) => {
@@ -630,10 +655,12 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
       done: false,
     }
     set({ actionItems: [newItem, ...get().actionItems] })
+    api.createActionItem(task, meetingId, owner, deadline || undefined).catch(() => {})
   },
 
   deleteActionItem: (id) => {
     set({ actionItems: get().actionItems.filter((item) => item.id !== id) })
+    api.deleteActionItem(id).catch(() => {})
   },
 
   addPerson: (name, email = '') => {
@@ -647,6 +674,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
       last_note_at: null,
     }
     set({ people: [newPerson, ...get().people] })
+    api.createPerson(name, email).catch(() => {})
     return newPerson
   },
 
@@ -659,6 +687,7 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
       last_note_at: null,
     }
     set({ companies: [newCompany, ...get().companies] })
+    api.createCompany(name, domain).catch(() => {})
     return newCompany
   },
 
@@ -800,5 +829,29 @@ export const useBagrryStore = create<BagrryStore>((set, get) => ({
       chatSessions: [],
       chatMessages: {},
     })
+  },
+
+  syncWithServer: async () => {
+    try {
+      const health = await api.checkHealth()
+      if (health.status === 'ok') {
+        const [meetings, folders, actionItems, people, companies] = await Promise.all([
+          api.listMeetings().catch(() => null),
+          api.listFolders().catch(() => null),
+          api.listActionItems().catch(() => null),
+          api.listPeople().catch(() => null),
+          api.listCompanies().catch(() => null),
+        ])
+        set((state) => ({
+          meetings: meetings && meetings.length > 0 ? meetings : state.meetings,
+          folders: folders && folders.length > 0 ? folders : state.folders,
+          actionItems: actionItems && actionItems.length > 0 ? actionItems : state.actionItems,
+          people: people && people.length > 0 ? people : state.people,
+          companies: companies && companies.length > 0 ? companies : state.companies,
+        }))
+      }
+    } catch {
+      // Offline / server not running — continue with local optimistic state
+    }
   },
 }))
