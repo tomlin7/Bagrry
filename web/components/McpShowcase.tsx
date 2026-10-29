@@ -19,10 +19,10 @@ export function McpShowcase() {
           <div className="rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-10 flex flex-col justify-between overflow-hidden shadow-xs hover:border-black/[0.15] transition-all">
             <div>
               <h3 className="text-[26px] sm:text-[30px] font-semibold text-black mb-3 tracking-tight">
-                Memory MCP
+                Memory MCP Server
               </h3>
               <p className="text-[16px] sm:text-[18px] text-neutral-600 mb-8 leading-relaxed font-normal">
-                Captures your personal context so you never explain yourself to AI again.
+                Exposes your meeting knowledge to Claude Desktop, Cursor, and AI agents via local JSON-RPC on port 47821. Never re-explain past decisions to AI again.
               </p>
 
               <div className="rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs mb-8">
@@ -56,7 +56,7 @@ export function McpShowcase() {
                 Open loops Inbox
               </h3>
               <p className="text-[16px] sm:text-[18px] text-neutral-600 mb-8 leading-relaxed font-normal">
-                Uses your personal context and never lets you miss your commitments.
+                Aggregates every commitment across all calls into &apos;Owed by Me&apos; and &apos;Owed to Me&apos; so nothing slips through the cracks.
               </p>
 
               <div className="rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs mb-8">

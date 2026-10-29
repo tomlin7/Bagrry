@@ -26,7 +26,7 @@ export function WorksLikeMagic() {
                 Bagrry finds your open loops
               </h3>
               <p className="text-[16px] sm:text-[18px] text-neutral-600 leading-relaxed font-normal">
-                Captures your personal context and finds your high-value action-items.
+                Captures dual-channel audio from your mic and meeting attendees, linking high-value action items to the exact sentence spoken.
               </p>
             </div>
 
@@ -51,7 +51,7 @@ export function WorksLikeMagic() {
                 then closes them automatically
               </h3>
               <p className="text-[16px] sm:text-[18px] text-neutral-600 leading-relaxed font-normal">
-                Traces your decisions, and resolves closed loops without manual effort.
+                Traces your decisions, drafts one-click follow-up recaps, and resolves open loops without manual post-meeting admin.
               </p>
             </div>
 
@@ -70,10 +70,10 @@ export function WorksLikeMagic() {
           <div className="md:col-span-12 rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-12 overflow-hidden shadow-xs hover:border-black/[0.15] transition-all">
             <div className="max-w-xl mb-10">
               <h3 className="text-[26px] sm:text-[32px] font-semibold text-black mb-3 tracking-tight">
-                Supports all apps
+                Supports all meeting apps
               </h3>
               <p className="text-[16px] sm:text-[18px] text-neutral-600 leading-relaxed font-normal">
-                Bagrry works right out of the box without the need for any integrations.
+                Bagrry records audio directly through native OS loopback. No awkward meeting bots joining your calls.
               </p>
             </div>
 

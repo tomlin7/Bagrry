@@ -16,7 +16,7 @@ export function OwnYourMemory() {
               Own your memory
             </h2>
             <p className="text-[17px] sm:text-[19px] text-neutral-400 font-normal leading-relaxed">
-              We take privacy very seriously. Your data remains yours only.
+              We take confidentiality seriously. Your audio recordings, transcripts, and meeting notes remain strictly on your machine.
             </p>
           </div>
 
@@ -31,7 +31,7 @@ export function OwnYourMemory() {
                   Stored on your device
                 </h3>
                 <p className="text-[15px] text-neutral-400 leading-relaxed font-normal">
-                  Your memory is stored on your device in high-speed local storage.
+                  All notes, citations, and scratchpads are saved locally in high-speed SQLite with WAL mode.
                 </p>
               </div>
             </div>
@@ -46,7 +46,7 @@ export function OwnYourMemory() {
                   No cloud database
                 </h3>
                 <p className="text-[15px] text-neutral-400 leading-relaxed font-normal">
-                  None of your data is stored on our servers.
+                  Zero telemetry. Run transcription locally with offline Whisper models or your own private API keys.
                 </p>
               </div>
             </div>

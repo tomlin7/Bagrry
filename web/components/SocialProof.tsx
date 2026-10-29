@@ -19,7 +19,7 @@ export function SocialProof() {
     <section className="py-12 border-y border-black/[0.05] bg-white overflow-hidden">
       <div className="max-w-[1024px] mx-auto px-6 mb-8 text-center">
         <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
-          TRUSTED BY FOLKS AT
+          TRUSTED BY TEAMS IN BACK-TO-BACK MEETINGS
         </span>
       </div>
 

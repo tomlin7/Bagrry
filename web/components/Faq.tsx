@@ -6,23 +6,23 @@ import { ChevronDown } from 'lucide-react'
 const FAQS = [
   {
     q: 'How can Bagrry help me?',
-    a: 'Bagrry first creates memories to know you really well. Then it taps into this to find and automatically close open loops for you. If you context-switch frequently, this can be a life-saver for you.',
+    a: 'Bagrry is your AI meeting notepad for back-to-back calls. While you take rough scratchpad notes during a call, Bagrry captures dual-channel audio in the background, synthesizes structured summaries with sentence-level citations, and extracts high-value action items into your Open Loops Inbox.',
   },
   {
-    q: 'What is memory?',
-    a: 'Memory is your personal context. Just like your brain relies on your senses to see, hear or speak to create and store memories in the physical world, Bagrry does this for your digital activity on your device.',
+    q: 'What is memory in Bagrry?',
+    a: 'Memory is your personal meeting knowledge base. Just like your brain recalls previous agreements and context, Bagrry organizes all past conversations, attendee dossiers, and decisions locally on your device so you never lose context.',
   },
   {
     q: 'What is Bagrry MCP?',
-    a: 'Bagrry MCP is like a digital pendrive that you can use to plug all your memories into any AI, including LLMs like Claude, ChatGPT, Cursor, etc and autonomous AI coding agents.',
+    a: 'Bagrry includes a built-in Model Context Protocol (MCP) server running locally on port 47821. It acts as a bridge to plug your meeting context, past decisions, and open loops into external AI tools like Claude Desktop, Cursor, ChatGPT, and autonomous AI agents.',
   },
   {
-    q: 'How private is my data?',
-    a: "Your memory is stored on your device. We strictly do not store any of your private data on our servers. We don't retain your data or train on it.",
+    q: 'How private is my meeting data?',
+    a: "100% on-device confidentiality. Your audio, transcripts, and notes are stored in a local SQLite database with WAL mode on your computer. We do not store your data on cloud servers, retain logs, or train models on your private discussions.",
   },
   {
-    q: 'Do you take screenshots?',
-    a: "No, we don't take screenshots of your screen. We capture meeting audio and context natively via your local sound architecture and accessibility infrastructure on your device.",
+    q: 'Do meeting bots join my calls or do you take screenshots?',
+    a: 'No meeting bots ever join your calls, and we never take intrusive screen captures. Bagrry captures meeting audio directly through native OS loopback (WASAPI on Windows, CoreAudio on macOS) and your local microphone.',
   },
 ]
 

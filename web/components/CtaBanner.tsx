@@ -13,7 +13,7 @@ export function CtaBanner() {
             Stay on top of your work
           </h2>
           <p className="text-[18px] sm:text-[21px] text-neutral-600 mb-10 max-w-md font-normal">
-            No setup needed. Just download and begin.
+            No meeting bots. No cloud telemetry. Just download and start closing your open loops.
           </p>
 
           <a href="/download">

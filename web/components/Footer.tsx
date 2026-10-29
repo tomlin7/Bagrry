@@ -18,7 +18,7 @@ export function Footer() {
               </span>
             </div>
             <p className="text-neutral-500 text-sm">
-              Personal intelligence that comes to you
+              Personal meeting intelligence that stays on your device
             </p>
           </div>
 

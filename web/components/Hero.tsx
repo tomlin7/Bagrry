@@ -20,20 +20,20 @@ export function Hero() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Column: Headline, Subtitle, CTA */}
           <div className="lg:col-span-7 flex flex-col items-start text-left">
-            {/* Main Headline matching projectminimi */}
+            {/* Main Headline matching product identity */}
             <h1 className="text-[34px] sm:text-[42px] font-semibold leading-[1.1] tracking-tight text-black mb-6">
               AI notepad that{' '}
               <span className="text-[#ff8133] inline-block font-semibold">
-                pings
+                closes
               </span>{' '}
-              you
+              your
               <br />
-              at the right moment
+              open loops in meetings
             </h1>
 
-            {/* Subtitle matching projectminimi */}
+            {/* Subtitle matching product identity */}
             <p className="text-[18px] sm:text-[21px] leading-[1.4] text-neutral-600 max-w-[500px] mb-8 font-normal">
-              Bagrry captures your personal context and never lets you miss your commitments.
+              Bagrry captures your meeting context, links citations into verbatim transcripts, and extracts every open loop without bots.
             </p>
 
             {/* CTA Download Button */}

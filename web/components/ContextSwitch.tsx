@@ -14,7 +14,7 @@ export function ContextSwitch() {
               Context-switch like a Pro
             </h2>
             <p className="text-[18px] sm:text-[21px] text-neutral-600 mb-8 leading-[1.4] font-normal">
-              Bagrry never misses what should be on your plate.
+              Back-to-back calls? Bagrry catches you up on past meetings with any contact before you jump in.
             </p>
 
             <a href="/download">
