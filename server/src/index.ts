@@ -10,6 +10,7 @@ import { handleDirectoryRoutes } from './routes/directory'
 import { handleSearchRoutes } from './routes/search'
 import { handleWebhookRoutes } from './routes/webhooks'
 import { handleKeyRoutes } from './routes/keys'
+import { handleAudioRoutes } from './routes/audio'
 import { handleMcpRequest } from './mcp/server'
 
 export function createServer(customDb?: Database, customPort?: number) {
@@ -77,7 +78,11 @@ export function createServer(customDb?: Database, customPort?: number) {
       const noteRes = await handleNotesRoutes(req, db, ctx)
       if (noteRes) return withCors(noteRes)
 
-      // 8. Folders Routes
+      // 8. Audio Transcription & Note Audio Ingestion Routes
+      const audioRes = await handleAudioRoutes(req, db, ctx)
+      if (audioRes) return withCors(audioRes)
+
+      // 9. Folders Routes
       const folderRes = await handleFolderRoutes(req, db, ctx)
       if (folderRes) return withCors(folderRes)
 

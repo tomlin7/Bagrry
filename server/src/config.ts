@@ -7,6 +7,7 @@ export const CONFIG = {
   groqApiKey: process.env.GROQ_API_KEY || '',
   defaultChatModel: 'llama-3.3-70b-versatile',
   defaultSttModel: 'whisper-large-v3-turbo',
+  whisperCliPath: process.env.WHISPER_CLI || 'whisper-cli',
   version: '1.0.0',
   appName: 'Bagrry Server',
 }

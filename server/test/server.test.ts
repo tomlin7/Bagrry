@@ -313,4 +313,55 @@ describe('Bagrry Server Test Suite', () => {
     const callData = await callRes.json() as any
     expect(callData.result.content[0].text).toContain('GPUIX')
   })
+
+  // 10. Audio Ingestion & Whisper Transcription
+  it('transcribes standalone audio and handles note dual-channel audio upload with auto-enhancement', async () => {
+    // 1. Standalone transcribe
+    const formData = new FormData()
+    const dummyAudio = new Blob(['RIFF....WAVEfmt '], { type: 'audio/wav' })
+    formData.append('file', dummyAudio, 'test_recording.wav')
+    formData.append('speaker', 'me')
+
+    const transRes = await fetch(`${baseUrl}/v1/audio/transcribe`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${testToken}` },
+      body: formData,
+    })
+    expect(transRes.status).toBe(200)
+    const transData = await transRes.json() as any
+    expect(transData.segments.length).toBeGreaterThan(0)
+    expect(transData.segments[0].sentence_id).toBe('s_001')
+
+    // 2. Upload meeting audio directly to a note with dual-channel (mic + attendees)
+    const nRes = await fetch(`${baseUrl}/v1/notes`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({
+        title: 'Executive Sync on Native Engine',
+        scratchpad_raw: 'Transitioning to GPUIX to maximize client speed and responsive window dragging.',
+      }),
+    })
+    const note = (await nRes.json() as any).note
+
+    const dualForm = new FormData()
+    dualForm.append('file', dummyAudio, 'mic.wav')
+    dualForm.append('attendees_file', dummyAudio, 'speaker.wav')
+    dualForm.append('auto_enhance', 'true')
+
+    const noteAudioRes = await fetch(`${baseUrl}/v1/notes/${note.id}/audio`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${testToken}` },
+      body: dualForm,
+    })
+    expect(noteAudioRes.status).toBe(201)
+    const noteAudioData = await noteAudioRes.json() as any
+    expect(noteAudioData.success).toBe(true)
+    expect(noteAudioData.segments_count).toBeGreaterThanOrEqual(2)
+    expect(noteAudioData.enhanced_notes.sections.length).toBeGreaterThan(0)
+
+    // Verify segments stored in DB
+    const getNote = await fetch(`${baseUrl}/v1/notes/${note.id}`, { headers: authHeaders })
+    const noteDetails = (await getNote.json() as any).note
+    expect(noteDetails.transcript_segments.length).toBe(noteAudioData.segments_count)
+  })
 })
