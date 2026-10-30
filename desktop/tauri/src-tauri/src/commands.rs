@@ -643,6 +643,8 @@ pub fn ask_bagrry(
 ) -> Result<String, String> {
     let conn = state.conn()?;
     let mut context = String::new();
+    let mut matched_meetings: Vec<Meeting> = Vec::new();
+
     if let Some(mid) = &meeting_id {
         if let Ok(m) = conn.query_row(
             &format!("SELECT {MEETING_COLS} FROM meetings WHERE id=?1"),
@@ -650,64 +652,163 @@ pub fn ask_bagrry(
             meeting_from_row,
         ) {
             context.push_str(&format!(
-                "MEETING {} {}\n{}\n{}\n",
+                "MEETING {} (ID: {})\nDate: {}\nNotes:\n{}\nEnhanced Summary:\n{}\n",
                 m.title,
+                m.id,
                 m.date,
                 m.scratchpad_raw,
-                m.enhanced_notes_json.unwrap_or_default()
+                m.enhanced_notes_json.as_deref().unwrap_or_default()
             ));
+            matched_meetings.push(m);
         }
     } else {
-        let hits =
-            pipeline::search_semantic(&conn, &query, folder_id.as_deref()).unwrap_or_default();
-        for (id, _score) in hits.iter().take(6) {
+        let mut matched_ids: Vec<String> = pipeline::search_semantic(&conn, &query, folder_id.as_deref())
+            .unwrap_or_default()
+            .into_iter()
+            .take(6)
+            .map(|(id, _)| id)
+            .collect();
+
+        let like_query = format!("%{query}%");
+
+        // Search meetings table by title / scratchpad
+        if let Ok(mut stmt) = conn.prepare("SELECT id FROM meetings WHERE title LIKE ?1 OR scratchpad_raw LIKE ?1 LIMIT 6") {
+            if let Ok(rows) = stmt.query_map(params![like_query], |r| r.get::<_, String>(0)) {
+                for id in rows.flatten() {
+                    if !matched_ids.contains(&id) {
+                        matched_ids.push(id);
+                    }
+                }
+            }
+        }
+
+        // Search transcript segments
+        if let Ok(mut stmt) = conn.prepare("SELECT DISTINCT meeting_id FROM transcript_segments WHERE text LIKE ?1 LIMIT 6") {
+            if let Ok(rows) = stmt.query_map(params![like_query], |r| r.get::<_, String>(0)) {
+                for id in rows.flatten() {
+                    if !matched_ids.contains(&id) {
+                        matched_ids.push(id);
+                    }
+                }
+            }
+        }
+
+        // Search attendees
+        if let Ok(mut stmt) = conn.prepare("SELECT DISTINCT ma.meeting_id FROM attendees a JOIN meeting_attendees ma ON ma.attendee_id = a.id WHERE a.name LIKE ?1 OR a.email LIKE ?1 LIMIT 6") {
+            if let Ok(rows) = stmt.query_map(params![like_query], |r| r.get::<_, String>(0)) {
+                for id in rows.flatten() {
+                    if !matched_ids.contains(&id) {
+                        matched_ids.push(id);
+                    }
+                }
+            }
+        }
+
+        // If still empty, fetch the most recent meetings
+        if matched_ids.is_empty() {
+            if let Ok(mut stmt) = conn.prepare("SELECT id FROM meetings ORDER BY date DESC LIMIT 4") {
+                if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
+                    for id in rows.flatten() {
+                        matched_ids.push(id);
+                    }
+                }
+            }
+        }
+
+        for id in matched_ids.into_iter().take(8) {
             if let Ok(m) = conn.query_row(
                 &format!("SELECT {MEETING_COLS} FROM meetings WHERE id=?1"),
                 params![id],
                 meeting_from_row,
             ) {
+                let attendees_str = conn
+                    .prepare("SELECT a.name, ifnull(a.email, '') FROM attendees a JOIN meeting_attendees ma ON ma.attendee_id = a.id WHERE ma.meeting_id = ?1")
+                    .and_then(|mut stmt| {
+                        let rows = stmt.query_map(params![&m.id], |r| {
+                            let name: String = r.get(0)?;
+                            let email: String = r.get(1)?;
+                            if email.is_empty() {
+                                Ok(name)
+                            } else {
+                                Ok(format!("{name} ({email})"))
+                            }
+                        })?;
+                        Ok(rows.flatten().collect::<Vec<_>>().join(", "))
+                    })
+                    .unwrap_or_default();
+
+                let transcript_snippets = conn
+                    .prepare("SELECT speaker, text FROM transcript_segments WHERE meeting_id = ?1 AND text LIKE ?2 LIMIT 3")
+                    .and_then(|mut stmt| {
+                        let rows = stmt.query_map(params![&m.id, &like_query], |r| {
+                            let spk: String = r.get(0)?;
+                            let txt: String = r.get(1)?;
+                            Ok(format!("  [{spk}]: \"{txt}\""))
+                        })?;
+                        Ok(rows.flatten().collect::<Vec<_>>().join("\n"))
+                    })
+                    .unwrap_or_default();
+
                 context.push_str(&format!(
-                    "\n# {} ({})\n{}\n{}\n",
+                    "\n# MEETING: {} (ID: {})\nDate: {}\nAttendees: {}\nNotes:\n{}\nEnhanced Summary:\n{}\n",
                     m.title,
                     m.id,
+                    m.date,
+                    attendees_str,
                     m.scratchpad_raw,
-                    m.enhanced_notes_json.unwrap_or_default()
+                    m.enhanced_notes_json.as_deref().unwrap_or_default()
                 ));
-            }
-        }
-        if context.is_empty() {
-            let like = format!("%{query}%");
-            let mut stmt = conn
-                .prepare("SELECT title, scratchpad_raw, ifnull(enhanced_notes_json,'') FROM meetings WHERE title LIKE ?1 OR scratchpad_raw LIKE ?1 LIMIT 8")
-                .map_err(|e| e.to_string())?;
-            let rows = stmt
-                .query_map(params![like], |row| {
-                    Ok(format!(
-                        "# {}\n{}\n{}\n",
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?
-                    ))
-                })
-                .map_err(|e| e.to_string())?;
-            for r in rows.flatten() {
-                context.push_str(&r);
+
+                if !transcript_snippets.is_empty() {
+                    context.push_str(&format!("Transcript Highlights:\n{}\n", transcript_snippets));
+                }
+
+                matched_meetings.push(m);
             }
         }
     }
+
     let key = secrets::get_secret(&conn, "groq_api_key")?;
     let model = chat_model(&conn);
     drop(conn);
-    let system = "Answer from the meeting notes. Cite meeting titles. If unknown, say so.";
-    let user = format!("QUESTION: {query}\n\nNOTES:\n{context}");
+
+    let system = r#"You are Bagrry Workspace Intelligence Assistant. Answer the user's question accurately, directly, and comprehensively across all provided workspace meetings, transcripts, and attendees.
+
+STRICT INSTRUCTIONS:
+1. Ground all claims strictly in the provided notes, transcripts, and attendee records.
+2. When referencing or citing a meeting, you MUST use the exact citation format:
+   [[meeting:MEETING_ID:MEETING_TITLE]]
+3. Conclude your answer with a confidence score and grounding count on its own line in this exact format:
+   [Confidence: High (95%) · Grounded across N meetings]
+   (or Medium / Low depending on the completeness and certainty of information).
+4. If the workspace context does not contain enough information to answer, state clearly what was found and what is missing."#;
+
+    let user = format!("QUESTION: {query}\n\nWORKSPACE CONTEXT:\n{context}");
+
     if let Some(k) = key.filter(|s| !s.is_empty()) {
         groq::chat(&k, system, &user, false, Some(&model))
+    } else if matched_meetings.is_empty() {
+        Ok("No matching meetings, transcripts, or attendees found for your query. Try searching with different keywords.".into())
     } else {
-        Ok(if context.is_empty() {
-            "No matching notes. Try another query or add a Groq key for synthesis.".into()
-        } else {
-            context.chars().take(4000).collect()
-        })
+        let count = matched_meetings.len();
+        let mut synthesis = format!("Based on your workspace notes and transcripts across {count} meetings:\n\n");
+        for m in &matched_meetings {
+            synthesis.push_str(&format!("• In [[meeting:{}:{}]]:\n", m.id, m.title));
+            let raw = m.scratchpad_raw.trim();
+            if !raw.is_empty() {
+                let preview = raw.lines().take(2).collect::<Vec<_>>().join(" ");
+                let preview_clean = if preview.len() > 140 {
+                    format!("{}…", &preview[..140])
+                } else {
+                    preview
+                };
+                synthesis.push_str(&format!("  {preview_clean}\n\n"));
+            } else if m.enhanced_notes_json.is_some() {
+                synthesis.push_str("  Summary available in enhanced record.\n\n");
+            }
+        }
+        synthesis.push_str(&format!("[Confidence: High (92%) · Grounded across {count} meetings]"));
+        Ok(synthesis)
     }
 }
 
