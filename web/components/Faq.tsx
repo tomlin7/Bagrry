@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { Plus, Minus } from 'lucide-react'
 
 const FAQS = [
   {
@@ -9,12 +9,12 @@ const FAQS = [
     a: 'Traditional meeting tools send an intrusive bot into your call that announces recording and dumps a messy 10-page transcript nobody reads. Bagrry runs natively on your machine, captures audio directly via OS loopback with zero bots, and blends your human notes with AI enhancement.',
   },
   {
-    q: 'How does the "Enhance" feature work?',
-    a: 'During the call, you jot down quick, rough shorthand notes. Post-meeting, Bagrry merges your human emphasis with the verbatim audio transcript, filling in exact names, technical specs, and action items with sentence-level citations.',
+    q: 'How does Bagrry find open loops?',
+    a: 'During the call, Bagrry analyzes the conversation in real-time, identifying commitments made by you and others, and organizes them into high-value action items automatically.',
   },
   {
     q: 'What are sentence-level citations?',
-    a: 'Every bullet point created by the AI includes an interactive citation tag. Hovering or clicking it shows the exact sentence spoken by the attendee and gives you a 5-second audio scrubber to verify context immediately.',
+    a: 'Every bullet point created by the AI includes an interactive citation tag. Hovering or clicking it shows the exact sentence spoken by the attendee so you can verify context immediately.',
   },
   {
     q: 'What is the Local MCP Server?',
@@ -34,10 +34,11 @@ export function Faq() {
   }
 
   return (
-    <section id="faqs" className="py-24 md:py-32 bg-white">
-      <div className="max-w-[800px] mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-[34px] sm:text-[42px] font-semibold tracking-tight text-black">
+    <section id="faqs" className="py-20 md:py-28 bg-white">
+      <div className="max-w-[1024px] mx-auto px-6">
+        {/* Left-aligned title matching minimi */}
+        <div className="mb-12 text-left">
+          <h2 className="text-[36px] font-semibold tracking-tight text-black font-roboto">
             FAQs
           </h2>
         </div>
@@ -48,23 +49,25 @@ export function Faq() {
             return (
               <div
                 key={idx}
-                className="rounded-[20px] border border-black/[0.08] bg-[#f7f7f7] overflow-hidden transition-all shadow-xs"
+                className="rounded-[24px] bg-[#f2f2f2] overflow-hidden transition-all"
               >
                 <button
                   onClick={() => toggle(idx)}
-                  className="w-full p-6 text-left flex items-center justify-between gap-4 font-semibold text-[17px] text-black hover:text-neutral-700 transition-colors"
+                  className="w-full p-6 text-left flex items-center justify-between gap-4 font-medium text-[18px] text-black font-roboto cursor-pointer"
                 >
                   <span>{faq.q}</span>
-                  <ChevronDown
-                    className={`w-5 h-5 text-neutral-400 shrink-0 transition-transform duration-200 ${
-                      isOpen ? 'rotate-180 text-black' : ''
-                    }`}
-                  />
+                  <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center shrink-0">
+                    {isOpen ? (
+                      <Minus className="w-4 h-4 text-black" />
+                    ) : (
+                      <Plus className="w-4 h-4 text-black" />
+                    )}
+                  </div>
                 </button>
 
                 {isOpen && (
-                  <div className="px-6 pb-6 pt-0 text-[15px] leading-relaxed text-neutral-600 font-normal border-t border-black/[0.04]">
-                    <p className="pt-3">{faq.a}</p>
+                  <div className="px-6 pb-6 pt-0 text-[16px] leading-relaxed text-neutral-600 font-normal font-roboto">
+                    <p className="pt-2">{faq.a}</p>
                   </div>
                 )}
               </div>

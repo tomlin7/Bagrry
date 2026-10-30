@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { DM_Sans, Roboto, Geist_Mono } from 'next/font/google'
+import { DM_Sans, Roboto, Geist_Mono, Inter } from 'next/font/google'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -10,8 +10,15 @@ const dmSans = DM_Sans({
 
 const roboto = Roboto({
   subsets: ['latin'],
-  weight: ['400', '500', '700'],
+  weight: ['300', '400', '500', '700'],
   variable: '--font-roboto',
+  display: 'swap',
+})
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
+  variable: '--font-inter',
   display: 'swap',
 })
 
@@ -22,9 +29,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Bagrry: The AI Notepad for Back-to-Back Meetings',
+  title: 'Bagrry: AI notepad that closes your open loops in meetings',
   description:
-    'Bagrry captures your raw shorthand notes, listens without meeting bots, and enhances them into structured recaps with verified citations.',
+    'Bagrry captures your meeting context and never lets you miss your commitments. Closes open loops automatically without meeting bots.',
   icons: {
     icon: '/favicon.ico',
   },
@@ -36,8 +43,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${roboto.variable} ${geistMono.variable} scroll-smooth`}>
-      <body className="font-sans antialiased text-neutral-900 bg-white selection:bg-[#ff8133]/20 selection:text-neutral-900">
+    <html lang="en" className={`${dmSans.variable} ${roboto.variable} ${inter.variable} ${geistMono.variable} scroll-smooth`}>
+      <body className="font-roboto antialiased text-neutral-900 bg-white selection:bg-[#ff8133]/20 selection:text-neutral-900">
         {children}
       </body>
     </html>

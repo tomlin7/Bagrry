@@ -1,23 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafaf7;
-  --foreground: #1c1c1a;
-  --accent: #c3dd4f;
-  --accent-fg: #1e2604;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #161614;
-    --foreground: #f2f2ee;
-  }
+  --background: #ffffff;
+  --foreground: #000000;
+  --accent: #ff8133;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  background-color: #ffffff;
+  color: #000000;
+  font-family: var(--font-roboto), -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

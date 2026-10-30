@@ -16,10 +16,10 @@ const LOGOS = [
 
 export function SocialProof() {
   return (
-    <section className="py-12 border-y border-black/[0.05] bg-white overflow-hidden">
+    <section className="py-14 bg-white overflow-hidden">
       <div className="max-w-[1024px] mx-auto px-6 mb-8 text-center">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
-          TRUSTED BY TEAMS IN BACK-TO-BACK MEETINGS
+        <span className="text-[18px] font-light text-[#999999] tracking-normal font-roboto">
+          TRUSTED BY FOLKS AT
         </span>
       </div>
 
@@ -28,14 +28,14 @@ export function SocialProof() {
           {[...LOGOS, ...LOGOS].map((logo, idx) => (
             <div
               key={idx}
-              className="flex items-center justify-center grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-200 cursor-pointer"
+              className="flex items-center justify-center grayscale opacity-80 hover:grayscale-0 hover:opacity-100 transition-all duration-200 cursor-pointer"
             >
               <Image
                 src={logo.src}
                 alt={logo.name}
                 width={logo.width}
                 height={logo.height}
-                className="h-6 w-auto object-contain"
+                className="h-7 w-auto object-contain"
               />
             </div>
           ))}

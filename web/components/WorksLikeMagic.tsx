@@ -5,116 +5,101 @@ import Image from 'next/image'
 
 export function WorksLikeMagic() {
   return (
-    <section id="how-it-works" className="py-24 md:py-32 bg-white">
+    <section id="works-like-magic" className="py-20 md:py-28 bg-white">
       <div className="max-w-[1024px] mx-auto px-6">
-        {/* Section Heading matching projectminimi */}
-        <div className="text-center mb-16">
-          <h2 className="text-[34px] sm:text-[42px] font-semibold tracking-tight text-black">
+        {/* Section Heading matching minimi: Left-aligned, 36px font-semibold */}
+        <div className="mb-12">
+          <h2 className="text-[36px] font-semibold tracking-tight text-black font-roboto">
             Works like magic
           </h2>
         </div>
 
-        {/* 3 Bento Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-          {/* Card 1: You write raw thoughts */}
-          <div className="md:col-span-6 rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-10 flex flex-col justify-between overflow-hidden shadow-xs hover:border-black/[0.15] transition-all">
-            <div className="mb-8">
-              <span className="text-[36px] sm:text-[42px] font-semibold text-neutral-400 block mb-2 leading-none">
-                1.
-              </span>
-              <h3 className="text-[24px] sm:text-[28px] font-semibold text-black mb-3 tracking-tight">
-                You write raw thoughts
-              </h3>
-              <p className="text-[16px] sm:text-[18px] text-neutral-600 leading-relaxed font-normal">
-                Take rapid, distraction-free notes during your call. Jot down shorthand bullets, key decisions, and whatever caught your attention.
-              </p>
-            </div>
-
-            {/* High-res Step 1 Screenshot */}
-            <div className="h-[280px] w-full rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs relative">
-              <Image
-                src="/assets/img_11.png"
-                alt="You write raw thoughts"
-                fill
-                className="object-cover object-top"
-              />
-            </div>
+        {/* 2-Column Headers: Step 1 and Step 2 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-8">
+          {/* Step 1 Column */}
+          <div className="flex flex-col items-start text-left">
+            <span className="text-[60px] font-semibold text-[#e3e3e3] leading-[0.7em] mb-4 font-roboto">
+              1.
+            </span>
+            <h3 className="text-[30px] font-semibold text-black mb-3 tracking-tight font-roboto">
+              Bagrry finds your open loops
+            </h3>
+            <p className="text-[21px] text-neutral-600 leading-[1.4] font-normal font-roboto">
+              Captures your meeting context and finds your high-value action-items.
+            </p>
           </div>
 
-          {/* Card 2: Bagrry enhances with transcript */}
-          <div className="md:col-span-6 rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-10 flex flex-col justify-between overflow-hidden shadow-xs hover:border-black/[0.15] transition-all">
-            <div className="mb-8">
-              <span className="text-[36px] sm:text-[42px] font-semibold text-neutral-400 block mb-2 leading-none">
-                2.
-              </span>
-              <h3 className="text-[24px] sm:text-[28px] font-semibold text-black mb-3 tracking-tight">
-                Bagrry enhances with transcript
-              </h3>
-              <p className="text-[16px] sm:text-[18px] text-neutral-600 leading-relaxed font-normal">
-                Post-meeting, Bagrry merges your human emphasis with verbatim audio, producing structured takeaways with clickable sentence citations.
-              </p>
-            </div>
-
-            {/* High-res Step 2 Screenshot */}
-            <div className="h-[280px] w-full rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs relative">
-              <Image
-                src="/assets/img_12.png"
-                alt="Bagrry enhances with transcript"
-                fill
-                className="object-cover object-top"
-              />
-            </div>
+          {/* Step 2 Column */}
+          <div className="flex flex-col items-start text-left">
+            <span className="text-[60px] font-semibold text-[#e3e3e3] leading-[0.7em] mb-4 font-roboto">
+              2.
+            </span>
+            <h3 className="text-[30px] font-semibold text-black mb-3 tracking-tight font-roboto">
+              then closes them automatically
+            </h3>
+            <p className="text-[21px] text-neutral-600 leading-[1.4] font-normal font-roboto">
+              Traces your decisions, and resolves closed loops without manual effort.
+            </p>
           </div>
+        </div>
 
-          {/* Card 3: Supports all apps (Full Width) */}
-          <div className="md:col-span-12 rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-12 overflow-hidden shadow-xs hover:border-black/[0.15] transition-all">
-            <div className="max-w-xl mb-10">
-              <h3 className="text-[26px] sm:text-[32px] font-semibold text-black mb-3 tracking-tight">
-                Works with all meeting platforms
-              </h3>
-              <p className="text-[16px] sm:text-[18px] text-neutral-600 leading-relaxed font-normal">
-                Bagrry captures audio directly through native OS loopback. No awkward bots joining your Zoom, Google Meet, Teams, or Slack calls.
-              </p>
+        {/* Combined Step 1 & Step 2 Visual Graphic (img_11.png from minimi) */}
+        <div className="relative w-full aspect-[2048/1248] rounded-[26px] overflow-hidden mb-24">
+          <Image
+            src="/assets/img_11.png"
+            alt="Works like magic preview"
+            fill
+            className="object-cover"
+            priority
+          />
+        </div>
+
+        {/* Supports all meeting apps */}
+        <div className="text-left max-w-2xl">
+          <h3 className="text-[36px] font-semibold text-black mb-3 tracking-tight font-roboto">
+            Supports all meeting apps
+          </h3>
+          <p className="text-[21px] text-neutral-600 leading-[1.4] font-normal font-roboto mb-8">
+            Bagrry works right out of the box without the need for any integration.
+          </p>
+
+          {/* App Pill Badges with clean neutral style */}
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-3 bg-[#f2f2f2] px-5 py-3 rounded-2xl">
+              <Image
+                src="/assets/img_13.png"
+                alt="WhatsApp"
+                width={28}
+                height={28}
+                className="w-7 h-7 object-contain"
+              />
+              <span className="text-[18px] font-normal text-black font-roboto">WhatsApp</span>
             </div>
 
-            {/* App Icons Row matching projectminimi */}
-            <div className="flex flex-wrap items-center gap-6 sm:gap-10">
-              <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl border border-black/[0.06] shadow-xs">
-                <Image
-                  src="/assets/img_13.png"
-                  alt="WhatsApp"
-                  width={32}
-                  height={32}
-                  className="w-8 h-8 object-contain"
-                />
-                <span className="text-sm font-medium text-neutral-800">WhatsApp</span>
-              </div>
+            <div className="flex items-center gap-3 bg-[#f2f2f2] px-5 py-3 rounded-2xl">
+              <Image
+                src="/assets/img_14.png"
+                alt="Gmail"
+                width={28}
+                height={28}
+                className="w-7 h-7 object-contain"
+              />
+              <span className="text-[18px] font-normal text-black font-roboto">Gmail</span>
+            </div>
 
-              <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl border border-black/[0.06] shadow-xs">
-                <Image
-                  src="/assets/img_14.png"
-                  alt="Gmail"
-                  width={32}
-                  height={32}
-                  className="w-8 h-8 object-contain"
-                />
-                <span className="text-sm font-medium text-neutral-800">Gmail</span>
-              </div>
+            <div className="flex items-center gap-3 bg-[#f2f2f2] px-5 py-3 rounded-2xl">
+              <Image
+                src="/assets/img_15.png"
+                alt="Calendar"
+                width={28}
+                height={28}
+                className="w-7 h-7 object-contain"
+              />
+              <span className="text-[18px] font-normal text-black font-roboto">Calendar</span>
+            </div>
 
-              <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl border border-black/[0.06] shadow-xs">
-                <Image
-                  src="/assets/img_15.png"
-                  alt="Calendar"
-                  width={32}
-                  height={32}
-                  className="w-8 h-8 object-contain"
-                />
-                <span className="text-sm font-medium text-neutral-800">Calendar</span>
-              </div>
-
-              <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl border border-black/[0.06] shadow-xs">
-                <span className="text-sm font-medium text-neutral-500">and more…</span>
-              </div>
+            <div className="flex items-center bg-[#f2f2f2] px-5 py-3 rounded-2xl">
+              <span className="text-[18px] font-normal text-neutral-500 font-roboto">and more…</span>
             </div>
           </div>
         </div>

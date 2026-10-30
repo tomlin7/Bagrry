@@ -1,54 +1,69 @@
 'use client'
 
 import React from 'react'
-import { HardDrive, EyeOff } from 'lucide-react'
 
 export function OwnYourMemory() {
   return (
-    <section id="privacy" className="py-16 bg-white">
+    <section id="memory" className="py-20 md:py-28 bg-white">
       <div className="max-w-[1024px] mx-auto px-6">
-        <div className="rounded-[32px] bg-[#1c1c1c] text-white p-8 sm:p-14 md:p-16 relative overflow-hidden">
-          {/* Subtle background radial pattern */}
-          <div className="absolute inset-0 pointer-events-none opacity-15 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px]" />
+        {/* Left-aligned title and subtitle matching minimi */}
+        <div className="max-w-xl mb-10 text-left">
+          <h2 className="text-[36px] font-semibold tracking-tight text-black mb-3 font-roboto">
+            Own your memory
+          </h2>
+          <p className="text-[21px] text-neutral-600 font-normal leading-[1.4] font-roboto">
+            We take privacy very seriously. Your data remains yours only.
+          </p>
+        </div>
 
-          <div className="relative z-10 max-w-xl mb-12 text-left">
-            <h2 className="text-[34px] sm:text-[42px] font-semibold tracking-tight text-white mb-3">
-              Your notes stay yours
-            </h2>
-            <p className="text-[17px] sm:text-[19px] text-neutral-400 font-normal leading-relaxed">
-              We take privacy seriously. Your audio recordings, transcripts, and enhanced notes remain strictly on your machine.
-            </p>
+        {/* 2 Clean Grey Cards with NO borders */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+          {/* Card 1: Stored on your PC */}
+          <div className="p-8 sm:p-10 rounded-[24px] bg-[#f2f2f2] flex flex-col justify-between">
+            <div>
+              {/* Clean Laptop Outline Icon matching minimi */}
+              <div className="mb-6">
+                <svg
+                  className="w-8 h-8 text-black stroke-[1.75]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <rect x="3" y="4" width="18" height="12" rx="2" />
+                  <path d="M2 20h20" />
+                </svg>
+              </div>
+              <h3 className="text-[24px] font-semibold text-black mb-2 tracking-tight font-roboto">
+                Stored on your PC
+              </h3>
+              <p className="text-[18px] text-neutral-600 leading-relaxed font-normal font-roboto">
+                Your memory is stored on your device.
+              </p>
+            </div>
           </div>
 
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Pillar 1: Stored on your device */}
-            <div className="p-8 rounded-[24px] bg-[#242424] border border-white/10 flex flex-col justify-between">
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6 text-white">
-                  <HardDrive className="w-6 h-6 text-neutral-200" />
-                </div>
-                <h3 className="text-[22px] font-semibold text-white mb-2 tracking-tight">
-                  Stored on your device
-                </h3>
-                <p className="text-[15px] text-neutral-400 leading-relaxed font-normal">
-                  All notes, citations, and scratchpads are saved locally in high-speed SQLite with WAL mode. Complete data ownership.
-                </p>
+          {/* Card 2: No cloud database */}
+          <div className="p-8 sm:p-10 rounded-[24px] bg-[#f2f2f2] flex flex-col justify-between">
+            <div>
+              {/* Clean Lock Outline Icon matching minimi */}
+              <div className="mb-6">
+                <svg
+                  className="w-8 h-8 text-black stroke-[1.75]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <rect x="5" y="11" width="14" height="10" rx="2" />
+                  <circle cx="12" cy="16" r="1.5" />
+                  <path d="M8 11V7a4 4 0 018 0v4" />
+                </svg>
               </div>
-            </div>
-
-            {/* Pillar 2: Zero meeting bots */}
-            <div className="p-8 rounded-[24px] bg-[#242424] border border-white/10 flex flex-col justify-between">
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6 text-white">
-                  <EyeOff className="w-6 h-6 text-neutral-200" />
-                </div>
-                <h3 className="text-[22px] font-semibold text-white mb-2 tracking-tight">
-                  Zero meeting bots
-                </h3>
-                <p className="text-[15px] text-neutral-400 leading-relaxed font-normal">
-                  No awkward recording bots joining your calls, no screen recording telemetry, and zero model training on your data.
-                </p>
-              </div>
+              <h3 className="text-[24px] font-semibold text-black mb-2 tracking-tight font-roboto">
+                No cloud database
+              </h3>
+              <p className="text-[18px] text-neutral-600 leading-relaxed font-normal font-roboto">
+                None of your data is stored on our servers.
+              </p>
             </div>
           </div>
         </div>

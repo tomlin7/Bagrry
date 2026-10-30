@@ -6,7 +6,7 @@ import { Star } from 'lucide-react'
 const TESTIMONIALS = [
   {
     quote:
-      'Bagrry is the first meeting app that doesn’t get in my way. I take three messy bullet points during a call, and it enhances them into an executive summary with clickable audio citations.',
+      'Bagrry is the first meeting app that doesn’t get in my way. I take three messy bullet points during a call, and it closes my open loops before I even switch tabs.',
     author: 'Elena Rostova',
     role: 'Head of Product',
     company: 'Veloce AI',
@@ -32,19 +32,21 @@ const TESTIMONIALS = [
 
 export function Testimonials() {
   return (
-    <section className="py-24 md:py-32 bg-white">
+    <section className="py-20 md:py-28 bg-white">
       <div className="max-w-[1024px] mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-[34px] sm:text-[42px] font-semibold tracking-tight text-black">
+        {/* Left-aligned title matching minimi */}
+        <div className="mb-12 text-left">
+          <h2 className="text-[36px] font-semibold tracking-tight text-black font-roboto">
             Folks love Bagrry
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* 3 Clean Grey Cards with NO borders */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
           {TESTIMONIALS.map((t, idx) => (
             <div
               key={idx}
-              className="rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 flex flex-col justify-between shadow-xs hover:border-black/[0.15] transition-all"
+              className="rounded-[24px] bg-[#f2f2f2] p-8 flex flex-col justify-between"
             >
               <div className="mb-8">
                 <div className="flex gap-1 text-amber-400 mb-4">
@@ -52,18 +54,18 @@ export function Testimonials() {
                     <Star key={i} className="w-4 h-4 fill-current text-amber-400" />
                   ))}
                 </div>
-                <p className="text-[15px] leading-relaxed text-neutral-700 italic">
+                <p className="text-[17px] leading-relaxed text-neutral-800 font-roboto">
                   &ldquo;{t.quote}&rdquo;
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 pt-4 border-t border-black/[0.06]">
+              <div className="flex items-center gap-3 pt-4">
                 <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs">
                   {t.avatar}
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-neutral-900">{t.author}</h4>
-                  <p className="text-xs text-neutral-500">{t.role} · {t.company}</p>
+                  <h4 className="text-[16px] font-semibold text-black font-roboto">{t.author}</h4>
+                  <p className="text-[14px] text-neutral-500 font-roboto">{t.role} · {t.company}</p>
                 </div>
               </div>
             </div>

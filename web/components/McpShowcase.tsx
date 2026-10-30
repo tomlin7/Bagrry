@@ -6,42 +6,41 @@ import { ArrowUpRight } from 'lucide-react'
 
 export function McpShowcase() {
   return (
-    <section id="enhance" className="py-24 md:py-32 bg-white">
+    <section id="how-it-works" className="py-20 md:py-28 bg-white">
       <div className="max-w-[1024px] mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-[34px] sm:text-[42px] font-semibold tracking-tight text-black">
+        {/* Left-aligned title matching minimi */}
+        <div className="mb-12 text-left">
+          <h2 className="text-[36px] font-semibold tracking-tight text-black font-roboto">
             How does it work?
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-          {/* Card 1: Model Context Protocol */}
-          <div className="rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-10 flex flex-col justify-between overflow-hidden shadow-xs hover:border-black/[0.15] transition-all">
-            <div>
-              <h3 className="text-[26px] sm:text-[30px] font-semibold text-black mb-3 tracking-tight">
-                Model Context Protocol (MCP)
-              </h3>
-              <p className="text-[16px] sm:text-[18px] text-neutral-600 mb-8 leading-relaxed font-normal">
-                Exposes your meeting knowledge to Claude Desktop, Cursor, and AI agents via local JSON-RPC on port 47821. Never re-explain past decisions to AI again.
-              </p>
-
-              <div className="rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs mb-8">
-                <Image
-                  src="/assets/img_18.png"
-                  alt="Model Context Protocol"
-                  width={600}
-                  height={600}
-                  className="w-full h-auto object-cover"
-                />
-              </div>
+        {/* 2-Column Grid with NO outer border boxes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+          {/* Column 1: Model Context Protocol */}
+          <div className="flex flex-col text-left">
+            <div className="relative w-full aspect-square rounded-[26px] overflow-hidden mb-6">
+              <Image
+                src="/assets/img_18.png"
+                alt="Model Context Protocol"
+                fill
+                className="object-cover"
+              />
             </div>
+
+            <h3 className="text-[26px] font-semibold text-black mb-2 tracking-tight font-roboto">
+              Model Context Protocol (MCP)
+            </h3>
+            <p className="text-[18px] text-neutral-600 mb-6 leading-relaxed font-normal font-roboto">
+              Exposes your meeting knowledge to Claude Desktop, Cursor, and AI agents via local JSON-RPC on port 47821. Never re-explain past decisions to AI again.
+            </p>
 
             <div>
               <a
                 href="https://modelcontextprotocol.io"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-black/[0.15] bg-white hover:bg-neutral-50 text-neutral-900 text-sm font-medium transition-all shadow-xs"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#f2f2f2] hover:bg-neutral-200 text-black text-[15px] font-medium transition-all"
               >
                 <span>Check out MCP</span>
                 <ArrowUpRight className="w-4 h-4" />
@@ -49,31 +48,27 @@ export function McpShowcase() {
             </div>
           </div>
 
-          {/* Card 2: Templates & Recipes */}
-          <div className="rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-10 flex flex-col justify-between overflow-hidden shadow-xs hover:border-black/[0.15] transition-all relative">
-            <div>
-              <h3 className="text-[26px] sm:text-[30px] font-semibold text-black mb-3 tracking-tight">
-                Templates & Recipes
-              </h3>
-              <p className="text-[16px] sm:text-[18px] text-neutral-600 mb-8 leading-relaxed font-normal">
-                Apply tailored formats for 1:1s, sales discovery, sprint syncs, or run 1-click recipes to draft follow-up emails in your exact voice.
-              </p>
-
-              <div className="rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs mb-8">
-                <Image
-                  src="/assets/img_19.png"
-                  alt="Templates and Recipes"
-                  width={600}
-                  height={600}
-                  className="w-full h-auto object-cover"
-                />
-              </div>
+          {/* Column 2: Open loops Inbox */}
+          <div className="flex flex-col text-left">
+            <div className="relative w-full aspect-square rounded-[26px] overflow-hidden mb-6">
+              <Image
+                src="/assets/img_19.png"
+                alt="Open loops Inbox"
+                fill
+                className="object-cover"
+              />
             </div>
 
-            {/* Handwritten annotation badge matching projectminimi */}
+            <h3 className="text-[26px] font-semibold text-black mb-2 tracking-tight font-roboto">
+              Open loops Inbox
+            </h3>
+            <p className="text-[18px] text-neutral-600 mb-6 leading-relaxed font-normal font-roboto">
+              Aggregates every commitment across all calls into &apos;Owed by Me&apos; and &apos;Owed to Me&apos; so nothing slips through the cracks.
+            </p>
+
             <div>
-              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-serif italic font-bold shadow-xs">
-                ⚡ 1-click follow-up recipes
+              <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-amber-100 text-amber-900 text-[14px] font-serif italic font-bold">
+                ✏️ You are here right now
               </span>
             </div>
           </div>
