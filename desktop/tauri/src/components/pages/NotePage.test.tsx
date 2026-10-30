@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { NotePage } from "./NotePage";
+import * as api from "@/lib/api";
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -31,7 +32,22 @@ vi.mock("@/lib/api", async (importOriginal) => {
     }),
     listMeetingAttendees: vi.fn().mockResolvedValue([]),
     listFolders: vi.fn().mockResolvedValue([]),
-    listTemplates: vi.fn().mockResolvedValue([]),
+    listTemplates: vi.fn().mockResolvedValue([
+      {
+        id: "tpl_1on1",
+        name: "1-on-1 Sync",
+        icon: "users",
+        prompt_template: "Catch-up notes and action items.",
+        structure_json: JSON.stringify({ sections: ["Catch-up", "Action Items"] }),
+      },
+      {
+        id: "tpl_arch",
+        name: "Technical Architecture Review",
+        icon: "code",
+        prompt_template: "ADR style.",
+        structure_json: JSON.stringify({ sections: ["Decisions", "Next Steps"] }),
+      },
+    ]),
     listRecipes: vi.fn().mockResolvedValue([]),
     listPeople: vi.fn().mockResolvedValue([]),
     listSegments: vi.fn().mockResolvedValue([]),
@@ -42,7 +58,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   };
 });
 
-describe("NotePage Dual-Pane Editor", () => {
+describe("NotePage Dual-Pane Editor & Templates", () => {
   it("renders dual-pane split view with scratchpad and enhanced sections by default", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -62,12 +78,12 @@ describe("NotePage Dual-Pane Editor", () => {
     expect(screen.getByText("Notes")).toBeDefined();
     expect(screen.getByText("Enhanced")).toBeDefined();
 
-    // Verify subheaders in split view
-    expect(screen.getByText("Raw Scratchpad")).toBeDefined();
+    // Verify scratchpad and enhanced subheaders
+    expect(await screen.findByText("Raw Scratchpad")).toBeDefined();
     expect(screen.getByText("AI Enhanced")).toBeDefined();
 
-    // Verify enhanced notes content is present
-    expect(screen.getByText("Executive Summary")).toBeDefined();
+    // Verify content rendered
+    expect(await screen.findByText("Executive Summary")).toBeDefined();
     expect(
       screen.getByText("Agreed to use local SQLite with WAL mode for all offline meeting storage."),
     ).toBeDefined();
@@ -101,5 +117,30 @@ describe("NotePage Dual-Pane Editor", () => {
     fireEvent.keyDown(window, { key: "1", ctrlKey: true });
     expect(await screen.findByText("Raw Scratchpad")).toBeDefined();
     expect(await screen.findByText("AI Enhanced")).toBeDefined();
+  });
+
+  it("supports dynamic re-enhancement with specialized meeting templates", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <TooltipProvider>
+        <QueryClientProvider client={queryClient}>
+          <NotePage noteId="note_123" />
+        </QueryClientProvider>
+      </TooltipProvider>,
+    );
+
+    expect(await screen.findByText("AI Enhanced")).toBeDefined();
+
+    // Re-Enhance button present
+    const reEnhanceBtn = await screen.findByRole("button", { name: /Re-Enhance/i });
+    expect(reEnhanceBtn).toBeDefined();
+    fireEvent.click(reEnhanceBtn);
+
+    await waitFor(() => {
+      expect(api.enhanceMeeting).toHaveBeenCalled();
+    });
   });
 });

@@ -1393,14 +1393,49 @@ pub fn save_custom_template(
     name: String,
     prompt_template: String,
     structure_json: String,
+    icon: Option<String>,
+) -> Result<Template, String> {
+    let conn = state.conn()?;
+    let id = new_id("tpl");
+    let icon_val = icon.unwrap_or_else(|| "sparkles".into());
+    conn.execute(
+        "INSERT INTO templates (id, name, prompt_template, structure_json, icon)
+         VALUES (?1,?2,?3,?4,?5)",
+        params![&id, &name, &prompt_template, &structure_json, &icon_val],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(Template {
+        id,
+        name,
+        icon: Some(icon_val),
+        prompt_template,
+        structure_json: Some(structure_json),
+    })
+}
+
+#[tauri::command]
+pub fn update_custom_template(
+    state: State<AppState>,
+    id: String,
+    name: String,
+    prompt_template: String,
+    structure_json: String,
+    icon: Option<String>,
 ) -> Result<(), String> {
     let conn = state.conn()?;
     conn.execute(
-        "INSERT INTO templates (id, name, prompt_template, structure_json, icon)
-         VALUES (?1,?2,?3,?4,'sparkles')",
-        params![new_id("tpl"), name, prompt_template, structure_json],
+        "UPDATE templates SET name=?1, prompt_template=?2, structure_json=?3, icon=coalesce(?4, icon) WHERE id=?5",
+        params![name, prompt_template, structure_json, icon, id],
     )
     .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_custom_template(state: State<AppState>, id: String) -> Result<(), String> {
+    let conn = state.conn()?;
+    conn.execute("DELETE FROM templates WHERE id=?1", params![id])
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 

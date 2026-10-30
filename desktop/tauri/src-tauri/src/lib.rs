@@ -88,6 +88,8 @@ pub fn run() {
             commands::list_templates,
             commands::list_recipes,
             commands::save_custom_template,
+            commands::update_custom_template,
+            commands::delete_custom_template,
             commands::save_custom_recipe,
             commands::start_recording,
             commands::stop_recording,

@@ -145,8 +145,34 @@ export const resetCalendar = () => invoke<void>("reset_calendar");
 
 export const listTemplates = () => invoke<Template[]>("list_templates");
 export const listRecipes = () => invoke<Recipe[]>("list_recipes");
-export const saveCustomTemplate = (name: string, promptTemplate: string, structureJson: string) =>
-  invoke<void>("save_custom_template", { name, promptTemplate, structureJson });
+export const saveCustomTemplate = (
+  name: string,
+  promptTemplate: string,
+  structureJson: string,
+  icon?: string | null,
+) =>
+  invoke<Template>("save_custom_template", {
+    name,
+    promptTemplate,
+    structureJson,
+    icon: icon ?? null,
+  });
+export const updateCustomTemplate = (
+  id: string,
+  name: string,
+  promptTemplate: string,
+  structureJson: string,
+  icon?: string | null,
+) =>
+  invoke<void>("update_custom_template", {
+    id,
+    name,
+    promptTemplate,
+    structureJson,
+    icon: icon ?? null,
+  });
+export const deleteCustomTemplate = (id: string) =>
+  invoke<void>("delete_custom_template", { id });
 export const saveCustomRecipe = (name: string, promptTemplate: string) =>
   invoke<void>("save_custom_recipe", { name, promptTemplate });
 

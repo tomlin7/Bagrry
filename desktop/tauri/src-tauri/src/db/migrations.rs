@@ -335,6 +335,26 @@ const V7: &str = r#"
 ALTER TABLE meetings ADD COLUMN scratchpad_json TEXT;
 "#;
 
+/// Built-in meeting template presets matching Issue #30.
+const V8: &str = r#"
+INSERT OR REPLACE INTO templates (id, name, prompt_template, structure_json, icon) VALUES
+('tpl_1on1', '1-on-1 Sync',
+ 'Anchor on the user scratchpad. Expand catch-up notes, personal wins, critical feedback, career goals, and agreed action items using transcript quotes.',
+ '{"sections":["Catch-up","Personal Wins","Critical Feedback","Career Goals","Action Items"]}', 'users'),
+('tpl_discovery', 'Customer Discovery / User Interview',
+ 'Anchor on the user scratchpad. Extract problem validation, feature requests, key verbatim quotes, objections, and willingness to pay.',
+ '{"sections":["Problem Validation","Feature Requests","Key Quotes","Objections","Willingness to Pay"]}', 'search'),
+('tpl_standup', 'Daily Standup / Agile Sync',
+ 'Anchor on the user scratchpad. Capture completed items, today''s planned tasks, active blockers, and dependency mapping.',
+ '{"sections":["Completed Yesterday","Planned Today","Active Blockers","Dependencies"]}', 'kanban'),
+('tpl_arch', 'Technical Architecture Review',
+ 'Structure as an Architectural Decision Record (ADR). Capture the problem context, chosen architecture, alternatives considered, trade-offs, security implications, and technical next steps.',
+ '{"sections":["Context & Problem","Architectural Decisions (ADR)","Alternatives Considered","Trade-offs & Security","Next Steps"]}', 'code'),
+('tpl_sales', 'Sales Call / Prospect Demo',
+ 'Extract BANT qualification (Budget, Authority, Need, Timeline), core customer pain points, competitor mentions, and follow-up commitments with citations.',
+ '{"sections":["BANT Framework (Budget, Authority, Need, Timeline)","Customer Pain Points","Competitor Mentions","Follow-up Commitments"]}', 'briefcase');
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -421,6 +441,16 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("record v7: {e}"))?;
+    }
+
+    if current < 8 {
+        conn.execute_batch(V8)
+            .map_err(|e| format!("migration v8: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (8)",
+            [],
+        )
+        .map_err(|e| format!("record v8: {e}"))?;
     }
 
     if vec_enabled {

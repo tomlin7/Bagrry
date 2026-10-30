@@ -24,6 +24,13 @@ import { NoteEditor, type NoteEditorHandle } from "@/components/notes/NoteEditor
 import { EnhancedNotes } from "@/components/notes/EnhancedNotes";
 import { TranscriptPanel } from "@/components/notes/TranscriptPanel";
 import { AudioPlayerBar } from "@/components/notes/AudioPlayerBar";
+import {
+  TemplateDialog,
+  getTemplateIcon,
+  parseTemplateSections,
+} from "@/components/templates/TemplateDialog";
+import type { Template } from "@/lib/types";
+import { ChevronDown, Edit3, PlusCircle } from "lucide-react";
 import { AskBar } from "@/components/chat/AskBar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/misc";
@@ -60,6 +67,9 @@ export function NotePage({ noteId }: { noteId: string }) {
   const [stats, setStats] = useState({ words: 0, chars: 0 });
   const [isResizing, setIsResizing] = useState(false);
   const [selection, setSelection] = useState("");
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templateToEdit, setTemplateToEdit] = useState<Template | null>(null);
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const editorRef = useRef<NoteEditorHandle>(null);
   const splitContainerRef = useRef<HTMLDivElement>(null);
 
@@ -525,20 +535,102 @@ export function NotePage({ noteId }: { noteId: string }) {
             >
               {/* Enhanced Subheader */}
               <div className="flex items-center justify-between border-b border-border/60 bg-hover/20 px-6 py-2 text-[11px] text-muted">
-                <span className="font-semibold uppercase tracking-wider text-subtle">
-                  AI Enhanced
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold uppercase tracking-wider text-subtle">
+                    AI Enhanced
+                  </span>
+                  {/* Template Switcher Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Switch meeting template persona"
+                        className="flex h-5 items-center gap-1.5 rounded-md border border-border bg-hover/40 px-2 text-[10.5px] font-medium text-muted transition-colors hover:border-border-strong hover:text-text cursor-pointer"
+                      >
+                        {(() => {
+                          const curr = templates.find((t) => t.id === activeTemplateId) || templates[0];
+                          const IconComp = getTemplateIcon(curr?.icon);
+                          return (
+                            <>
+                              <IconComp className="size-3 text-accent" />
+                              <span className="max-w-[120px] truncate">{curr?.name || "1-on-1 Sync"}</span>
+                              <ChevronDown className="size-2.5 opacity-60" />
+                            </>
+                          );
+                        })()}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-64 p-1">
+                      <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-subtle px-2 py-1">
+                        Meeting Templates
+                      </DropdownMenuLabel>
+                      {templates.map((t) => {
+                        const TIcon = getTemplateIcon(t.icon);
+                        const isSelected = activeTemplateId === t.id || (!activeTemplateId && t.id === templates[0]?.id);
+                        const isBuiltin = t.id.startsWith("tpl_1on1") || t.id.startsWith("tpl_discovery") || t.id.startsWith("tpl_standup") || t.id.startsWith("tpl_arch") || t.id.startsWith("tpl_sales");
+                        return (
+                          <DropdownMenuItem
+                            key={t.id}
+                            onSelect={() => {
+                              setActiveTemplateId(t.id);
+                              enhance.mutate(t.id);
+                            }}
+                            className="flex items-center justify-between text-xs group/item"
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <TIcon className={cn("size-3.5", isSelected ? "text-accent" : "text-muted")} />
+                              <span className="truncate">{t.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {!isBuiltin && (
+                                <button
+                                  type="button"
+                                  aria-label={`Edit ${t.name}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTemplateToEdit(t);
+                                    setTemplateDialogOpen(true);
+                                  }}
+                                  className="grid size-4 place-items-center text-subtle hover:text-text cursor-pointer"
+                                >
+                                  <Edit3 className="size-3" />
+                                </button>
+                              )}
+                              {isSelected && <Check className="size-3 text-accent" />}
+                            </div>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          setTemplateToEdit(null);
+                          setTemplateDialogOpen(true);
+                        }}
+                        className="flex items-center gap-2 text-xs font-medium text-accent"
+                      >
+                        <PlusCircle className="size-3.5" />
+                        <span>New Custom Template...</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
                 <div className="flex items-center gap-2">
                   {hasEnhanced && (
                     <Button
                       variant="ghost"
                       size="xs"
                       disabled={enhance.isPending}
-                      onClick={() => enhance.mutate(null)}
+                      onClick={() => enhance.mutate(activeTemplateId)}
                       className="h-5 gap-1 text-[10px] text-muted hover:text-text cursor-pointer"
                     >
-                      <RotateCcw className="size-2.5" />
-                      <span>Regenerate</span>
+                      {enhance.isPending ? (
+                        <Loader2 className="size-2.5 animate-spin text-accent" />
+                      ) : (
+                        <RotateCcw className="size-2.5" />
+                      )}
+                      <span>Re-Enhance</span>
                     </Button>
                   )}
                 </div>
@@ -575,19 +667,43 @@ export function NotePage({ noteId }: { noteId: string }) {
                     </Button>
 
                     {templates.length > 0 && (
-                      <div className="mt-8 flex flex-col items-center gap-2">
-                        <span className="text-[11px] text-subtle">Or apply a specialized template:</span>
-                        <div className="flex flex-wrap justify-center gap-1.5">
-                          {templates.slice(0, 3).map((t) => (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => enhance.mutate(t.id)}
-                              className="rounded-full border border-border bg-hover/30 px-2.5 py-1 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-text cursor-pointer"
-                            >
-                              {t.name}
-                            </button>
-                          ))}
+                      <div className="mt-6 flex flex-col items-center gap-2 w-full max-w-lg">
+                        <span className="text-[11px] text-subtle">Or select a specialized meeting template:</span>
+                        <div className="grid grid-cols-2 gap-2 w-full text-left">
+                          {templates.map((t) => {
+                            const TIcon = getTemplateIcon(t.icon);
+                            const secs = parseTemplateSections(t.structure_json);
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => {
+                                  setActiveTemplateId(t.id);
+                                  enhance.mutate(t.id);
+                                }}
+                                className="flex flex-col gap-1 rounded-xl border border-border bg-surface-2/60 p-2.5 text-left transition-all hover:border-accent hover:bg-hover/50 hover:shadow-2xs cursor-pointer group"
+                              >
+                                <div className="flex items-center gap-1.5 font-medium text-[11.5px] text-text group-hover:text-accent">
+                                  <TIcon className="size-3.5 text-accent" />
+                                  <span className="truncate">{t.name}</span>
+                                </div>
+                                <p className="text-[9.5px] text-subtle line-clamp-1">
+                                  {secs.slice(0, 3).join(" · ")}
+                                </p>
+                              </button>
+                            );
+                          })}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTemplateToEdit(null);
+                              setTemplateDialogOpen(true);
+                            }}
+                            className="flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-hover/10 p-2.5 text-center transition-colors hover:border-accent hover:text-accent cursor-pointer text-muted text-[11px]"
+                          >
+                            <PlusCircle className="size-3.5 text-accent" />
+                            <span>+ Custom Template</span>
+                          </button>
                         </div>
                       </div>
                     )}
@@ -667,6 +783,17 @@ export function NotePage({ noteId }: { noteId: string }) {
       <div className="pointer-events-none absolute inset-x-0 bottom-16 z-30 px-6">
         <AudioPlayerBar meetingId={noteId} segments={segments} />
       </div>
+
+      {/* Template Builder & Customization Dialog */}
+      <TemplateDialog
+        open={templateDialogOpen}
+        onOpenChange={setTemplateDialogOpen}
+        templateToEdit={templateToEdit}
+        onSelectTemplate={(tid) => {
+          setActiveTemplateId(tid);
+          enhance.mutate(tid);
+        }}
+      />
 
       {/* Bottom Floating Bar: Transcript or AskBar */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-4">
