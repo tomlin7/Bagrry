@@ -12,6 +12,7 @@ import type {
   Folder,
   Meeting,
   Person,
+  PersonDossier,
   Profile,
   Recipe,
   RecStatus,
@@ -109,6 +110,32 @@ export const appendChatMessage = (sessionId: string, role: ChatRole, content: st
 
 export const searchMeetings = (query: string) => invoke<Meeting[]>("search_meetings", { query });
 export const listPeople = () => invoke<Person[]>("list_people");
+export const getPersonDossier = (personId: string) =>
+  invoke<PersonDossier>("get_person_dossier", { personId });
+export const updatePerson = (payload: {
+  id: string;
+  name: string;
+  email?: string | null;
+  role?: string | null;
+  companyName?: string | null;
+  notes?: string | null;
+  excluded?: boolean;
+}) =>
+  invoke<Person>("update_person", {
+    id: payload.id,
+    name: payload.name,
+    email: payload.email ?? null,
+    role: payload.role ?? null,
+    companyName: payload.companyName ?? null,
+    notes: payload.notes ?? null,
+    excluded: payload.excluded ?? false,
+  });
+export const mergePeople = (primaryId: string, duplicateId: string) =>
+  invoke<void>("merge_people", { primaryId, duplicateId });
+export const deletePerson = (id: string) =>
+  invoke<void>("delete_person", { id });
+export const indexAllAttendees = () =>
+  invoke<number>("index_all_attendees");
 export const listCompanies = () => invoke<Company[]>("list_companies");
 export const upsertPerson = (name: string, email?: string | null) =>
   invoke<Person>("upsert_person", { name, email: email ?? null });
@@ -236,6 +263,7 @@ export const qk = {
   templates: () => ["templates"] as const,
   recipes: () => ["recipes"] as const,
   people: () => ["people"] as const,
+  personDossier: (id: string) => ["person-dossier", id] as const,
   companies: () => ["companies"] as const,
   calendar: () => ["calendar"] as const,
   actionItems: () => ["action-items"] as const,

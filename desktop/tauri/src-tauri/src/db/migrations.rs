@@ -355,6 +355,15 @@ INSERT OR REPLACE INTO templates (id, name, prompt_template, structure_json, ico
  '{"sections":["BANT Framework (Budget, Authority, Need, Timeline)","Customer Pain Points","Competitor Mentions","Follow-up Commitments"]}', 'briefcase');
 "#;
 
+const V9: &str = r#"
+-- Add role, notes, and excluded columns to attendees for rich people dossiers and privacy controls
+ALTER TABLE attendees ADD COLUMN role TEXT;
+ALTER TABLE attendees ADD COLUMN notes TEXT;
+ALTER TABLE attendees ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0;
+
+UPDATE attendees SET role = 'Head of Infrastructure' WHERE id = 'p_alex';
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -451,6 +460,16 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("record v8: {e}"))?;
+    }
+
+    if current < 9 {
+        conn.execute_batch(V9)
+            .map_err(|e| format!("migration v9: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (9)",
+            [],
+        )
+        .map_err(|e| format!("record v9: {e}"))?;
     }
 
     if vec_enabled {

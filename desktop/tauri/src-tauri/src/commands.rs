@@ -61,15 +61,28 @@ pub struct Recipe {
     pub prompt_template: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Person {
     pub id: String,
     pub name: String,
     pub email: Option<String>,
     pub domain: Option<String>,
     pub company_id: Option<String>,
+    pub company_name: Option<String>,
+    pub role: Option<String>,
+    pub notes: Option<String>,
+    pub excluded: bool,
     pub note_count: i64,
+    pub total_duration_ms: i64,
     pub last_note_at: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct PersonDossier {
+    pub person: Person,
+    pub meetings: Vec<Meeting>,
+    pub action_items: Vec<ActionItem>,
+    pub catch_me_up_brief: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -704,9 +717,11 @@ pub fn list_people(state: State<AppState>) -> Result<Vec<Person>, String> {
     let conn = state.conn()?;
     let mut stmt = conn
         .prepare(
-            "SELECT a.id, a.name, a.email, a.domain, a.company_id,
-                    COUNT(m.id), MAX(m.date)
+            "SELECT a.id, a.name, a.email, a.domain, a.company_id, c.name,
+                    a.role, a.notes, COALESCE(a.excluded, 0),
+                    COUNT(DISTINCT m.id), COALESCE(SUM(m.duration_ms), 0), MAX(m.date)
              FROM attendees a
+             LEFT JOIN companies c ON c.id = a.company_id
              LEFT JOIN meeting_attendees ma ON ma.attendee_id = a.id
              LEFT JOIN meetings m ON m.id = ma.meeting_id
              GROUP BY a.id
@@ -721,8 +736,13 @@ pub fn list_people(state: State<AppState>) -> Result<Vec<Person>, String> {
                 email: row.get(2)?,
                 domain: row.get(3)?,
                 company_id: row.get(4)?,
-                note_count: row.get(5)?,
-                last_note_at: row.get(6)?,
+                company_name: row.get(5)?,
+                role: row.get(6)?,
+                notes: row.get(7)?,
+                excluded: row.get::<_, i64>(8)? != 0,
+                note_count: row.get(9)?,
+                total_duration_ms: row.get(10)?,
+                last_note_at: row.get(11)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -832,7 +852,12 @@ pub fn upsert_person(
         email,
         domain,
         company_id: None,
+        company_name: None,
+        role: None,
+        notes: None,
+        excluded: false,
         note_count: 0,
+        total_duration_ms: 0,
         last_note_at: None,
     })
 }
@@ -1508,7 +1533,12 @@ pub fn list_meeting_attendees(
                 email: row.get(2)?,
                 domain: row.get(3)?,
                 company_id: row.get(4)?,
+                company_name: None,
+                role: None,
+                notes: None,
+                excluded: false,
                 note_count: 0,
+                total_duration_ms: 0,
                 last_note_at: None,
             })
         })
@@ -1603,4 +1633,373 @@ pub fn add_action_item(
         deadline,
         done: false,
     })
+}
+
+
+#[tauri::command]
+pub fn get_person_dossier(state: State<AppState>, person_id: String) -> Result<PersonDossier, String> {
+    let conn = state.conn()?;
+    
+    // 1. Get person
+    let person = conn.query_row(
+        "SELECT a.id, a.name, a.email, a.domain, a.company_id, c.name,
+                a.role, a.notes, COALESCE(a.excluded, 0),
+                COUNT(DISTINCT m.id), COALESCE(SUM(m.duration_ms), 0), MAX(m.date)
+         FROM attendees a
+         LEFT JOIN companies c ON c.id = a.company_id
+         LEFT JOIN meeting_attendees ma ON ma.attendee_id = a.id
+         LEFT JOIN meetings m ON m.id = ma.meeting_id
+         WHERE a.id = ?1
+         GROUP BY a.id",
+        params![&person_id],
+        |row| {
+            Ok(Person {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                email: row.get(2)?,
+                domain: row.get(3)?,
+                company_id: row.get(4)?,
+                company_name: row.get(5)?,
+                role: row.get(6)?,
+                notes: row.get(7)?,
+                excluded: row.get::<_, i64>(8)? != 0,
+                note_count: row.get(9)?,
+                total_duration_ms: row.get(10)?,
+                last_note_at: row.get(11)?,
+            })
+        },
+    ).map_err(|e| format!("Person not found: {e}"))?;
+
+    // 2. Get attended meetings
+    let mut stmt = conn.prepare(
+        &format!(
+            "SELECT {MEETING_COLS} FROM meetings m
+             JOIN meeting_attendees ma ON ma.meeting_id = m.id
+             WHERE ma.attendee_id = ?1
+             ORDER BY m.date DESC"
+        )
+    ).map_err(|e| e.to_string())?;
+    let meetings = stmt.query_map(params![&person_id], meeting_from_row)
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    // 3. Get action items
+    let mut act_stmt = conn.prepare(
+        "SELECT a.id, a.meeting_id, m.title, a.owner, a.task, a.deadline, a.done
+         FROM action_items a
+         JOIN meetings m ON m.id = a.meeting_id
+         WHERE a.owner = ?1 OR (?2 IS NOT NULL AND a.owner = ?2) OR a.meeting_id IN (
+             SELECT meeting_id FROM meeting_attendees WHERE attendee_id = ?3
+         )
+         ORDER BY a.done ASC, a.deadline ASC"
+    ).map_err(|e| e.to_string())?;
+    let action_items = act_stmt.query_map(
+        params![&person.name, &person.email, &person_id],
+        |row| {
+            Ok(ActionItem {
+                id: row.get(0)?,
+                meeting_id: row.get(1)?,
+                meeting_title: row.get(2)?,
+                owner: row.get(3)?,
+                task: row.get(4)?,
+                deadline: row.get(5)?,
+                done: row.get::<_, i64>(6)? != 0,
+            })
+        }
+    ).map_err(|e| e.to_string())?
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(|e| e.to_string())?;
+
+    // 4. Generate pre-meeting 'Catch Me Up' briefing
+    let mut brief = String::new();
+    if let Some(latest) = meetings.first() {
+        brief.push_str(&format!("### Recent Discussion: {}\n", latest.title));
+        let date_str = latest.date.get(..10).unwrap_or(&latest.date);
+        brief.push_str(&format!("*Met on {}*\n\n", date_str));
+        if !latest.scratchpad_raw.trim().is_empty() {
+            let lines: Vec<&str> = latest.scratchpad_raw.lines().take(5).collect();
+            for line in lines {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() {
+                    brief.push_str(&format!("• {}\n", trimmed.trim_start_matches("- ")));
+                }
+            }
+            brief.push('\n');
+        }
+    }
+    
+    let pending_items: Vec<&ActionItem> = action_items.iter().filter(|i| !i.done).collect();
+    if !pending_items.is_empty() {
+        brief.push_str("### Unresolved Commitments\n");
+        for item in pending_items.iter().take(5) {
+            let owner_badge = item.owner.as_deref().unwrap_or("Unassigned");
+            brief.push_str(&format!("- [ ] **{}**: {}\n", owner_badge, item.task));
+        }
+    }
+
+    let catch_me_up_brief = if brief.is_empty() {
+        None
+    } else {
+        Some(brief)
+    };
+
+    Ok(PersonDossier {
+        person,
+        meetings,
+        action_items,
+        catch_me_up_brief,
+    })
+}
+
+#[tauri::command]
+pub fn update_person(
+    state: State<AppState>,
+    id: String,
+    name: String,
+    email: Option<String>,
+    role: Option<String>,
+    company_name: Option<String>,
+    notes: Option<String>,
+    excluded: Option<bool>,
+) -> Result<Person, String> {
+    let conn = state.conn()?;
+    let domain = email.as_ref().and_then(|e| e.split('@').nth(1)).map(|s| s.to_string());
+    
+    // Resolve or upsert company if company_name provided
+    let mut company_id: Option<String> = None;
+    if let Some(ref cname) = company_name.filter(|s| !s.trim().is_empty()) {
+        let existing: Result<String, _> = conn.query_row(
+            "SELECT id FROM companies WHERE LOWER(name) = LOWER(?1) LIMIT 1",
+            params![cname.trim()],
+            |r| r.get(0),
+        );
+        match existing {
+            Ok(cid) => company_id = Some(cid),
+            Err(_) => {
+                let new_cid = new_id("co");
+                let _ = conn.execute(
+                    "INSERT INTO companies (id, name, domain, first_seen, last_seen) VALUES (?1, ?2, ?3, datetime('now'), datetime('now'))",
+                    params![&new_cid, cname.trim(), domain],
+                );
+                company_id = Some(new_cid);
+            }
+        }
+    }
+
+    let excluded_int = if excluded.unwrap_or(false) { 1 } else { 0 };
+
+    conn.execute(
+        "UPDATE attendees SET
+            name = ?1,
+            email = ?2,
+            domain = ?3,
+            role = ?4,
+            company_id = COALESCE(?5, company_id),
+            notes = ?6,
+            excluded = ?7,
+            last_seen = datetime('now')
+         WHERE id = ?8",
+        params![name, email, domain, role, company_id, notes, excluded_int, id],
+    ).map_err(|e| e.to_string())?;
+
+    // Return updated Person
+    let mut stmt = conn.prepare(
+        "SELECT a.id, a.name, a.email, a.domain, a.company_id, c.name,
+                a.role, a.notes, COALESCE(a.excluded, 0),
+                COUNT(DISTINCT m.id), COALESCE(SUM(m.duration_ms), 0), MAX(m.date)
+         FROM attendees a
+         LEFT JOIN companies c ON c.id = a.company_id
+         LEFT JOIN meeting_attendees ma ON ma.attendee_id = a.id
+         LEFT JOIN meetings m ON m.id = ma.meeting_id
+         WHERE a.id = ?1
+         GROUP BY a.id"
+    ).map_err(|e| e.to_string())?;
+
+    stmt.query_row(params![id], |row| {
+        Ok(Person {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            email: row.get(2)?,
+            domain: row.get(3)?,
+            company_id: row.get(4)?,
+            company_name: row.get(5)?,
+            role: row.get(6)?,
+            notes: row.get(7)?,
+            excluded: row.get::<_, i64>(8)? != 0,
+            note_count: row.get(9)?,
+            total_duration_ms: row.get(10)?,
+            last_note_at: row.get(11)?,
+        })
+    }).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn merge_people(
+    state: State<AppState>,
+    primary_id: String,
+    duplicate_id: String,
+) -> Result<(), String> {
+    if primary_id == duplicate_id {
+        return Err("Cannot merge contact into itself".into());
+    }
+    let conn = state.conn()?;
+    
+    // Get duplicate name and email
+    let dup_info: Result<(String, Option<String>), _> = conn.query_row(
+        "SELECT name, email FROM attendees WHERE id = ?1",
+        params![&duplicate_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    );
+    let (dup_name, dup_email) = match dup_info {
+        Ok(info) => info,
+        Err(_) => return Err("Duplicate contact not found".into()),
+    };
+
+    let prim_name: String = conn.query_row(
+        "SELECT name FROM attendees WHERE id = ?1",
+        params![&primary_id],
+        |r| r.get(0),
+    ).map_err(|e| format!("Primary contact not found: {e}"))?;
+
+    // Transfer meeting connections
+    conn.execute(
+        "INSERT OR IGNORE INTO meeting_attendees (meeting_id, attendee_id)
+         SELECT meeting_id, ?1 FROM meeting_attendees WHERE attendee_id = ?2",
+        params![&primary_id, &duplicate_id],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "DELETE FROM meeting_attendees WHERE attendee_id = ?1",
+        params![&duplicate_id],
+    ).map_err(|e| e.to_string())?;
+
+    // Update action item owner
+    let _ = conn.execute(
+        "UPDATE action_items SET owner = ?1 WHERE owner = ?2 OR (?3 IS NOT NULL AND owner = ?3)",
+        params![&prim_name, &dup_name, &dup_email],
+    );
+
+    // Remove duplicate attendee record
+    conn.execute("DELETE FROM attendees WHERE id = ?1", params![&duplicate_id])
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_person(state: State<AppState>, id: String) -> Result<(), String> {
+    let conn = state.conn()?;
+    conn.execute("DELETE FROM meeting_attendees WHERE attendee_id = ?1", params![&id])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM attendees WHERE id = ?1", params![&id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn index_all_attendees(state: State<AppState>) -> Result<usize, String> {
+    let conn = state.conn()?;
+    let mut total_indexed = 0;
+
+    // 1. Scan calendar_events for attendees
+    let mut cal_stmt = conn.prepare(
+        "SELECT id, title, start_at, attendees_json FROM calendar_events WHERE attendees_json IS NOT NULL"
+    ).map_err(|e| e.to_string())?;
+
+    let events: Vec<(String, String, String, String)> = cal_stmt.query_map([], |row| {
+        Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+    }).map_err(|e| e.to_string())?
+    .flatten()
+    .collect();
+
+    for (_event_id, title, start_at, att_json) in events {
+        let attendees_parsed: Result<Vec<serde_json::Value>, _> = serde_json::from_str(&att_json);
+        if let Ok(list) = attendees_parsed {
+            for item in list {
+                let name = item.get("name").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+                let email = item.get("email").and_then(|v| v.as_str()).map(|s| s.trim().to_lowercase());
+                
+                if name.is_empty() && email.as_deref().unwrap_or("").is_empty() {
+                    continue;
+                }
+                let display_name = if name.is_empty() {
+                    email.as_deref().unwrap_or("Unknown").split('@').next().unwrap_or("Unknown").to_string()
+                } else {
+                    name
+                };
+
+                let domain = email.as_ref().and_then(|e| e.split('@').nth(1)).map(|s| s.to_string());
+
+                // Find existing person
+                let existing_id: Option<String> = if let Some(ref em) = email {
+                    conn.query_row(
+                        "SELECT id FROM attendees WHERE email = ?1 LIMIT 1",
+                        params![em],
+                        |r| r.get(0),
+                    ).ok()
+                } else {
+                    conn.query_row(
+                        "SELECT id FROM attendees WHERE LOWER(name) = LOWER(?1) LIMIT 1",
+                        params![&display_name],
+                        |r| r.get(0),
+                    ).ok()
+                };
+
+                let person_id = match existing_id {
+                    Some(id) => {
+                        let _ = conn.execute("UPDATE attendees SET last_seen = datetime('now') WHERE id = ?1", params![&id]);
+                        id
+                    }
+                    None => {
+                        let pid = new_id("p");
+                        // Link company if business domain
+                        let mut comp_id: Option<String> = None;
+                        if let Some(ref d) = domain {
+                            let common = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "proton.me"];
+                            if !common.contains(&d.as_str()) {
+                                let c_existing: Option<String> = conn.query_row(
+                                    "SELECT id FROM companies WHERE domain = ?1 LIMIT 1",
+                                    params![d],
+                                    |r| r.get(0),
+                                ).ok();
+                                comp_id = match c_existing {
+                                    Some(cid) => Some(cid),
+                                    None => {
+                                        let cid = new_id("co");
+                                        let cname = d.split('.').next().unwrap_or("Company");
+                                        let cname_cap = format!("{}{}", &cname[..1].to_uppercase(), &cname[1..]);
+                                        let _ = conn.execute(
+                                            "INSERT INTO companies (id, name, domain, first_seen, last_seen) VALUES (?1, ?2, ?3, datetime('now'), datetime('now'))",
+                                            params![&cid, cname_cap, d],
+                                        );
+                                        Some(cid)
+                                    }
+                                };
+                            }
+                        }
+
+                        let _ = conn.execute(
+                            "INSERT INTO attendees (id, name, email, domain, company_id, first_seen, last_seen)
+                             VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'), datetime('now'))",
+                            params![&pid, &display_name, &email, &domain, &comp_id],
+                        );
+                        total_indexed += 1;
+                        pid
+                    }
+                };
+
+                // Link to matching meetings (by date prefix or exact title)
+                let date_prefix = start_at.get(..10).unwrap_or("");
+                let _ = conn.execute(
+                    "INSERT OR IGNORE INTO meeting_attendees (meeting_id, attendee_id)
+                     SELECT id, ?1 FROM meetings
+                     WHERE (date LIKE ?2 || '%' OR title = ?3)",
+                    params![&person_id, date_prefix, &title],
+                );
+            }
+        }
+    }
+
+    Ok(total_indexed)
 }

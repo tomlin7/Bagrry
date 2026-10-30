@@ -183,6 +183,7 @@ pub fn import_notes(state: State<AppState>, notes: Vec<ImportNote>) -> Result<us
         .map_err(|e| e.to_string())?;
         imported += 1;
     }
+    let _ = crate::commands::index_all_attendees(state);
     Ok(imported)
 }
 

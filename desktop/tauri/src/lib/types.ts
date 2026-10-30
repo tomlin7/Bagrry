@@ -111,8 +111,20 @@ export type Person = {
   email: string | null;
   domain: string | null;
   company_id: string | null;
+  company_name?: string | null;
+  role?: string | null;
+  notes?: string | null;
+  excluded?: boolean;
   note_count: number;
+  total_duration_ms?: number;
   last_note_at: string | null;
+};
+
+export type PersonDossier = {
+  person: Person;
+  meetings: Meeting[];
+  action_items: ActionItem[];
+  catch_me_up_brief: string | null;
 };
 
 export type Company = {
