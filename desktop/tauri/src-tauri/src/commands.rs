@@ -2738,11 +2738,8 @@ pub fn index_all_attendees(state: State<AppState>) -> Result<usize, String> {
                                     None => {
                                         let cid = new_id("co");
                                         let cname = d.split('.').next().unwrap_or("Company");
-                                        let cname_cap = format!(
-                                            "{}{}",
-                                            &cname[..1].to_uppercase(),
-                                            &cname[1..]
-                                        );
+                                        let cname_cap =
+                                            format!("{}{}", cname[..1].to_uppercase(), &cname[1..]);
                                         let _ = conn.execute(
                                             "INSERT INTO companies (id, name, domain, first_seen, last_seen) VALUES (?1, ?2, ?3, datetime('now'), datetime('now'))",
                                             params![&cid, cname_cap, d],
