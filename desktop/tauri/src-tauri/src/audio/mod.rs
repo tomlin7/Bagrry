@@ -204,6 +204,7 @@ pub fn start(app: &AppHandle, meeting_id: Option<String>) -> Result<RecStatus, S
     });
     *recorder.state.lock().map_err(|e| e.to_string())? = RecState::Recording;
     set_tray_tooltip(app, "Bagrry — Recording");
+    crate::tray::notify(app, "Bagrry", "Meeting recording started. Capturing microphone & system audio.");
     let status = status_of(recorder)?;
     let _ = app.emit("recording-state", status.clone());
     Ok(status)
@@ -223,6 +224,7 @@ pub fn pause(app: &AppHandle) -> Result<RecStatus, String> {
             }
             *recorder.state.lock().map_err(|e| e.to_string())? = RecState::Paused;
             set_tray_tooltip(app, "Bagrry — Paused");
+            crate::tray::notify(app, "Bagrry", "Meeting recording paused.");
         }
         RecState::Paused => {
             if let Some(session) = recorder.session.lock().map_err(|e| e.to_string())?.as_ref() {
@@ -274,6 +276,7 @@ pub fn stop(app: &AppHandle) -> Result<RecStatus, String> {
     *recorder.pending.lock().map_err(|e| e.to_string())? = Some(pending);
     *recorder.state.lock().map_err(|e| e.to_string())? = RecState::Idle;
     set_tray_tooltip(app, "Bagrry — Idle");
+    crate::tray::notify(app, "Bagrry", "Meeting recording finished. Processing notes & AI synthesis.");
     let status = status_of(recorder)?;
     let _ = app.emit("recording-state", status.clone());
     let _ = app.emit(

@@ -24,7 +24,8 @@ import { PeoplePage } from "@/components/pages/PeoplePage";
 import { CompaniesPage } from "@/components/pages/CompaniesPage";
 import { ActionItemsPage } from "@/components/pages/ActionItemsPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
-import { LiveMeetingIndicator, useRepositionForMeetings } from "@/components/layout/LiveMeetingIndicator";
+import { FloatingRecordingPill } from "@/components/layout/FloatingRecordingPill";
+import { useRepositionForMeetings } from "@/components/layout/LiveMeetingIndicator";
 import { PreMeetingPrompt } from "@/components/calendar/PreMeetingPrompt";
 import { snappy } from "@/lib/motion";
 
@@ -76,7 +77,7 @@ export default function App() {
 
           <CommandPalette />
           <Onboarding />
-          <LiveMeetingIndicator />
+          <FloatingRecordingPill />
           <PreMeetingPrompt />
           <Toaster />
         </div>
@@ -90,6 +91,7 @@ function useRecordingBridge() {
   const applyRecStatus = useAppStore((s) => s.applyRecStatus);
   const setVu = useAppStore((s) => s.setVu);
   const appendLiveSegments = useAppStore((s) => s.appendLiveSegments);
+  const openSettings = useAppStore((s) => s.openSettings);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -114,6 +116,9 @@ function useRecordingBridge() {
     });
     register<string>("recording-error", (message) => {
       if (message) toast.error(message, "Capture issue");
+    });
+    register<string>("navigate-settings", (tab) => {
+      openSettings(tab as any);
     });
 
     return () => {

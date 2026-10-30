@@ -185,12 +185,12 @@ fn register_first_available(app: &tauri::AppHandle, combos: &[&str], action: fn(
 }
 
 fn register_recording_shortcuts(app: &tauri::AppHandle) {
-    register_first_available(app, &["super+shift+r", "ctrl+shift+r"], |handle| {
+    register_first_available(app, &["super+shift+r", "ctrl+shift+r", "ctrl+alt+r"], |handle| {
         if let Err(e) = audio::toggle(handle) {
             eprintln!("toggle recording: {e}");
         }
     });
-    register_first_available(app, &["super+shift+p", "ctrl+shift+p"], |handle| {
+    register_first_available(app, &["super+shift+p", "ctrl+shift+p", "ctrl+alt+p"], |handle| {
         if let Err(e) = audio::pause(handle) {
             eprintln!("pause recording: {e}");
         }
