@@ -478,42 +478,362 @@ fn share_payload(conn: &Connection, token: &str) -> Option<serde_json::Value> {
 }
 
 /* ------------------------------------------------------------------ */
-/* MCP                                                                 */
+/* MCP JSON-RPC 2.0 Server                                            */
 /* ------------------------------------------------------------------ */
+
+fn mcp_query_notes(conn: &Connection, query: &str) -> serde_json::Value {
+    let q = query.trim();
+    if q.is_empty() {
+        return json!([]);
+    }
+    let like = format!("%{q}%");
+    query_json(
+        conn,
+        "SELECT id, title, date, scratchpad_raw, enhanced_notes_json
+         FROM meetings
+         WHERE title LIKE ?1 OR scratchpad_raw LIKE ?1 OR ifnull(enhanced_notes_json, '') LIKE ?1
+         ORDER BY date DESC LIMIT 20",
+        [&like],
+        |row| {
+            let id: String = row.get(0)?;
+            let title: String = row.get(1)?;
+            let date: String = row.get(2)?;
+            let scratch: String = row.get::<_, Option<String>>(3)?.unwrap_or_default();
+            let enhanced: String = row.get::<_, Option<String>>(4)?.unwrap_or_default();
+            Ok(json!({
+                "id": id,
+                "title": title,
+                "date": date,
+                "scratchpad": scratch,
+                "enhanced_notes": serde_json::from_str::<serde_json::Value>(&enhanced).unwrap_or(json!({}))
+            }))
+        },
+    )
+}
+
+fn mcp_get_transcript(conn: &Connection, meeting_id: &str) -> serde_json::Value {
+    let row = conn.query_row(
+        "SELECT id, title, date, transcript_json FROM meetings WHERE id = ?1",
+        [meeting_id],
+        |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, Option<String>>(3)?,
+            ))
+        },
+    );
+    match row {
+        Ok((id, title, date, transcript_json)) => {
+            let segments: serde_json::Value = transcript_json
+                .as_deref()
+                .and_then(|t| serde_json::from_str(t).ok())
+                .unwrap_or(json!([]));
+            json!({
+                "meeting_id": id,
+                "title": title,
+                "date": date,
+                "segments": segments
+            })
+        }
+        Err(_) => json!({"error": format!("Meeting '{meeting_id}' not found")}),
+    }
+}
+
+fn mcp_list_open_loops(conn: &Connection, include_done: bool) -> serde_json::Value {
+    let sql = if include_done {
+        "SELECT a.id, a.meeting_id, m.title, a.owner, a.task, a.deadline, a.done
+         FROM action_items a
+         JOIN meetings m ON m.id = a.meeting_id
+         ORDER BY a.deadline ASC, a.created_at DESC LIMIT 50"
+    } else {
+        "SELECT a.id, a.meeting_id, m.title, a.owner, a.task, a.deadline, a.done
+         FROM action_items a
+         JOIN meetings m ON m.id = a.meeting_id
+         WHERE a.done = 0
+         ORDER BY a.deadline ASC, a.created_at DESC LIMIT 50"
+    };
+    query_json(conn, sql, [], |row| {
+        Ok(json!({
+            "id": row.get::<_, String>(0)?,
+            "meeting_id": row.get::<_, String>(1)?,
+            "meeting_title": row.get::<_, String>(2)?,
+            "owner": row.get::<_, Option<String>>(3)?,
+            "task": row.get::<_, String>(4)?,
+            "deadline": row.get::<_, Option<String>>(5)?,
+            "done": row.get::<_, i64>(6)? != 0
+        }))
+    })
+}
+
+fn mcp_get_contact_context(conn: &Connection, query: &str) -> serde_json::Value {
+    let q = format!("%{}%", query.trim());
+    let person_row = conn.query_row(
+        "SELECT id, name, email, role, notes FROM attendees WHERE name LIKE ?1 OR email LIKE ?1 LIMIT 1",
+        [&q],
+        |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, Option<String>>(2)?,
+                r.get::<_, Option<String>>(3)?,
+                r.get::<_, Option<String>>(4)?,
+            ))
+        },
+    );
+    match person_row {
+        Ok((pid, name, email, role, notes)) => {
+            let meetings = query_json(
+                conn,
+                "SELECT m.id, m.title, m.date FROM meetings m
+                 JOIN meeting_attendees ma ON ma.meeting_id = m.id
+                 WHERE ma.attendee_id = ?1 ORDER BY m.date DESC LIMIT 10",
+                [&pid],
+                |r| Ok(json!({ "id": r.get::<_, String>(0)?, "title": r.get::<_, String>(1)?, "date": r.get::<_, String>(2)? })),
+            );
+            let open_loops = query_json(
+                conn,
+                "SELECT id, task, deadline, done FROM action_items WHERE owner = ?1 OR task LIKE ?2 ORDER BY created_at DESC LIMIT 10",
+                rusqlite::params![&name, &q],
+                |r| Ok(json!({ "id": r.get::<_, String>(0)?, "task": r.get::<_, String>(1)?, "deadline": r.get::<_, Option<String>>(2)?, "done": r.get::<_, i64>(3)? != 0 })),
+            );
+            json!({
+                "person": {
+                    "id": pid,
+                    "name": name,
+                    "email": email,
+                    "role": role,
+                    "notes": notes
+                },
+                "meetings": meetings,
+                "action_items": open_loops
+            })
+        }
+        Err(_) => json!({"error": format!("Contact '{query}' not found in directory")}),
+    }
+}
 
 fn mcp(conn: &Connection, body: &serde_json::Value) -> serde_json::Value {
     let method = body["method"].as_str().unwrap_or_default();
     let id = body.get("id").cloned().unwrap_or(json!(1));
     let params = body.get("params").cloned().unwrap_or(json!({}));
 
+    // Audit log request
+    eprintln!("[MCP] Received method: {method}");
+
     let result = match method {
+        "initialize" => json!({
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "tools": {
+                    "listChanged": false
+                },
+                "resources": {
+                    "subscribe": false,
+                    "listChanged": false
+                },
+                "prompts": {
+                    "listChanged": false
+                }
+            },
+            "serverInfo": {
+                "name": "bagrry-mcp",
+                "version": "1.0.0"
+            }
+        }),
+        "ping" => json!({}),
         "tools/list" => json!({
             "tools": [
-                {"name": "query_bagrry_meetings", "description": "Search across meeting knowledge"},
-                {"name": "list_meetings", "description": "List meetings"},
-                {"name": "list_meeting_folders", "description": "List folders"},
-                {"name": "get_meetings", "description": "Get structured notes"},
-                {"name": "get_meeting_transcript", "description": "Fetch transcript with citations"}
+                {
+                    "name": "query_notes",
+                    "description": "Semantic and keyword search across past meeting notes and summaries",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "Keyword or natural language query (e.g. 'pricing decisions', 'security review')"
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                },
+                {
+                    "name": "get_meeting_transcript",
+                    "description": "Retrieves verbatim transcript segments and speaker turns with citations for a meeting ID",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "meeting_id": {
+                                "type": "string",
+                                "description": "Unique meeting identifier"
+                            }
+                        },
+                        "required": ["meeting_id"]
+                    }
+                },
+                {
+                    "name": "list_open_loops",
+                    "description": "Returns unresolved commitments, task assignees, and deadlines across all meetings",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "include_done": {
+                                "type": "boolean",
+                                "description": "Whether to include completed action items (default: false)"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "get_contact_context",
+                    "description": "Returns past meeting notes, discussion timeline, and commitments associated with a contact",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "name_or_email": {
+                                "type": "string",
+                                "description": "Contact full name or email address"
+                            }
+                        },
+                        "required": ["name_or_email"]
+                    }
+                },
+                {
+                    "name": "list_meetings",
+                    "description": "List all recent meetings and titles",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                },
+                {
+                    "name": "list_meeting_folders",
+                    "description": "List organizational workspaces and folders",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
             ]
         }),
         "tools/call" => {
             let name = params["name"].as_str().unwrap_or_default();
+            let args = params.get("arguments").cloned().unwrap_or(json!({}));
             let text = match name {
+                "query_notes" | "query_bagrry_meetings" => {
+                    let q = args.get("query").and_then(|v| v.as_str()).unwrap_or_default();
+                    mcp_query_notes(conn, q).to_string()
+                }
+                "get_meeting_transcript" => {
+                    let mid = args.get("meeting_id")
+                        .or_else(|| args.get("id"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default();
+                    mcp_get_transcript(conn, mid).to_string()
+                }
+                "list_open_loops" => {
+                    let inc_done = args.get("include_done").and_then(|v| v.as_bool()).unwrap_or(false);
+                    mcp_list_open_loops(conn, inc_done).to_string()
+                }
+                "get_contact_context" => {
+                    let query = args.get("name_or_email")
+                        .or_else(|| args.get("name"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default();
+                    mcp_get_contact_context(conn, query).to_string()
+                }
                 "list_meetings" => list_notes(conn).to_string(),
                 "list_meeting_folders" => list_folders(conn).to_string(),
-                "get_meetings" | "get_meeting_transcript" => {
-                    let mid = params["arguments"]["id"].as_str().unwrap_or_default();
+                "get_meetings" => {
+                    let mid = args.get("id").and_then(|v| v.as_str()).unwrap_or_default();
                     get_note(conn, mid).unwrap_or_else(|| json!({})).to_string()
                 }
-                "query_bagrry_meetings" => {
-                    let q = params["arguments"]["query"].as_str().unwrap_or_default();
-                    search_notes(conn, q).to_string()
-                }
-                _ => return json!({"jsonrpc":"2.0","id": id, "error": {"code": -32601, "message": "unknown tool"}}),
+                _ => return json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "error": { "code": -32601, "message": format!("Unknown MCP tool: '{name}'") }
+                }),
             };
-            json!({ "content": [{ "type": "text", "text": text }] })
+            json!({
+                "content": [
+                    { "type": "text", "text": text }
+                ],
+                "isError": false
+            })
         }
-        _ => json!({ "ok": true, "methods": ["tools/list", "tools/call"] }),
+        "resources/list" => {
+            let meetings = list_notes(conn);
+            let resources = meetings.as_array().map(|arr| {
+                arr.iter().map(|m| {
+                    let id = m["id"].as_str().unwrap_or_default();
+                    let title = m["title"].as_str().unwrap_or_default();
+                    json!({
+                        "uri": format!("bagrry://meetings/{id}"),
+                        "name": title,
+                        "mimeType": "application/json"
+                    })
+                }).collect::<Vec<_>>()
+            }).unwrap_or_default();
+            json!({ "resources": resources })
+        }
+        "resources/read" => {
+            let uri = params["uri"].as_str().unwrap_or_default();
+            if let Some(id) = uri.strip_prefix("bagrry://meetings/") {
+                if let Some(note) = get_note(conn, id) {
+                    json!({
+                        "contents": [
+                            {
+                                "uri": uri,
+                                "mimeType": "application/json",
+                                "text": note.to_string()
+                            }
+                        ]
+                    })
+                } else {
+                    return json!({
+                        "jsonrpc": "2.0",
+                        "id": id,
+                        "error": { "code": -32002, "message": "Resource not found" }
+                    });
+                }
+            } else {
+                return json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "error": { "code": -32602, "message": "Invalid resource URI" }
+                });
+            }
+        }
+        "prompts/list" => json!({
+            "prompts": [
+                {
+                    "name": "prepare_meeting_brief",
+                    "description": "Generate an executive pre-meeting briefing with context on attendees and unresolved loops",
+                    "arguments": [
+                        { "name": "attendee_name", "description": "Name of attendee", "required": true }
+                    ]
+                },
+                {
+                    "name": "summarize_open_loops",
+                    "description": "Synthesize all open loops and deliverables into an action dashboard",
+                    "arguments": []
+                }
+            ]
+        }),
+        _ => json!({
+            "ok": true,
+            "supportedMethods": [
+                "initialize",
+                "ping",
+                "tools/list",
+                "tools/call",
+                "resources/list",
+                "resources/read",
+                "prompts/list"
+            ]
+        }),
     };
 
     json!({ "jsonrpc": "2.0", "id": id, "result": result })

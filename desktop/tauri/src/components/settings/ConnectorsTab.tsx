@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, Database, KeyRound, Link2, Trash2, Webhook } from "lucide-react";
+import { Bot, ChevronRight, Copy, Database, KeyRound, Link2, Terminal, Trash2, Webhook } from "lucide-react";
 import * as api from "@/lib/api";
 import { useSetting } from "@/hooks/useSetting";
 import { Badge } from "@/components/ui/misc";
@@ -76,6 +76,93 @@ export function ConnectorsTab() {
             onToggle={() => setOpenId((id) => (id === item.id ? null : item.id))}
           />
         ))}
+      </SettingsCard>
+
+            <SettingsCard
+        title="Model Context Protocol (MCP)"
+        description="Local JSON-RPC 2.0 server listening on port 47821. Claude Desktop, Cursor, and autonomous AI agents can query meeting knowledge, transcripts, and open loops."
+      >
+        <SettingRow
+          icon={<Bot />}
+          title="MCP Endpoint"
+          description="Localhost-bound read-only JSON-RPC 2.0 interface (127.0.0.1:47821/mcp)."
+          control={<Badge tone="success">Active on port 47821</Badge>}
+        />
+
+        <div className="flex flex-col gap-3 px-4 pb-4">
+          <div className="flex items-center justify-between rounded-lg border border-border/80 bg-surface px-3 py-2 text-xs">
+            <span className="font-mono text-[12px] text-text">http://127.0.0.1:47821/mcp</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void navigator.clipboard.writeText("http://127.0.0.1:47821/mcp").then(() => {
+                  toast.success("MCP URL copied to clipboard");
+                });
+              }}
+            >
+              <Copy className="size-3.5 mr-1" /> Copy URL
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-1.5 rounded-xl border border-border/70 bg-surface-raised/40 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text flex items-center gap-1.5">
+                <Terminal className="size-3.5 text-accent" />
+                Claude Desktop Configuration
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const snippet = JSON.stringify(
+                    {
+                      mcpServers: {
+                        bagrry: {
+                          url: "http://127.0.0.1:47821/mcp"
+                        }
+                      }
+                    },
+                    null,
+                    2
+                  );
+                  void navigator.clipboard.writeText(snippet).then(() => {
+                    toast.success("Claude Desktop config copied!");
+                  });
+                }}
+              >
+                <Copy className="size-3 mr-1" /> Copy Config
+              </Button>
+            </div>
+            <p className="text-[11px] text-subtle leading-relaxed">
+              Add this to your <code className="font-mono text-text">claude_desktop_config.json</code> to give Claude direct access to your meeting notes.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5 pt-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
+              Exposed MCP Tools
+            </span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg border border-border/60 bg-surface p-2.5">
+                <strong className="block font-mono text-[11px] text-text">query_notes</strong>
+                <span className="text-[11px] text-subtle">Semantic & keyword search across meeting notes</span>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface p-2.5">
+                <strong className="block font-mono text-[11px] text-text">get_meeting_transcript</strong>
+                <span className="text-[11px] text-subtle">Verbatim speaker turns & citations</span>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface p-2.5">
+                <strong className="block font-mono text-[11px] text-text">list_open_loops</strong>
+                <span className="text-[11px] text-subtle">Pending tasks, assignees & deadlines</span>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface p-2.5">
+                <strong className="block font-mono text-[11px] text-text">get_contact_context</strong>
+                <span className="text-[11px] text-subtle">Dossier, past meetings & commitments</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </SettingsCard>
 
       <SettingsCard
