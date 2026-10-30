@@ -32,6 +32,37 @@ export function ConnectorsTab() {
   const [newKeyLabel, setNewKeyLabel] = useState("");
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
 
+  // Notion state
+  const [notionKey, setNotionKey] = useState("");
+  const [notionParentId, setNotionParentId] = useSetting("notion_parent_id", "");
+  const [notionStatus, setNotionStatus] = useState<string | null>(null);
+
+  // Linear state
+  const [linearKey, setLinearKey] = useState("");
+  const [linearTeamId, setLinearTeamId] = useSetting("linear_team_id", "");
+  const [linearStatus, setLinearStatus] = useState<string | null>(null);
+
+  // Slack state
+  const [slackWebhookUrl, setSlackWebhookUrl] = useSetting("connector_slack_url", "");
+
+  const verifyNotion = useMutation({
+    mutationFn: () => api.verifyNotionConnection(notionKey.trim()),
+    onSuccess: (msg) => {
+      setNotionStatus(msg);
+      toast.success(msg);
+    },
+    onError: (e) => toast.error(e),
+  });
+
+  const verifyLinear = useMutation({
+    mutationFn: () => api.verifyLinearConnection(linearKey.trim()),
+    onSuccess: (msg) => {
+      setLinearStatus(msg);
+      toast.success(msg);
+    },
+    onError: (e) => toast.error(e),
+  });
+
   const saveKey = useMutation({
     mutationFn: () => api.setSecret("groq_api_key", groqKey.trim()),
     onSuccess: () => {
@@ -66,6 +97,141 @@ export function ConnectorsTab() {
   return (
     <>
       <TabHeading title="Connectors" />
+
+      <SettingsCard
+        title="Direct Productivity Connectors"
+        description="1-Click export and syncing to Notion, Slack, and Linear with native rich block formatting."
+      >
+        {/* Notion Connector */}
+        <div className="flex flex-col gap-3 p-4 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="grid size-7 place-items-center rounded-lg bg-surface border border-border text-text font-serif font-bold text-xs">
+                N
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-text">Notion Workspace</span>
+                <span className="block text-[11px] text-subtle">
+                  Export meeting notes as native sub-pages or database entries
+                </span>
+              </div>
+            </div>
+            {notionStatus && <Badge tone="success">Connected</Badge>}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+            <div>
+              <label className="text-[11px] text-subtle font-medium">Integration Secret Token</label>
+              <Input
+                type="password"
+                placeholder="ntn_... or secret_..."
+                value={notionKey}
+                onChange={(e) => setNotionKey(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-subtle font-medium">Default Page or Database ID</label>
+              <Input
+                placeholder="32-character ID from Notion share URL"
+                value={notionParentId}
+                onChange={(e) => setNotionParentId(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={verifyNotion.isPending || !notionKey.trim()}
+              onClick={() => verifyNotion.mutate()}
+            >
+              {verifyNotion.isPending ? "Testing..." : "Verify Connection"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Slack Webhook Connector */}
+        <div className="flex flex-col gap-3 p-4 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="grid size-7 place-items-center rounded-lg bg-surface border border-border text-[#4a154b] font-bold text-xs">
+                #
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-text">Slack Broadcasts</span>
+                <span className="block text-[11px] text-subtle">
+                  Post formatted executive summaries & open loops to a Slack channel
+                </span>
+              </div>
+            </div>
+            {slackWebhookUrl && <Badge tone="success">Configured</Badge>}
+          </div>
+
+          <div>
+            <label className="text-[11px] text-subtle font-medium">Incoming Webhook URL</label>
+            <Input
+              placeholder="https://hooks.slack.com/services/T00/B00/XXXX"
+              value={slackWebhookUrl}
+              onChange={(e) => setSlackWebhookUrl(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+        </div>
+
+        {/* Linear Connector */}
+        <div className="flex flex-col gap-3 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="grid size-7 place-items-center rounded-lg bg-surface border border-border text-accent font-mono font-bold text-xs">
+                L
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-text">Linear Tickets</span>
+                <span className="block text-[11px] text-subtle">
+                  Convert open loops into trackable Linear issue cards
+                </span>
+              </div>
+            </div>
+            {linearStatus && <Badge tone="success">Connected</Badge>}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+            <div>
+              <label className="text-[11px] text-subtle font-medium">Personal API Key</label>
+              <Input
+                type="password"
+                placeholder="lin_api_..."
+                value={linearKey}
+                onChange={(e) => setLinearKey(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-subtle font-medium">Default Team ID / Key</label>
+              <Input
+                placeholder="ENG, PROD, or UUID"
+                value={linearTeamId}
+                onChange={(e) => setLinearTeamId(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={verifyLinear.isPending || !linearKey.trim()}
+              onClick={() => verifyLinear.mutate()}
+            >
+              {verifyLinear.isPending ? "Testing..." : "Verify Connection"}
+            </Button>
+          </div>
+        </div>
+      </SettingsCard>
 
       <SettingsCard title="Integrations" description="Paste a webhook URL to send completed notes to each tool. Native OAuth lands later.">
         {integrations.map((item) => (

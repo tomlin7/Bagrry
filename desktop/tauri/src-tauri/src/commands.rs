@@ -3068,3 +3068,370 @@ pub fn auto_index_companies(state: State<AppState>) -> Result<usize, String> {
 
     Ok(count)
 }
+
+#[tauri::command]
+pub fn verify_notion_connection(state: State<AppState>, api_key: String) -> Result<String, String> {
+    let key = api_key.trim();
+    if key.is_empty() {
+        return Err("Notion API key cannot be empty".into());
+    }
+
+    let resp = ureq::get("https://api.notion.com/v1/users/me")
+        .set("Authorization", &format!("Bearer {key}"))
+        .set("Notion-Version", "2022-06-28")
+        .call()
+        .map_err(|e| format!("Failed to verify Notion connection: {e}"))?;
+
+    let body: serde_json::Value = resp
+        .into_json()
+        .map_err(|e| format!("Invalid Notion response: {e}"))?;
+
+    let bot_name = body
+        .get("name")
+        .and_then(|n| n.as_str())
+        .unwrap_or("Bagrry Notion Integration");
+
+    let conn = state.conn()?;
+    secrets::set_setting(&conn, "notion_api_key", key)?;
+    secrets::set_setting(&conn, "connector_notion", "1")?;
+
+    Ok(format!("Connected to Notion as '{bot_name}'"))
+}
+
+#[tauri::command]
+pub fn export_to_notion(
+    state: State<AppState>,
+    meeting_id: String,
+    target_parent_id: Option<String>,
+) -> Result<String, String> {
+    let conn = state.conn()?;
+    let key = secrets::get_setting(&conn, "notion_api_key", "");
+    if key.is_empty() {
+        return Err(
+            "Notion API key not configured. Please connect Notion in Settings -> Connectors."
+                .into(),
+        );
+    }
+
+    let parent_id = target_parent_id
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| secrets::get_setting(&conn, "notion_parent_id", ""));
+
+    if parent_id.is_empty() {
+        return Err("Target Notion Page or Database ID not specified. Configure it in Settings -> Connectors.".into());
+    }
+
+    let meeting = conn
+        .query_row(
+            &format!("SELECT {MEETING_COLS} FROM meetings WHERE id=?1"),
+            params![meeting_id],
+            meeting_from_row,
+        )
+        .map_err(|e| format!("Meeting not found: {e}"))?;
+
+    let mut act_stmt = conn
+        .prepare("SELECT task, done FROM action_items WHERE meeting_id=?1 ORDER BY done ASC")
+        .map_err(|e| e.to_string())?;
+    let action_items: Vec<(String, bool)> = act_stmt
+        .query_map(params![meeting_id], |row| {
+            Ok((row.get(0)?, row.get::<_, i64>(1)? != 0))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    drop(act_stmt);
+    drop(conn);
+
+    let mut children = Vec::new();
+
+    let mut meta_text = format!("Date: {}", meeting.date);
+    if let Some(dur) = meeting.duration_ms {
+        meta_text.push_str(&format!(" · Duration: {}m", dur / 60000));
+    }
+    children.push(serde_json::json!({
+        "object": "block",
+        "type": "callout",
+        "callout": {
+            "rich_text": [{ "type": "text", "text": { "content": meta_text } }],
+            "icon": { "type": "emoji", "emoji": "📝" }
+        }
+    }));
+
+    if let Some(enh_json) = &meeting.enhanced_notes_json {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(enh_json) {
+            if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
+                for sec in sections {
+                    let title = sec
+                        .get("section_title")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or("Notes");
+                    children.push(serde_json::json!({
+                        "object": "block",
+                        "type": "heading_2",
+                        "heading_2": {
+                            "rich_text": [{ "type": "text", "text": { "content": title } }]
+                        }
+                    }));
+
+                    if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                        for b in bullets {
+                            let text = b.get("text").and_then(|t| t.as_str()).unwrap_or("");
+                            if !text.is_empty() {
+                                children.push(serde_json::json!({
+                                    "object": "block",
+                                    "type": "bulleted_list_item",
+                                    "bulleted_list_item": {
+                                        "rich_text": [{ "type": "text", "text": { "content": text } }]
+                                    }
+                                }));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if !action_items.is_empty() {
+        children.push(serde_json::json!({
+            "object": "block",
+            "type": "heading_2",
+            "heading_2": {
+                "rich_text": [{ "type": "text", "text": { "content": "Action Items & Open Loops" } }]
+            }
+        }));
+
+        for (task, done) in action_items {
+            children.push(serde_json::json!({
+                "object": "block",
+                "type": "to_do",
+                "to_do": {
+                    "rich_text": [{ "type": "text", "text": { "content": task } }],
+                    "checked": done
+                }
+            }));
+        }
+    }
+
+    let clean_parent = parent_id.trim().replace('-', "");
+    let is_database = clean_parent.len() == 32;
+
+    let payload = if is_database {
+        serde_json::json!({
+            "parent": { "database_id": clean_parent },
+            "properties": {
+                "title": [{ "type": "text", "text": { "content": meeting.title } }]
+            },
+            "children": children
+        })
+    } else {
+        serde_json::json!({
+            "parent": { "page_id": clean_parent },
+            "properties": {
+                "title": [{ "type": "text", "text": { "content": meeting.title } }]
+            },
+            "children": children
+        })
+    };
+
+    let resp = ureq::post("https://api.notion.com/v1/pages")
+        .set("Authorization", &format!("Bearer {key}"))
+        .set("Notion-Version", "2022-06-28")
+        .set("Content-Type", "application/json")
+        .send_json(&payload)
+        .map_err(|e| format!("Notion export request failed: {e}"))?;
+
+    let res_body: serde_json::Value = resp
+        .into_json()
+        .map_err(|e| format!("Failed to parse Notion response: {e}"))?;
+
+    let url = res_body
+        .get("url")
+        .and_then(|u| u.as_str())
+        .unwrap_or("https://www.notion.so")
+        .to_string();
+
+    Ok(url)
+}
+
+#[tauri::command]
+pub fn send_to_slack(
+    state: State<AppState>,
+    meeting_id: String,
+    webhook_url: Option<String>,
+) -> Result<String, String> {
+    let conn = state.conn()?;
+    let target_url = webhook_url
+        .filter(|u| !u.trim().is_empty())
+        .unwrap_or_else(|| secrets::get_setting(&conn, "connector_slack_url", ""));
+
+    if target_url.is_empty() {
+        return Err("Slack webhook URL not configured. Enter a valid Incoming Webhook URL in Settings -> Connectors.".into());
+    }
+
+    let meeting = conn
+        .query_row(
+            &format!("SELECT {MEETING_COLS} FROM meetings WHERE id=?1"),
+            params![meeting_id],
+            meeting_from_row,
+        )
+        .map_err(|e| format!("Meeting not found: {e}"))?;
+
+    let mut act_stmt = conn
+        .prepare("SELECT task, owner, deadline FROM action_items WHERE meeting_id=?1 AND done=0")
+        .map_err(|e| e.to_string())?;
+    let action_items: Vec<(String, Option<String>, Option<String>)> = act_stmt
+        .query_map(params![meeting_id], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    drop(act_stmt);
+    drop(conn);
+
+    let mut summary_lines = Vec::new();
+    if let Some(enh_json) = &meeting.enhanced_notes_json {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(enh_json) {
+            if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
+                for sec in sections.iter().take(3) {
+                    if let Some(title) = sec.get("section_title").and_then(|t| t.as_str()) {
+                        summary_lines.push(format!("*{}*", title));
+                    }
+                    if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                        for b in bullets.iter().take(3) {
+                            if let Some(text) = b.get("text").and_then(|t| t.as_str()) {
+                                summary_lines.push(format!("• {}", text));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let summary_text = if summary_lines.is_empty() {
+        meeting.scratchpad_raw.chars().take(300).collect::<String>()
+    } else {
+        summary_lines.join("\n")
+    };
+
+    let mut actions_text = String::new();
+    if !action_items.is_empty() {
+        actions_text.push_str("\n\n*Action Items:*");
+        for (task, owner, deadline) in action_items {
+            let mut line = format!("\n• {}", task);
+            if let Some(o) = owner {
+                line.push_str(&format!(" (Owner: {o})"));
+            }
+            if let Some(d) = deadline {
+                line.push_str(&format!(" (Due: {d})"));
+            }
+            actions_text.push_str(&line);
+        }
+    }
+
+    let payload = serde_json::json!({
+        "text": format!("*Meeting Recap: {}*\n_{}_\n\n{}{}", meeting.title, meeting.date, summary_text, actions_text)
+    });
+
+    let resp = ureq::post(&target_url)
+        .set("Content-Type", "application/json")
+        .send_json(&payload)
+        .map_err(|e| format!("Slack dispatch failed: {e}"))?;
+
+    if resp.status() == 200 {
+        Ok("Dispatched meeting recap to Slack channel successfully".into())
+    } else {
+        Err(format!("Slack responded with status {}", resp.status()))
+    }
+}
+
+#[tauri::command]
+pub fn verify_linear_connection(state: State<AppState>, api_key: String) -> Result<String, String> {
+    let key = api_key.trim();
+    if key.is_empty() {
+        return Err("Linear API key cannot be empty".into());
+    }
+
+    let query = serde_json::json!({
+        "query": "query { viewer { name email organization { name } } }"
+    });
+
+    let resp = ureq::post("https://api.linear.app/graphql")
+        .set("Authorization", key)
+        .set("Content-Type", "application/json")
+        .send_json(&query)
+        .map_err(|e| format!("Linear verification failed: {e}"))?;
+
+    let body: serde_json::Value = resp
+        .into_json()
+        .map_err(|e| format!("Failed to parse Linear response: {e}"))?;
+
+    let viewer = body.pointer("/data/viewer");
+    let name = viewer
+        .and_then(|v| v.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or("Linear User");
+    let org = viewer
+        .and_then(|v| v.get("organization"))
+        .and_then(|o| o.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or("Workspace");
+
+    let conn = state.conn()?;
+    secrets::set_setting(&conn, "linear_api_key", key)?;
+    secrets::set_setting(&conn, "connector_linear", "1")?;
+
+    Ok(format!("Connected to Linear as {name} ({org})"))
+}
+
+#[tauri::command]
+pub fn create_linear_issue(
+    state: State<AppState>,
+    title: String,
+    description: Option<String>,
+    team_key: Option<String>,
+) -> Result<String, String> {
+    let conn = state.conn()?;
+    let key = secrets::get_setting(&conn, "linear_api_key", "");
+    if key.is_empty() {
+        return Err(
+            "Linear API key not configured. Connect Linear in Settings -> Connectors.".into(),
+        );
+    }
+
+    let team = team_key
+        .filter(|t| !t.trim().is_empty())
+        .unwrap_or_else(|| secrets::get_setting(&conn, "linear_team_id", ""));
+
+    let desc = description.unwrap_or_default();
+
+    let query = serde_json::json!({
+        "query": "mutation IssueCreate($title: String!, $description: String, $teamId: String) { issueCreate(input: { title: $title, description: $description, teamId: $teamId }) { success issue { id identifier url } } }",
+        "variables": {
+            "title": title.trim(),
+            "description": desc,
+            "teamId": if team.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(team) }
+        }
+    });
+
+    let resp = ureq::post("https://api.linear.app/graphql")
+        .set("Authorization", &key)
+        .set("Content-Type", "application/json")
+        .send_json(&query)
+        .map_err(|e| format!("Linear issue creation failed: {e}"))?;
+
+    let body: serde_json::Value = resp
+        .into_json()
+        .map_err(|e| format!("Failed to parse Linear response: {e}"))?;
+
+    let issue_url = body
+        .pointer("/data/issueCreate/issue/url")
+        .and_then(|u| u.as_str())
+        .unwrap_or("https://linear.app");
+
+    Ok(issue_url.to_string())
+}

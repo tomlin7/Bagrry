@@ -251,6 +251,16 @@ export const revokeShare = (token: string) =>
   invoke<void>("revoke_share", { token });
 export const exportFormatted = (meetingId: string, format: string) =>
   invoke<FormattedExport>("export_formatted", { meetingId, format });
+export const exportToNotion = (meetingId: string, targetParentId?: string | null) =>
+  invoke<string>("export_to_notion", { meetingId, targetParentId: targetParentId ?? null });
+export const verifyNotionConnection = (apiKey: string) =>
+  invoke<string>("verify_notion_connection", { apiKey });
+export const sendToSlack = (meetingId: string, webhookUrl?: string | null) =>
+  invoke<string>("send_to_slack", { meetingId, webhookUrl: webhookUrl ?? null });
+export const verifyLinearConnection = (apiKey: string) =>
+  invoke<string>("verify_linear_connection", { apiKey });
+export const createLinearIssue = (title: string, description?: string | null, teamKey?: string | null) =>
+  invoke<string>("create_linear_issue", { title, description: description ?? null, teamKey: teamKey ?? null });
 export const dispatchWebhook = (meetingId: string) => invoke<string>("dispatch_webhook", { meetingId });
 export const exportMarkdown = (meetingId: string) => invoke<string>("export_markdown", { meetingId });
 export const listAttachments = (meetingId: string) =>

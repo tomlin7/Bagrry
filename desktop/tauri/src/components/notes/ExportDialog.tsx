@@ -4,6 +4,7 @@ import {
   Check,
   Copy,
   Download,
+  ExternalLink,
   FileCode,
   FileDown,
   FileText,
@@ -26,6 +27,17 @@ export function ExportDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [copiedFormat, setCopiedFormat] = useState<string | null>(null);
+
+  const notionMutation = useMutation({
+    mutationFn: () => api.exportToNotion(meetingId),
+    onSuccess: (url) => {
+      toast.success("Exported to Notion! Opening page...");
+      window.open(url, "_blank");
+    },
+    onError: (err) => {
+      toast.error(typeof err === "string" ? err : "Notion export failed");
+    },
+  });
 
   const exportMutation = useMutation({
     mutationFn: async (format: "slack" | "html_rich_text" | "markdown" | "pdf_html") => {
@@ -200,6 +212,33 @@ export function ExportDialog({
               </div>
             </div>
             <Printer className="size-3.5 text-subtle opacity-60 group-hover:opacity-100" />
+          </button>
+
+          {/* 5. 1-Click Notion Sync */}
+          <button
+            type="button"
+            disabled={notionMutation.isPending}
+            onClick={() => notionMutation.mutate()}
+            className="group flex items-center justify-between rounded-xl border border-border/80 bg-surface-raised/40 p-3.5 transition-all hover:border-accent/40 hover:bg-hover text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-lg bg-surface border border-border text-subtle group-hover:text-accent">
+                <ExternalLink className="size-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold text-text group-hover:text-accent transition-colors">
+                  Push to Notion Workspace
+                </span>
+                <span className="text-[11px] text-subtle">
+                  Export structured note sections & action items to Notion
+                </span>
+              </div>
+            </div>
+            {notionMutation.isPending ? (
+              <span className="text-xs text-subtle">Exporting...</span>
+            ) : (
+              <ExternalLink className="size-3.5 text-subtle opacity-60 group-hover:opacity-100" />
+            )}
           </button>
         </div>
       </DialogContent>

@@ -25,6 +25,8 @@ vi.mock("@/lib/api", async (importOriginal) => {
     setSecret: vi.fn().mockResolvedValue(undefined),
     createApiKey: vi.fn().mockResolvedValue("bagrry_key_secret_123"),
     revokeApiKey: vi.fn().mockResolvedValue(undefined),
+    verifyNotionConnection: vi.fn().mockResolvedValue("Connected to Notion as 'Bagrry Bot'"),
+    verifyLinearConnection: vi.fn().mockResolvedValue("Connected to Linear as Dheeraj (Acme)"),
   };
 });
 
@@ -84,6 +86,25 @@ describe("ConnectorsTab & MCP Server", () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
         "http://127.0.0.1:47821/mcp",
       );
+    });
+  });
+
+  it("renders Notion and Linear connector cards and triggers connection verification", async () => {
+    renderWithClient(<ConnectorsTab />);
+
+    expect(screen.getByText("Direct Productivity Connectors")).toBeDefined();
+    expect(screen.getByText("Notion Workspace")).toBeDefined();
+    expect(screen.getByText("Slack Broadcasts")).toBeDefined();
+    expect(screen.getByText("Linear Tickets")).toBeDefined();
+
+    const notionInput = screen.getByPlaceholderText(/ntn_\.\.\. or secret_\.\.\./i);
+    fireEvent.change(notionInput, { target: { value: "secret_notion_key_123" } });
+
+    const verifyButtons = screen.getAllByRole("button", { name: /Verify Connection/i });
+    fireEvent.click(verifyButtons[0]);
+
+    await waitFor(() => {
+      expect(api.verifyNotionConnection).toHaveBeenCalledWith("secret_notion_key_123");
     });
   });
 });

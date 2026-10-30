@@ -18,6 +18,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   return {
     ...actual,
     exportFormatted: vi.fn().mockResolvedValue(mockFormattedExport),
+    exportToNotion: vi.fn().mockResolvedValue("https://notion.so/test-page-123"),
   };
 });
 
@@ -101,6 +102,28 @@ describe("ExportDialog", () => {
     await waitFor(() => {
       expect(api.exportFormatted).toHaveBeenCalledWith("mtg_001", "markdown");
       expect(window.URL.createObjectURL).toHaveBeenCalled();
+    });
+  });
+
+  it("exports note directly to Notion when clicking Notion button", async () => {
+    vi.mocked(api.exportToNotion).mockResolvedValue("https://notion.so/test-page-123");
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    renderWithClient(
+      <ExportDialog
+        meetingId="mtg_001"
+        meetingTitle="Product Architecture Review"
+        open={true}
+        onOpenChange={() => {}}
+      />,
+    );
+
+    const notionBtn = screen.getByText("Push to Notion Workspace");
+    fireEvent.click(notionBtn);
+
+    await waitFor(() => {
+      expect(api.exportToNotion).toHaveBeenCalledWith("mtg_001");
+      expect(openSpy).toHaveBeenCalledWith("https://notion.so/test-page-123", "_blank");
     });
   });
 });
