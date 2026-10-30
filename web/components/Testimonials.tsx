@@ -6,7 +6,7 @@ import { Star } from 'lucide-react'
 const TESTIMONIALS = [
   {
     quote:
-      'Bagrry has completely replaced the frantic post-meeting scramble. It finds what I promised to ship and drafts the follow-up before I even switch tabs.',
+      'Bagrry is the first meeting app that doesn’t get in my way. I take three messy bullet points during a call, and it enhances them into an executive summary with clickable audio citations.',
     author: 'Elena Rostova',
     role: 'Head of Product',
     company: 'Veloce AI',
@@ -14,7 +14,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      'The zero-cloud-telemetry promise is real. Our enterprise security team approved Bagrry in 48 hours because all audio stays strictly on our local machines.',
+      'The no-bot approach is a total game changer. Clients never feel uncomfortable, and having every bullet point grounded directly in the verbatim transcript means zero hallucinations.',
     author: 'David Chen',
     role: 'VP of Engineering',
     company: 'HyperScale Systems',
@@ -22,7 +22,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      'The sentence citations are brilliant. When an action item surfaces, I can click straight back to the verbatim sentence in the transcript to verify context.',
+      'The local MCP server connects directly to Claude and Cursor. I can ask my IDE what our architect agreed to in yesterday’s sync without digging through docs.',
     author: 'Maya Lin',
     role: 'Founder & CEO',
     company: 'Krypton Labs',

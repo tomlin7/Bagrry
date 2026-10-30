@@ -22,9 +22,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Bagrry: AI notepad that closes your open loops',
+  title: 'Bagrry: The AI Notepad for Back-to-Back Meetings',
   description:
-    'Bagrry captures your personal context and never lets you miss your commitments. Closes open loops automatically without meeting bots.',
+    'Bagrry captures your raw shorthand notes, listens without meeting bots, and enhances them into structured recaps with verified citations.',
   icons: {
     icon: '/favicon.ico',
   },

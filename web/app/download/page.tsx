@@ -26,7 +26,7 @@ export default function DownloadPage() {
           Download Bagrry
         </h1>
         <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-xl mx-auto mb-10 leading-relaxed">
-          The high-performance AI meeting notepad. Runs natively on your GPU with zero-latency window dragging and 100% on-device confidentiality.
+          The AI notepad for back-to-back meetings. Runs natively on your GPU with zero-latency window dragging, instant Aero Snap, and 100% on-device confidentiality.
         </p>
 
         {/* Platform Switcher Pills */}

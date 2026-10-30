@@ -5,24 +5,24 @@ import { ChevronDown } from 'lucide-react'
 
 const FAQS = [
   {
-    q: 'How can Bagrry help me?',
-    a: 'Bagrry is your AI meeting notepad for back-to-back calls. While you take rough scratchpad notes during a call, Bagrry captures dual-channel audio in the background, synthesizes structured summaries with sentence-level citations, and extracts high-value action items into your Open Loops Inbox.',
+    q: 'How is Bagrry different from bot-based meeting recorders?',
+    a: 'Traditional meeting tools send an intrusive bot into your call that announces recording and dumps a messy 10-page transcript nobody reads. Bagrry runs natively on your machine, captures audio directly via OS loopback with zero bots, and blends your human notes with AI enhancement.',
   },
   {
-    q: 'What is memory in Bagrry?',
-    a: 'Memory is your personal meeting knowledge base. Just like your brain recalls previous agreements and context, Bagrry organizes all past conversations, attendee dossiers, and decisions locally on your device so you never lose context.',
+    q: 'How does the "Enhance" feature work?',
+    a: 'During the call, you jot down quick, rough shorthand notes. Post-meeting, Bagrry merges your human emphasis with the verbatim audio transcript, filling in exact names, technical specs, and action items with sentence-level citations.',
   },
   {
-    q: 'What is Bagrry MCP?',
-    a: 'Bagrry includes a built-in Model Context Protocol (MCP) server running locally on port 47821. It acts as a bridge to plug your meeting context, past decisions, and open loops into external AI tools like Claude Desktop, Cursor, ChatGPT, and autonomous AI agents.',
+    q: 'What are sentence-level citations?',
+    a: 'Every bullet point created by the AI includes an interactive citation tag. Hovering or clicking it shows the exact sentence spoken by the attendee and gives you a 5-second audio scrubber to verify context immediately.',
   },
   {
-    q: 'How private is my meeting data?',
-    a: "100% on-device confidentiality. Your audio, transcripts, and notes are stored in a local SQLite database with WAL mode on your computer. We do not store your data on cloud servers, retain logs, or train models on your private discussions.",
+    q: 'What is the Local MCP Server?',
+    a: 'Bagrry includes a built-in Model Context Protocol server on port 47821. It allows external AI tools like Claude Desktop and Cursor to query your meeting history and past decisions securely on your local device.',
   },
   {
-    q: 'Do meeting bots join my calls or do you take screenshots?',
-    a: 'No meeting bots ever join your calls, and we never take intrusive screen captures. Bagrry captures meeting audio directly through native OS loopback (WASAPI on Windows, CoreAudio on macOS) and your local microphone.',
+    q: 'Where is my data stored and is it private?',
+    a: '100% on-device confidentiality. Your audio, transcripts, and notes are stored locally in SQLite with WAL mode on your computer. We never train AI models on your private discussions or sell your data.',
   },
 ]
 

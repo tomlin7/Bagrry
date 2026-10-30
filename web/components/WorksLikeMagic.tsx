@@ -5,7 +5,7 @@ import Image from 'next/image'
 
 export function WorksLikeMagic() {
   return (
-    <section id="works-like-magic" className="py-24 md:py-32 bg-white">
+    <section id="how-it-works" className="py-24 md:py-32 bg-white">
       <div className="max-w-[1024px] mx-auto px-6">
         {/* Section Heading matching projectminimi */}
         <div className="text-center mb-16">
@@ -16,17 +16,17 @@ export function WorksLikeMagic() {
 
         {/* 3 Bento Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-          {/* Card 1: Bagrry finds your open loops */}
+          {/* Card 1: You write raw thoughts */}
           <div className="md:col-span-6 rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-10 flex flex-col justify-between overflow-hidden shadow-xs hover:border-black/[0.15] transition-all">
             <div className="mb-8">
               <span className="text-[36px] sm:text-[42px] font-semibold text-neutral-400 block mb-2 leading-none">
                 1.
               </span>
               <h3 className="text-[24px] sm:text-[28px] font-semibold text-black mb-3 tracking-tight">
-                Bagrry finds your open loops
+                You write raw thoughts
               </h3>
               <p className="text-[16px] sm:text-[18px] text-neutral-600 leading-relaxed font-normal">
-                Captures dual-channel audio from your mic and meeting attendees, linking high-value action items to the exact sentence spoken.
+                Take rapid, distraction-free notes during your call. Jot down shorthand bullets, key decisions, and whatever caught your attention.
               </p>
             </div>
 
@@ -34,24 +34,24 @@ export function WorksLikeMagic() {
             <div className="h-[280px] w-full rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs relative">
               <Image
                 src="/assets/img_11.png"
-                alt="Bagrry finds your open loops"
+                alt="You write raw thoughts"
                 fill
                 className="object-cover object-top"
               />
             </div>
           </div>
 
-          {/* Card 2: then closes them automatically */}
+          {/* Card 2: Bagrry enhances with transcript */}
           <div className="md:col-span-6 rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-10 flex flex-col justify-between overflow-hidden shadow-xs hover:border-black/[0.15] transition-all">
             <div className="mb-8">
               <span className="text-[36px] sm:text-[42px] font-semibold text-neutral-400 block mb-2 leading-none">
                 2.
               </span>
               <h3 className="text-[24px] sm:text-[28px] font-semibold text-black mb-3 tracking-tight">
-                then closes them automatically
+                Bagrry enhances with transcript
               </h3>
               <p className="text-[16px] sm:text-[18px] text-neutral-600 leading-relaxed font-normal">
-                Traces your decisions, drafts one-click follow-up recaps, and resolves open loops without manual post-meeting admin.
+                Post-meeting, Bagrry merges your human emphasis with verbatim audio, producing structured takeaways with clickable sentence citations.
               </p>
             </div>
 
@@ -59,7 +59,7 @@ export function WorksLikeMagic() {
             <div className="h-[280px] w-full rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-xs relative">
               <Image
                 src="/assets/img_12.png"
-                alt="then closes them automatically"
+                alt="Bagrry enhances with transcript"
                 fill
                 className="object-cover object-top"
               />
@@ -70,10 +70,10 @@ export function WorksLikeMagic() {
           <div className="md:col-span-12 rounded-[28px] border border-black/[0.08] bg-[#f7f7f7] p-8 md:p-12 overflow-hidden shadow-xs hover:border-black/[0.15] transition-all">
             <div className="max-w-xl mb-10">
               <h3 className="text-[26px] sm:text-[32px] font-semibold text-black mb-3 tracking-tight">
-                Supports all meeting apps
+                Works with all meeting platforms
               </h3>
               <p className="text-[16px] sm:text-[18px] text-neutral-600 leading-relaxed font-normal">
-                Bagrry records audio directly through native OS loopback. No awkward meeting bots joining your calls.
+                Bagrry captures audio directly through native OS loopback. No awkward bots joining your Zoom, Google Meet, Teams, or Slack calls.
               </p>
             </div>
 

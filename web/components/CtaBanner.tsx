@@ -10,10 +10,10 @@ export function CtaBanner() {
       <div className="max-w-[1024px] mx-auto px-6">
         <div className="rounded-[32px] border border-black/[0.08] bg-[#f7f7f7] p-10 sm:p-16 md:p-20 relative overflow-hidden flex flex-col items-center shadow-xs">
           <h2 className="text-[34px] sm:text-[44px] md:text-[48px] font-semibold tracking-tight text-black mb-4 leading-[1.15]">
-            Stay on top of your work
+            Never leave a meeting with loose ends
           </h2>
           <p className="text-[18px] sm:text-[21px] text-neutral-600 mb-10 max-w-md font-normal">
-            No meeting bots. No cloud telemetry. Just download and start closing your open loops.
+            No awkward meeting bots. No unreadable transcripts. Take rough notes, enhance with AI, and verify every citation.
           </p>
 
           <a href="/download">

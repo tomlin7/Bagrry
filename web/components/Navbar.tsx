@@ -39,11 +39,11 @@ export function Navbar() {
           <a href="#about" className="hover:text-black transition-colors">
             About
           </a>
-          <a href="#memory" className="hover:text-black transition-colors">
-            Memory
+          <a href="#how-it-works" className="hover:text-black transition-colors">
+            How it works
           </a>
-          <a href="#works-like-magic" className="hover:text-black transition-colors">
-            Works like magic
+          <a href="#enhance" className="hover:text-black transition-colors">
+            Enhance
           </a>
           <a href="#privacy" className="hover:text-black transition-colors">
             Privacy

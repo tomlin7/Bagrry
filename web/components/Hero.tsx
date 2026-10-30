@@ -22,18 +22,16 @@ export function Hero() {
           <div className="lg:col-span-7 flex flex-col items-start text-left">
             {/* Main Headline matching product identity */}
             <h1 className="text-[34px] sm:text-[42px] font-semibold leading-[1.1] tracking-tight text-black mb-6">
-              AI notepad that{' '}
+              The AI notepad for{' '}
               <span className="text-[#ff8133] inline-block font-semibold">
-                closes
+                people in back-to-back
               </span>{' '}
-              your
-              <br />
-              open loops in meetings
+              meetings
             </h1>
 
             {/* Subtitle matching product identity */}
             <p className="text-[18px] sm:text-[21px] leading-[1.4] text-neutral-600 max-w-[500px] mb-8 font-normal">
-              Bagrry captures your meeting context, links citations into verbatim transcripts, and extracts every open loop without bots.
+              Take rough notes during your calls. Bagrry listens without bots, enhancing your shorthand into structured recaps with verified citations.
             </p>
 
             {/* CTA Download Button */}
@@ -52,7 +50,7 @@ export function Hero() {
             </div>
 
             <p className="text-[13px] text-neutral-400 font-mono">
-              Zero cloud telemetry · Local Whisper & SQLite WAL store
+              Zero meeting bots · Verbatim citations · Local SQLite storage
             </p>
           </div>
 
@@ -66,7 +64,7 @@ export function Hero() {
                   <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
                   <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
                   <span className="text-[11px] font-medium text-neutral-500 ml-2">
-                    Bagrry · Executive Sync
+                    Bagrry · Product Strategy Sync
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black text-white text-[10px] font-mono">
@@ -79,7 +77,7 @@ export function Hero() {
               <div className="space-y-3 text-left">
                 <div className="p-3 rounded-xl bg-white border border-black/[0.05] shadow-xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-1">
-                    Detected Open Loop
+                    AI Enhanced Summary
                   </span>
                   <div
                     onClick={() => toggleCheck('act_1')}
@@ -93,16 +91,19 @@ export function Hero() {
                     />
                     <div>
                       <p className={`text-xs font-medium ${checkedItems.act_1 ? 'line-through text-neutral-400' : 'text-neutral-800'}`}>
-                        Send revised contract with true-up clauses
+                        Migrate local storage to SQLite WAL mode for sub-millisecond offline note retrieval
                       </p>
                       <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-[#c3dd4f]/20 text-[#4c5c06] border border-[#c3dd4f]/40">
-                        cite s_001
+                        cite s_014 · 12:40
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-3 rounded-xl bg-white border border-black/[0.05] shadow-xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-1">
+                    Action Item
+                  </span>
                   <div
                     onClick={() => toggleCheck('act_2')}
                     className="flex items-start gap-2.5 cursor-pointer"
@@ -115,10 +116,10 @@ export function Hero() {
                     />
                     <div>
                       <p className={`text-xs font-medium ${checkedItems.act_2 ? 'line-through text-neutral-400' : 'text-neutral-800'}`}>
-                        Schedule follow-up demo with Alex on Friday
+                        Draft revised API schema and share with engineering team by Friday
                       </p>
                       <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-[#c3dd4f]/20 text-[#4c5c06] border border-[#c3dd4f]/40">
-                        cite s_002
+                        cite s_028 · 24:15
                       </span>
                     </div>
                   </div>

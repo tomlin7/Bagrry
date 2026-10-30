@@ -11,10 +11,10 @@ export function ContextSwitch() {
         <div className="rounded-[32px] border border-black/[0.08] bg-[#f7f7f7] p-8 sm:p-14 md:p-16 flex flex-col md:flex-row items-center justify-between gap-10 relative shadow-xs">
           <div className="max-w-lg text-left">
             <h2 className="text-[30px] sm:text-[36px] font-semibold text-black mb-3 tracking-tight leading-[1.2]">
-              Context-switch like a Pro
+              Chat with your meeting notes
             </h2>
             <p className="text-[18px] sm:text-[21px] text-neutral-600 mb-8 leading-[1.4] font-normal">
-              Back-to-back calls? Bagrry catches you up on past meetings with any contact before you jump in.
+              Need to recall what was decided three weeks ago? Ask Bagrry to search across past meetings, synthesize decisions, and draft follow-ups in seconds.
             </p>
 
             <a href="/download">

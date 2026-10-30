@@ -13,10 +13,10 @@ export function OwnYourMemory() {
 
           <div className="relative z-10 max-w-xl mb-12 text-left">
             <h2 className="text-[34px] sm:text-[42px] font-semibold tracking-tight text-white mb-3">
-              Own your memory
+              Your notes stay yours
             </h2>
             <p className="text-[17px] sm:text-[19px] text-neutral-400 font-normal leading-relaxed">
-              We take confidentiality seriously. Your audio recordings, transcripts, and meeting notes remain strictly on your machine.
+              We take privacy seriously. Your audio recordings, transcripts, and enhanced notes remain strictly on your machine.
             </p>
           </div>
 
@@ -31,22 +31,22 @@ export function OwnYourMemory() {
                   Stored on your device
                 </h3>
                 <p className="text-[15px] text-neutral-400 leading-relaxed font-normal">
-                  All notes, citations, and scratchpads are saved locally in high-speed SQLite with WAL mode.
+                  All notes, citations, and scratchpads are saved locally in high-speed SQLite with WAL mode. Complete data ownership.
                 </p>
               </div>
             </div>
 
-            {/* Pillar 2: No cloud database */}
+            {/* Pillar 2: Zero meeting bots */}
             <div className="p-8 rounded-[24px] bg-[#242424] border border-white/10 flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6 text-white">
                   <EyeOff className="w-6 h-6 text-neutral-200" />
                 </div>
                 <h3 className="text-[22px] font-semibold text-white mb-2 tracking-tight">
-                  No cloud database
+                  Zero meeting bots
                 </h3>
                 <p className="text-[15px] text-neutral-400 leading-relaxed font-normal">
-                  Zero telemetry. Run transcription locally with offline Whisper models or your own private API keys.
+                  No awkward recording bots joining your calls, no screen recording telemetry, and zero model training on your data.
                 </p>
               </div>
             </div>
