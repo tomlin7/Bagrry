@@ -402,6 +402,17 @@ INSERT INTO meetings_fts(rowid, title, scratchpad_raw, enhanced_notes_json, tran
 SELECT rowid, title, scratchpad_raw, ifnull(enhanced_notes_json, ''), ifnull(transcript_json, '') FROM meetings;
 "#;
 
+
+const V11: &str = r#"
+-- Add privacy controls, expiration, revocation, and views count to shares
+ALTER TABLE shares ADD COLUMN include_transcript INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE shares ADD COLUMN include_audio INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE shares ADD COLUMN include_scratchpad INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE shares ADD COLUMN expires_at TEXT;
+ALTER TABLE shares ADD COLUMN revoked INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE shares ADD COLUMN views_count INTEGER NOT NULL DEFAULT 0;
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -519,6 +530,17 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
         )
         .map_err(|e| format!("record v10: {e}"))?;
     }
+
+    if current < 11 {
+        conn.execute_batch(V11)
+            .map_err(|e| format!("migration v11: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (11)",
+            [],
+        )
+        .map_err(|e| format!("record v11: {e}"))?;
+    }
+
 
 
     if vec_enabled {

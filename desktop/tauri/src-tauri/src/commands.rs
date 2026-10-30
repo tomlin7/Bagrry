@@ -95,6 +95,29 @@ pub struct GlobalSearchResult {
     pub matched_people: Vec<Person>,
 }
 
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ShareInfo {
+    pub token: String,
+    pub meeting_id: String,
+    pub url: String,
+    pub include_transcript: bool,
+    pub include_audio: bool,
+    pub include_scratchpad: bool,
+    pub expires_at: Option<String>,
+    pub revoked: bool,
+    pub views_count: i64,
+    pub created_at: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct FormattedExport {
+    pub format: String,
+    pub content: String,
+    pub filename: String,
+    pub mime_type: String,
+}
+
 #[derive(Serialize)]
 pub struct PersonDossier {
     pub person: Person,
@@ -1315,6 +1338,305 @@ pub fn dispatch_webhook(state: State<AppState>, meeting_id: String) -> Result<St
         }
     }
     Ok(results.join(" · "))
+}
+
+#[tauri::command]
+pub fn create_share_custom(
+    state: State<AppState>,
+    meeting_id: String,
+    include_transcript: bool,
+    include_audio: bool,
+    include_scratchpad: bool,
+    expires_days: Option<i64>,
+) -> Result<ShareInfo, String> {
+    let conn = state.conn()?;
+    let token = new_id("sh");
+    let port = secrets::get_setting(&conn, "api_port", "47821");
+    let url = format!("http://127.0.0.1:{port}/s/{token}");
+
+    if let Some(days) = expires_days {
+        let exp_modifier = format!("+{} days", days);
+        conn.execute(
+            "INSERT INTO shares (token, meeting_id, visibility, include_transcript, include_audio, include_scratchpad, expires_at)
+             VALUES (?1, ?2, 'link', ?3, ?4, ?5, datetime('now', ?6))",
+            params![token, meeting_id, include_transcript as i64, include_audio as i64, include_scratchpad as i64, exp_modifier],
+        ).map_err(|e| e.to_string())?;
+    } else {
+        conn.execute(
+            "INSERT INTO shares (token, meeting_id, visibility, include_transcript, include_audio, include_scratchpad, expires_at)
+             VALUES (?1, ?2, 'link', ?3, ?4, ?5, NULL)",
+            params![token, meeting_id, include_transcript as i64, include_audio as i64, include_scratchpad as i64],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    Ok(ShareInfo {
+        token,
+        meeting_id,
+        url,
+        include_transcript,
+        include_audio,
+        include_scratchpad,
+        expires_at: None,
+        revoked: false,
+        views_count: 0,
+        created_at: "Just now".into(),
+    })
+}
+
+#[tauri::command]
+pub fn get_meeting_shares(
+    state: State<AppState>,
+    meeting_id: String,
+) -> Result<Vec<ShareInfo>, String> {
+    let conn = state.conn()?;
+    let port = secrets::get_setting(&conn, "api_port", "47821");
+    let mut stmt = conn.prepare(
+        "SELECT token, meeting_id, include_transcript, include_audio, include_scratchpad, expires_at, revoked, views_count, created_at
+         FROM shares
+         WHERE meeting_id = ?1
+         ORDER BY created_at DESC"
+    ).map_err(|e| e.to_string())?;
+
+    let rows = stmt.query_map(params![meeting_id], |row| {
+        let token: String = row.get(0)?;
+        let url = format!("http://127.0.0.1:{port}/s/{token}");
+        Ok(ShareInfo {
+            token,
+            meeting_id: row.get(1)?,
+            url,
+            include_transcript: row.get::<_, i64>(2)? != 0,
+            include_audio: row.get::<_, i64>(3)? != 0,
+            include_scratchpad: row.get::<_, i64>(4)? != 0,
+            expires_at: row.get(5)?,
+            revoked: row.get::<_, i64>(6)? != 0,
+            views_count: row.get(7)?,
+            created_at: row.get(8)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn revoke_share(state: State<AppState>, token: String) -> Result<(), String> {
+    let conn = state.conn()?;
+    conn.execute("UPDATE shares SET revoked = 1 WHERE token = ?1", params![token])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn export_formatted(
+    state: State<AppState>,
+    meeting_id: String,
+    format: String,
+) -> Result<FormattedExport, String> {
+    let conn = state.conn()?;
+    let m = conn
+        .query_row(
+            &format!("SELECT {MEETING_COLS} FROM meetings WHERE id=?1"),
+            params![meeting_id],
+            meeting_from_row,
+        )
+        .map_err(|e| e.to_string())?;
+
+    let att_stmt = conn.prepare(
+        "SELECT a.name FROM attendees a JOIN meeting_attendees ma ON ma.attendee_id = a.id WHERE ma.meeting_id = ?1"
+    );
+    let attendees: Vec<String> = if let Ok(mut stmt) = att_stmt {
+        stmt.query_map(params![meeting_id], |r| r.get(0)).ok()
+            .map(|rows| rows.flatten().collect())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let attendees_str = if attendees.is_empty() { "None listed".into() } else { attendees.join(", ") };
+
+    let slug = m.title.to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '_' })
+        .collect::<String>()
+        .trim_matches('_')
+        .to_string();
+    let safe_slug = if slug.is_empty() { "meeting_notes".to_string() } else { slug };
+
+    match format.as_str() {
+        "slack" => {
+            let mut out = format!("*Meeting: {}*\n_Date: {} · Attendees: {}_\n\n", m.title, m.date, attendees_str);
+            if !m.scratchpad_raw.trim().is_empty() {
+                out.push_str("*Scratchpad Notes:*\n");
+                for line in m.scratchpad_raw.lines() {
+                    let trimmed = line.trim();
+                    if !trimmed.is_empty() {
+                        out.push_str(&format!("• {}\n", trimmed.trim_start_matches("- ")));
+                    }
+                }
+                out.push_str("\n");
+            }
+
+            if let Some(ref enh_json) = m.enhanced_notes_json {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(enh_json) {
+                    if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
+                        out.push_str("*Enhanced Summary:*\n");
+                        for sec in sections {
+                            let title = sec.get("section_title").and_then(|t| t.as_str()).unwrap_or("Section");
+                            out.push_str(&format!("*{}*\n", title));
+                            if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                                for b in bullets {
+                                    let text = b.get("text").and_then(|t| t.as_str()).unwrap_or("");
+                                    out.push_str(&format!("• {}\n", text));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Ok(FormattedExport {
+                format: "slack".into(),
+                content: out,
+                filename: format!("{}.txt", safe_slug),
+                mime_type: "text/plain".into(),
+            })
+        }
+        "html_rich_text" => {
+            let mut html = format!("<h1>{}</h1><p><em>Date: {} | Attendees: {}</em></p>", m.title, m.date, attendees_str);
+            if !m.scratchpad_raw.trim().is_empty() {
+                html.push_str("<h2>Scratchpad Notes</h2><ul>");
+                for line in m.scratchpad_raw.lines() {
+                    let trimmed = line.trim();
+                    if !trimmed.is_empty() {
+                        html.push_str(&format!("<li>{}</li>", trimmed.trim_start_matches("- ")));
+                    }
+                }
+                html.push_str("</ul>");
+            }
+            if let Some(ref enh_json) = m.enhanced_notes_json {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(enh_json) {
+                    if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
+                        html.push_str("<h2>AI Enhanced Summary</h2>");
+                        for sec in sections {
+                            let title = sec.get("section_title").and_then(|t| t.as_str()).unwrap_or("Section");
+                            html.push_str(&format!("<h3>{}</h3><ul>", title));
+                            if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                                for b in bullets {
+                                    let text = b.get("text").and_then(|t| t.as_str()).unwrap_or("");
+                                    html.push_str(&format!("<li>{}</li>", text));
+                                }
+                            }
+                            html.push_str("</ul>");
+                        }
+                    }
+                }
+            }
+            Ok(FormattedExport {
+                format: "html_rich_text".into(),
+                content: html,
+                filename: format!("{}.html", safe_slug),
+                mime_type: "text/html".into(),
+            })
+        }
+        "pdf_html" => {
+            let mut doc = format!(r#"<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{}</title>
+<style>
+  @media print {{ @page {{ margin: 20mm; }} }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #111; max-width: 800px; margin: 0 auto; padding: 24px; }}
+  h1 {{ font-size: 24px; margin-bottom: 4px; }}
+  .meta {{ color: #666; font-size: 13px; margin-bottom: 24px; border-bottom: 1px solid #eee; padding-bottom: 12px; }}
+  h2 {{ font-size: 17px; margin-top: 24px; margin-bottom: 8px; color: #222; border-bottom: 1px solid #f0f0f0; padding-bottom: 4px; }}
+  h3 {{ font-size: 14px; margin-top: 14px; margin-bottom: 6px; color: #444; }}
+  ul {{ padding-left: 20px; margin: 8px 0; }}
+  li {{ margin-bottom: 4px; font-size: 13px; }}
+  .brand {{ font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }}
+</style>
+</head>
+<body>
+<div class="brand">Bagrry · Executive Note</div>
+<h1>{}</h1>
+<div class="meta">Date: {} | Attendees: {}</div>
+"#, m.title, m.title, m.date, attendees_str);
+
+            if !m.scratchpad_raw.trim().is_empty() {
+                doc.push_str("<h2>Raw Scratchpad Notes</h2><ul>");
+                for line in m.scratchpad_raw.lines() {
+                    let trimmed = line.trim();
+                    if !trimmed.is_empty() {
+                        doc.push_str(&format!("<li>{}</li>", trimmed.trim_start_matches("- ")));
+                    }
+                }
+                doc.push_str("</ul>");
+            }
+
+            if let Some(ref enh_json) = m.enhanced_notes_json {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(enh_json) {
+                    if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
+                        doc.push_str("<h2>Executive Summary & Decisions</h2>");
+                        for sec in sections {
+                            let title = sec.get("section_title").and_then(|t| t.as_str()).unwrap_or("Section");
+                            doc.push_str(&format!("<h3>{}</h3><ul>", title));
+                            if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                                for b in bullets {
+                                    let text = b.get("text").and_then(|t| t.as_str()).unwrap_or("");
+                                    doc.push_str(&format!("<li>{}</li>", text));
+                                }
+                            }
+                            doc.push_str("</ul>");
+                        }
+                    }
+                }
+            }
+
+            doc.push_str("</body></html>");
+
+            Ok(FormattedExport {
+                format: "pdf_html".into(),
+                content: doc,
+                filename: format!("{}.html", safe_slug),
+                mime_type: "text/html".into(),
+            })
+        }
+        _ => {
+            // Default "markdown" with YAML frontmatter
+            let att_joined = attendees.iter().map(|a| format!("\"{}\"", a)).collect::<Vec<_>>().join(", ");
+            let mut md = format!(
+                "---\ntitle: \"{}\"\ndate: \"{}\"\nattendees: [{}]\nsource: \"Bagrry\"\n---\n\n# {}\n\n",
+                m.title, m.date, att_joined, m.title
+            );
+            if !m.scratchpad_raw.trim().is_empty() {
+                md.push_str("## Scratchpad\n\n");
+                md.push_str(&m.scratchpad_raw);
+                md.push_str("\n\n");
+            }
+            if let Some(ref enh_json) = m.enhanced_notes_json {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(enh_json) {
+                    if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
+                        md.push_str("## Enhanced Notes\n\n");
+                        for sec in sections {
+                            let title = sec.get("section_title").and_then(|t| t.as_str()).unwrap_or("Section");
+                            md.push_str(&format!("### {}\n\n", title));
+                            if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                                for b in bullets {
+                                    let text = b.get("text").and_then(|t| t.as_str()).unwrap_or("");
+                                    md.push_str(&format!("- {}\n", text));
+                                }
+                                md.push_str("\n");
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(FormattedExport {
+                format: "markdown".into(),
+                content: md,
+                filename: format!("{}.md", safe_slug),
+                mime_type: "text/markdown".into(),
+            })
+        }
+    }
 }
 
 #[tauri::command]

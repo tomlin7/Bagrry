@@ -27,6 +27,8 @@ import { EnhancedNotes } from "@/components/notes/EnhancedNotes";
 import { TranscriptPanel } from "@/components/notes/TranscriptPanel";
 import { AudioPlayerBar } from "@/components/notes/AudioPlayerBar";
 import { FollowUpDialog } from "@/components/action-items/FollowUpDialog";
+import { ShareDialog } from "@/components/notes/ShareDialog";
+import { ExportDialog } from "@/components/notes/ExportDialog";
 import {
   TemplateDialog,
   getTemplateIcon,
@@ -76,6 +78,8 @@ export function NotePage({ noteId }: { noteId: string }) {
   const [templateToEdit, setTemplateToEdit] = useState<Template | null>(null);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const editorRef = useRef<NoteEditorHandle>(null);
   const splitContainerRef = useRef<HTMLDivElement>(null);
 
@@ -204,32 +208,6 @@ export function NotePage({ noteId }: { noteId: string }) {
   const addAttendee = useMutation({
     mutationFn: (personId: string) => api.addMeetingAttendee(noteId, personId),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: api.qk.attendees(noteId) }),
-    onError: (e) => toast.error(e),
-  });
-
-  const share = useMutation({
-    mutationFn: () => api.createShare(noteId),
-    onSuccess: async (url) => {
-      try {
-        await navigator.clipboard.writeText(url);
-        toast.success("Share link copied");
-      } catch {
-        toast.info("Share URL", url);
-      }
-    },
-    onError: (e) => toast.error(e),
-  });
-
-  const exportMd = useMutation({
-    mutationFn: () => api.exportMarkdown(noteId),
-    onSuccess: async (md) => {
-      try {
-        await navigator.clipboard.writeText(md);
-        toast.success("Markdown copied to clipboard");
-      } catch {
-        toast.info("Markdown", md.slice(0, 200));
-      }
-    },
     onError: (e) => toast.error(e),
   });
 
@@ -481,6 +459,16 @@ export function NotePage({ noteId }: { noteId: string }) {
               <span>Follow-Up</span>
             </Button>
 
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => setShareOpen(true)}
+              className="h-7 gap-1.5 text-[11px] text-muted hover:text-text cursor-pointer"
+            >
+              <Share2 className="size-3 text-accent" />
+              <span>Share</span>
+            </Button>
+
             <EnhanceButton
               templates={templates}
               recipes={recipes}
@@ -500,13 +488,13 @@ export function NotePage({ noteId }: { noteId: string }) {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => share.mutate()}>
+                <DropdownMenuItem onSelect={() => setShareOpen(true)}>
                   <Share2 className="size-3.5" />
-                  Copy share link
+                  Share note…
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => exportMd.mutate()}>
+                <DropdownMenuItem onSelect={() => setExportOpen(true)}>
                   <Download className="size-3.5" />
-                  Copy as Markdown
+                  Export note…
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => webhook.mutate()}>
                   <Webhook className="size-3.5" />
@@ -874,6 +862,20 @@ export function NotePage({ noteId }: { noteId: string }) {
         open={followUpOpen}
         onOpenChange={setFollowUpOpen}
         meetingId={noteId}
+      />
+
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        meetingId={noteId}
+        meetingTitle={note?.title ?? ""}
+      />
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        meetingId={noteId}
+        meetingTitle={note?.title ?? ""}
       />
 
       {/* Template Builder & Customization Dialog */}

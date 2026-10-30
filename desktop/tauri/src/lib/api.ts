@@ -10,6 +10,7 @@ import type {
   Company,
   DbStatus,
   Folder,
+  FormattedExport,
   GlobalSearchResult,
   Meeting,
   Person,
@@ -17,6 +18,7 @@ import type {
   Profile,
   Recipe,
   RecStatus,
+  ShareInfo,
   Template,
   TranscriptSeg,
 } from "./types";
@@ -221,6 +223,26 @@ export const setProfile = (name: string, email: string, workspace: string) =>
 export const copyConsent = () => invoke<string>("copy_consent");
 export const createShare = (meetingId: string, visibility?: string | null) =>
   invoke<string>("create_share", { meetingId, visibility: visibility ?? null });
+export const createShareCustom = (payload: {
+  meetingId: string;
+  includeTranscript: boolean;
+  includeAudio: boolean;
+  includeScratchpad: boolean;
+  expiresDays?: number | null;
+}) =>
+  invoke<ShareInfo>("create_share_custom", {
+    meetingId: payload.meetingId,
+    includeTranscript: payload.includeTranscript,
+    includeAudio: payload.includeAudio,
+    includeScratchpad: payload.includeScratchpad,
+    expiresDays: payload.expiresDays ?? null,
+  });
+export const getMeetingShares = (meetingId: string) =>
+  invoke<ShareInfo[]>("get_meeting_shares", { meetingId });
+export const revokeShare = (token: string) =>
+  invoke<void>("revoke_share", { token });
+export const exportFormatted = (meetingId: string, format: string) =>
+  invoke<FormattedExport>("export_formatted", { meetingId, format });
 export const dispatchWebhook = (meetingId: string) => invoke<string>("dispatch_webhook", { meetingId });
 export const exportMarkdown = (meetingId: string) => invoke<string>("export_markdown", { meetingId });
 export const listAttachments = (meetingId: string) =>
@@ -259,6 +281,7 @@ export const getReferralCode = () => invoke<string>("get_referral_code");
 export const qk = {
   meetings: (folderId?: string | null) => ["meetings", folderId ?? "all"] as const,
   meeting: (id: string) => ["meeting", id] as const,
+  meetingShares: (id: string) => ["meeting-shares", id] as const,
   segments: (id: string) => ["segments", id] as const,
   attendees: (id: string) => ["attendees", id] as const,
   attachments: (id: string) => ["attachments", id] as const,

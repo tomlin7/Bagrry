@@ -86,11 +86,16 @@ fn handle(db_path: &Path, mut req: Request) {
         return;
     }
 
-    if method == Method::Get && url.starts_with("/share/") {
-        let token = url.trim_start_matches("/share/");
+    if method == Method::Get && (url.starts_with("/share/") || url.starts_with("/s/")) {
+        let token = if url.starts_with("/s/") {
+            url.trim_start_matches("/s/")
+        } else {
+            url.trim_start_matches("/share/")
+        };
+        let token = token.split('?').next().unwrap_or(token);
         match share_payload(&conn, token) {
             Some(payload) => respond(req, html_or_json(&accept, payload)),
-            None => respond(req, json_res(404, json!({ "error": "not found" }))),
+            None => respond(req, json_res(404, json!({ "error": "Share link not found or expired" }))),
         }
         return;
     }
@@ -194,20 +199,140 @@ fn html_or_json(accept: &str, value: serde_json::Value) -> Response<Cursor<Vec<u
         return json_res(200, value);
     }
 
-    let title = escape_html(value["title"].as_str().unwrap_or("Shared note"));
-    let body = escape_html(
-        value["scratchpad"]
-            .as_str()
-            .unwrap_or_default(),
-    );
-    let html = format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"><title>{title}</title>\
-         <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
-         <style>body{{font-family:system-ui,-apple-system,sans-serif;max-width:44rem;margin:3rem auto;\
-         padding:0 1.5rem;line-height:1.6;color:#1c1b19}}h1{{font-size:1.6rem}}\
-         pre{{white-space:pre-wrap;font:inherit}}</style></head>\
-         <body><h1>{title}</h1><pre>{body}</pre></body></html>"
-    );
+    let title = escape_html(value["title"].as_str().unwrap_or("Shared Meeting"));
+    let date = escape_html(value["date"].as_str().unwrap_or(""));
+    let scratchpad = value["scratchpad"].as_str().unwrap_or("").trim();
+    let enhanced = value["enhanced"].as_str().unwrap_or("");
+    let transcript = value["transcript"].as_str().unwrap_or("");
+    let include_audio = value["include_audio"].as_bool().unwrap_or(false);
+
+    let mut enhanced_html = String::new();
+    if !enhanced.is_empty() {
+        if let Ok(doc) = serde_json::from_str::<serde_json::Value>(enhanced) {
+            if let Some(sections) = doc.get("sections").and_then(|s| s.as_array()) {
+                for sec in sections {
+                    let stitle = escape_html(sec.get("section_title").and_then(|t| t.as_str()).unwrap_or("Section"));
+                    enhanced_html.push_str(&format!("<div class=\"section\"><h3>{}</h3><ul>", stitle));
+                    if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                        for b in bullets {
+                            let text = escape_html(b.get("text").and_then(|t| t.as_str()).unwrap_or(""));
+                            enhanced_html.push_str(&format!("<li>{}</li>", text));
+                        }
+                    }
+                    enhanced_html.push_str("</ul></div>");
+                }
+            }
+        }
+    }
+
+    let mut transcript_html = String::new();
+    if !transcript.is_empty() {
+        if let Ok(segs) = serde_json::from_str::<serde_json::Value>(transcript) {
+            if let Some(arr) = segs.as_array() {
+                transcript_html.push_str("<details class=\"transcript-box\"><summary>Verbatim Transcript (" );
+                transcript_html.push_str(&format!("{} utterances)</summary><div class=\"transcript-lines\">", arr.len()));
+                for seg in arr {
+                    let speaker = escape_html(seg.get("speaker").and_then(|s| s.as_str()).unwrap_or("speaker"));
+                    let text = escape_html(seg.get("text").and_then(|t| t.as_str()).unwrap_or(""));
+                    let is_me = speaker == "me";
+                    let spk_label = if is_me { "You" } else { "Attendee" };
+                    transcript_html.push_str(&format!(
+                        "<div class=\"t-line\"><span class=\"spk\">{}</span>: {}</div>",
+                        spk_label, text
+                    ));
+                }
+                transcript_html.push_str("</div></details>");
+            }
+        }
+    }
+
+    let mut scratch_html = String::new();
+    if !scratchpad.is_empty() {
+        scratch_html.push_str("<details class=\"transcript-box\"><summary>User Scratchpad Notes</summary><pre class=\"scratchpad-pre\">");
+        scratch_html.push_str(&escape_html(scratchpad));
+        scratch_html.push_str("</pre></details>");
+    }
+
+    let audio_player_html = if include_audio {
+        "<div class=\"audio-box\"><div class=\"audio-title\">Audio Scrubber Available</div><div class=\"audio-sub\">48-bar speech formant waveform enabled for this meeting.</div></div>"
+    } else {
+        ""
+    };
+
+    let html = format!(r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{title} · Bagrry</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    :root {{
+      --bg: #1c1b18;
+      --surface: #262421;
+      --border: #383530;
+      --text: #edece8;
+      --text-muted: #9e9b94;
+      --accent: #e2f072;
+      --accent-fg: #1a2203;
+    }}
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }}
+    header {{
+      width: 100%;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }}
+    .brand {{ font-weight: 700; font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; }}
+    .badge {{ background: var(--accent); color: var(--accent-fg); font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }}
+    main {{ max-width: 720px; width: 100%; padding: 32px 24px; }}
+    h1 {{ font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }}
+    .meta {{ font-size: 12.5px; color: var(--text-muted); margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }}
+    .section {{ margin-bottom: 24px; }}
+    h3 {{ font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }}
+    ul {{ padding-left: 20px; margin-bottom: 12px; }}
+    li {{ margin-bottom: 6px; font-size: 13.5px; color: #ddd; }}
+    .transcript-box {{ border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 12px; margin-top: 20px; }}
+    summary {{ font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text); outline: none; }}
+    .transcript-lines {{ margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; font-size: 12.5px; }}
+    .t-line {{ color: #ccc; }}
+    .spk {{ font-weight: 600; color: var(--accent); }}
+    .scratchpad-pre {{ white-space: pre-wrap; font-family: inherit; font-size: 13px; margin-top: 12px; color: #ccc; }}
+    .audio-box {{ border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 12px; margin-bottom: 20px; }}
+    .audio-title {{ font-size: 13px; font-weight: 600; color: var(--accent); }}
+    .audio-sub {{ font-size: 11.5px; color: var(--text-muted); }}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Bagrry <span class="badge">Read-only share</span></div>
+    <div style="font-size: 11px; color: var(--text-muted);">Verified Link</div>
+  </header>
+  <main>
+    {audio_player_html}
+    <h1>{title}</h1>
+    <div class="meta">Recorded on {date}</div>
+    {enhanced_html}
+    {scratch_html}
+    {transcript_html}
+  </main>
+</body>
+</html>"#);
+
     build(200, "text/html; charset=utf-8", html.into_bytes())
 }
 
@@ -300,18 +425,56 @@ fn search_notes(conn: &Connection, query: &str) -> serde_json::Value {
 }
 
 fn share_payload(conn: &Connection, token: &str) -> Option<serde_json::Value> {
-    let (meeting_id, visibility): (String, String) = conn
+    let row = conn
         .query_row(
-            "SELECT meeting_id, ifnull(visibility, 'link') FROM shares WHERE token = ?1",
+            "SELECT meeting_id, ifnull(visibility, 'link'),
+                    ifnull(include_transcript, 1), ifnull(include_audio, 0), ifnull(include_scratchpad, 1),
+                    expires_at, ifnull(revoked, 0)
+             FROM shares WHERE token = ?1",
             [token],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)? != 0,
+                row.get::<_, i64>(3)? != 0,
+                row.get::<_, i64>(4)? != 0,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, i64>(6)? != 0,
+            )),
         )
         .ok()?;
-    // "Only me" links exist for copy/paste bookkeeping but never serve content.
-    if visibility == "private" {
+
+    let (meeting_id, visibility, inc_transcript, inc_audio, inc_scratchpad, expires_at, revoked) = row;
+
+    if visibility == "private" || revoked {
         return None;
     }
-    get_note(conn, &meeting_id)
+
+    if let Some(ref exp) = expires_at {
+        let is_expired: bool = conn
+            .query_row(
+                "SELECT datetime('now') > datetime(?1)",
+                [exp],
+                |r| r.get(0),
+            )
+            .unwrap_or(false);
+        if is_expired {
+            return None;
+        }
+    }
+
+    // Increment views count
+    let _ = conn.execute("UPDATE shares SET views_count = ifnull(views_count, 0) + 1 WHERE token = ?1", [token]);
+
+    let mut note = get_note(conn, &meeting_id)?;
+    if !inc_scratchpad {
+        note["scratchpad"] = serde_json::json!("");
+    }
+    if !inc_transcript {
+        note["transcript"] = serde_json::json!(null);
+    }
+    note["include_audio"] = serde_json::json!(inc_audio);
+    Some(note)
 }
 
 /* ------------------------------------------------------------------ */

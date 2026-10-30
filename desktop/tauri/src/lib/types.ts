@@ -142,6 +142,26 @@ export type GlobalSearchResult = {
   matched_people: Person[];
 };
 
+export type ShareInfo = {
+  token: string;
+  meeting_id: string;
+  url: string;
+  include_transcript: boolean;
+  include_audio: boolean;
+  include_scratchpad: boolean;
+  expires_at: string | null;
+  revoked: boolean;
+  views_count: number;
+  created_at: string;
+};
+
+export type FormattedExport = {
+  format: string;
+  content: string;
+  filename: string;
+  mime_type: string;
+};
+
 export type Company = {
   id: string;
   name: string;
