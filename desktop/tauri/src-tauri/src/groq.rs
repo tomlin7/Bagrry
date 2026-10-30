@@ -7,6 +7,7 @@ const CHAT_MODEL: &str = "llama-3.3-70b-versatile";
 const STT_MODEL: &str = "whisper-large-v3-turbo";
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct WhisperWord {
     pub word: Option<String>,
     pub start: Option<f64>,
@@ -21,6 +22,7 @@ pub struct WhisperSeg {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct WhisperVerbose {
     pub text: Option<String>,
     pub segments: Option<Vec<WhisperSeg>>,
@@ -111,9 +113,7 @@ pub fn chat(
     json_mode: bool,
     model: Option<&str>,
 ) -> Result<String, String> {
-    let model = model
-        .filter(|m| !m.is_empty())
-        .unwrap_or(CHAT_MODEL);
+    let model = model.filter(|m| !m.is_empty()).unwrap_or(CHAT_MODEL);
     let mut body = json!({
         "model": model,
         "temperature": 0.2,

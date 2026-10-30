@@ -72,7 +72,12 @@ pub fn transcribe_pcm_files(
 ) -> Result<Vec<TranscriptSeg>, String> {
     let mut segs = Vec::new();
     segs.extend(transcribe_pcm_channel(api_key, mic_path, "me", opts)?);
-    segs.extend(transcribe_pcm_channel(api_key, sys_path, "attendees", opts)?);
+    segs.extend(transcribe_pcm_channel(
+        api_key,
+        sys_path,
+        "attendees",
+        opts,
+    )?);
     segs.sort_by_key(|s| s.start_ms);
     number_segments(&mut segs);
     Ok(segs)
@@ -257,7 +262,7 @@ fn push_channel(
 }
 
 fn split_sentences(text: &str) -> Vec<String> {
-    text.split(|c| c == '.' || c == '?' || c == '!')
+    text.split(['.', '?', '!'])
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect()
@@ -303,7 +308,8 @@ pub fn persist_transcript(
 
 /// Drops citation ids that are not in this meeting's transcript.
 pub fn validate_citations(doc: &mut groq::EnhancedDoc, segs: &[TranscriptSeg]) {
-    let ids: std::collections::HashSet<&str> = segs.iter().map(|s| s.sentence_id.as_str()).collect();
+    let ids: std::collections::HashSet<&str> =
+        segs.iter().map(|s| s.sentence_id.as_str()).collect();
     for section in &mut doc.sections {
         for bullet in &mut section.bullet_points {
             bullet.citations.retain(|c| ids.contains(c.as_str()));
@@ -364,7 +370,11 @@ impl EnhanceContext {
                 .unwrap_or_default();
             parts.push(format!("The note-taker is {name}{role}."));
         }
-        if let Some(desc) = self.company_description.as_deref().filter(|s| !s.is_empty()) {
+        if let Some(desc) = self
+            .company_description
+            .as_deref()
+            .filter(|s| !s.is_empty())
+        {
             parts.push(format!("Their company: {desc}."));
         }
         parts.join("\n")
@@ -412,19 +422,22 @@ fn local_enhance(scratchpad: &str, segs: &[TranscriptSeg], structure: &str) -> E
     let sections: Vec<String> = serde_json::from_str::<serde_json::Value>(structure)
         .ok()
         .and_then(|v| {
-            v.get("sections")
-                .and_then(|s| s.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|x| x.as_str().map(|s| s.to_string()))
-                        .collect()
-                })
+            v.get("sections").and_then(|s| s.as_array()).map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
         })
         .unwrap_or_else(|| vec!["Summary".into(), "Decisions".into(), "Next Steps".into()]);
 
     let bullets: Vec<String> = scratchpad
         .lines()
-        .map(|l| l.trim().trim_start_matches(['-', '*', '•']).trim().to_string())
+        .map(|l| {
+            l.trim()
+                .trim_start_matches(['-', '*', '•'])
+                .trim()
+                .to_string()
+        })
         .filter(|l| !l.is_empty())
         .collect();
 
@@ -500,7 +513,7 @@ fn best_citations(text: &str, segs: &[TranscriptSeg], n: usize) -> Vec<String> {
             (score, s.sentence_id.clone())
         })
         .collect();
-    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    scored.sort_by_key(|b| std::cmp::Reverse(b.0));
     scored
         .into_iter()
         .filter(|(s, _)| *s > 0)
@@ -531,8 +544,11 @@ pub fn embed_text(text: &str) -> Vec<f32> {
 pub fn store_embedding(conn: &Connection, meeting_id: &str, text: &str) -> Result<(), String> {
     let v = embed_text(text);
     let bytes: Vec<u8> = v.iter().flat_map(|f| f.to_le_bytes()).collect();
-    conn.execute("DELETE FROM vectors WHERE meeting_id = ?1", params![meeting_id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM vectors WHERE meeting_id = ?1",
+        params![meeting_id],
+    )
+    .map_err(|e| e.to_string())?;
     conn.execute(
         "INSERT INTO vectors (id, meeting_id, embedding, dim) VALUES (?1, ?2, ?3, 64)",
         params![new_id("vec"), meeting_id, bytes],
@@ -541,7 +557,11 @@ pub fn store_embedding(conn: &Connection, meeting_id: &str, text: &str) -> Resul
     Ok(())
 }
 
-pub fn search_semantic(conn: &Connection, query: &str, folder_id: Option<&str>) -> Result<Vec<(String, f32)>, String> {
+pub fn search_semantic(
+    conn: &Connection,
+    query: &str,
+    folder_id: Option<&str>,
+) -> Result<Vec<(String, f32)>, String> {
     let q = embed_text(query);
     let mut stmt = conn
         .prepare(
@@ -581,4 +601,3 @@ pub fn search_semantic(conn: &Connection, query: &str, folder_id: Option<&str>) 
     scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     Ok(scored.into_iter().take(20).collect())
 }
-

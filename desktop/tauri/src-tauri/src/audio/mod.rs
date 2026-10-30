@@ -1,8 +1,8 @@
 pub mod capture;
 pub mod resample;
 pub mod ring_buffer;
-pub mod vad;
 pub mod sink;
+pub mod vad;
 pub mod wav;
 
 use crate::groq;
@@ -206,7 +206,11 @@ pub fn start(app: &AppHandle, meeting_id: Option<String>) -> Result<RecStatus, S
     });
     *recorder.state.lock().map_err(|e| e.to_string())? = RecState::Recording;
     set_tray_tooltip(app, "Bagrry — Recording");
-    crate::tray::notify(app, "Bagrry", "Meeting recording started. Capturing microphone & system audio.");
+    crate::tray::notify(
+        app,
+        "Bagrry",
+        "Meeting recording started. Capturing microphone & system audio.",
+    );
     let status = status_of(recorder)?;
     let _ = app.emit("recording-state", status.clone());
     Ok(status)
@@ -247,7 +251,9 @@ pub fn stop(app: &AppHandle) -> Result<RecStatus, String> {
     let recorder = &state.recorder;
     let session = {
         let mut session_guard = recorder.session.lock().map_err(|e| e.to_string())?;
-        session_guard.take().ok_or_else(|| "not capturing".to_string())?
+        session_guard
+            .take()
+            .ok_or_else(|| "not capturing".to_string())?
     };
     session.stop.store(true, Ordering::Relaxed);
     if let Some(handle) = session.mic {
@@ -278,7 +284,11 @@ pub fn stop(app: &AppHandle) -> Result<RecStatus, String> {
     *recorder.pending.lock().map_err(|e| e.to_string())? = Some(pending);
     *recorder.state.lock().map_err(|e| e.to_string())? = RecState::Idle;
     set_tray_tooltip(app, "Bagrry — Idle");
-    crate::tray::notify(app, "Bagrry", "Meeting recording finished. Processing notes & AI synthesis.");
+    crate::tray::notify(
+        app,
+        "Bagrry",
+        "Meeting recording finished. Processing notes & AI synthesis.",
+    );
     let status = status_of(recorder)?;
     let _ = app.emit("recording-state", status.clone());
     let _ = app.emit(
@@ -344,7 +354,11 @@ fn status_of(recorder: &Recorder) -> Result<RecStatus, String> {
         state: *recorder.state.lock().map_err(|e| e.to_string())?,
         pending_bytes,
         loopback_ok: *recorder.loopback_ok.lock().map_err(|e| e.to_string())?,
-        meeting_id: recorder.meeting_id.lock().map_err(|e| e.to_string())?.clone(),
+        meeting_id: recorder
+            .meeting_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone(),
         last_error,
     })
 }
@@ -364,7 +378,9 @@ fn pending_byte_count(recorder: &Recorder) -> Result<usize, String> {
 }
 
 fn file_len(path: &Path) -> usize {
-    std::fs::metadata(path).map(|m| m.len() as usize).unwrap_or(0)
+    std::fs::metadata(path)
+        .map(|m| m.len() as usize)
+        .unwrap_or(0)
 }
 
 fn spawn_live_stt(

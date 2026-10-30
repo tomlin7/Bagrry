@@ -48,7 +48,15 @@ pub fn start_mic(
                             if stop.load(Ordering::Relaxed) {
                                 return;
                             }
-                            ingest_f32(data, channels, sample_rate, target_hz, paused.as_ref(), &pcm, &level);
+                            ingest_f32(
+                                data,
+                                channels,
+                                sample_rate,
+                                target_hz,
+                                paused.as_ref(),
+                                &pcm,
+                                &level,
+                            );
                         }
                     },
                     err_fn,
@@ -65,7 +73,15 @@ pub fn start_mic(
                             if stop.load(Ordering::Relaxed) {
                                 return;
                             }
-                            ingest_i16(data, channels, sample_rate, target_hz, paused.as_ref(), &pcm, &level);
+                            ingest_i16(
+                                data,
+                                channels,
+                                sample_rate,
+                                target_hz,
+                                paused.as_ref(),
+                                &pcm,
+                                &level,
+                            );
                         }
                     },
                     err_fn,
@@ -82,8 +98,17 @@ pub fn start_mic(
                             if stop.load(Ordering::Relaxed) {
                                 return;
                             }
-                            let f: Vec<f32> = data.iter().map(|s| *s as f32 / i32::MAX as f32).collect();
-                            ingest_f32(&f, channels, sample_rate, target_hz, paused.as_ref(), &pcm, &level);
+                            let f: Vec<f32> =
+                                data.iter().map(|s| *s as f32 / i32::MAX as f32).collect();
+                            ingest_f32(
+                                &f,
+                                channels,
+                                sample_rate,
+                                target_hz,
+                                paused.as_ref(),
+                                &pcm,
+                                &level,
+                            );
                         }
                     },
                     err_fn,
@@ -241,7 +266,9 @@ fn wasapi_loopback_thread(
         let audio_client: IAudioClient = device
             .Activate(CLSCTX_ALL, None)
             .map_err(|e| format!("activate: {e}"))?;
-        let mix = audio_client.GetMixFormat().map_err(|e| format!("mix format: {e}"))?;
+        let mix = audio_client
+            .GetMixFormat()
+            .map_err(|e| format!("mix format: {e}"))?;
         let format: WAVEFORMATEX = *mix;
         audio_client
             .Initialize(
@@ -261,8 +288,7 @@ fn wasapi_loopback_thread(
         let channels = format.nChannels.max(1) as usize;
         let sample_rate = format.nSamplesPerSec;
         let bits = format.wBitsPerSample;
-        let is_float = format.wFormatTag == 3
-            || (format.wFormatTag == 0xFFFE && bits == 32);
+        let is_float = format.wFormatTag == 3 || (format.wFormatTag == 0xFFFE && bits == 32);
 
         while !stop.load(Ordering::Relaxed) {
             let packet = capture
@@ -282,10 +308,12 @@ fn wasapi_loopback_thread(
                 let frames = num_frames as usize;
                 let mut f32s = Vec::with_capacity(frames * channels);
                 if is_float || bits == 32 {
-                    let slice = std::slice::from_raw_parts(data_ptr as *const f32, frames * channels);
+                    let slice =
+                        std::slice::from_raw_parts(data_ptr as *const f32, frames * channels);
                     f32s.extend_from_slice(slice);
                 } else if bits == 16 {
-                    let slice = std::slice::from_raw_parts(data_ptr as *const i16, frames * channels);
+                    let slice =
+                        std::slice::from_raw_parts(data_ptr as *const i16, frames * channels);
                     for s in slice {
                         f32s.push(*s as f32 / i16::MAX as f32);
                     }

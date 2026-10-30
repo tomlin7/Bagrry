@@ -9,6 +9,7 @@ pub fn notify(app: &AppHandle, title: &str, body: &str) {
     let _ = app.notification().builder().title(title).body(body).show();
 }
 
+#[allow(dead_code)]
 pub fn update_tray_state(app: &AppHandle, tooltip: &str) {
     if let Some(tray) = app.tray_by_id("main") {
         let _ = tray.set_tooltip(Some(tooltip));
@@ -16,8 +17,10 @@ pub fn update_tray_state(app: &AppHandle, tooltip: &str) {
 }
 
 pub fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let toggle = MenuItemBuilder::with_id("toggle-record", "Start / Stop Recording (Ctrl+Alt+R)").build(app)?;
-    let pause = MenuItemBuilder::with_id("pause-record", "Pause / Resume Recording (Ctrl+Shift+P)").build(app)?;
+    let toggle = MenuItemBuilder::with_id("toggle-record", "Start / Stop Recording (Ctrl+Alt+R)")
+        .build(app)?;
+    let pause = MenuItemBuilder::with_id("pause-record", "Pause / Resume Recording (Ctrl+Shift+P)")
+        .build(app)?;
     let open = MenuItemBuilder::with_id("open-bagrry", "Open Bagrry").build(app)?;
     let preferences = MenuItemBuilder::with_id("preferences", "Preferences...").build(app)?;
     let quit = MenuItemBuilder::with_id("quit", "Quit Bagrry").build(app)?;

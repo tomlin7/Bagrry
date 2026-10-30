@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desktop/tauri/package-lock.json
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/tauri/src-tauri -> target
+
+      - name: Install desktop dependencies
+        run: |
+          cd desktop/tauri
+          npm ci
+
+      - name: Build Tauri Desktop App
+        uses: tauri-apps/action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop/tauri
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Bagrry v__VERSION__'
+          releaseBody: 'See full changelog and release notes for Bagrry desktop.'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

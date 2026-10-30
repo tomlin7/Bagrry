@@ -1,10 +1,10 @@
-use crate::whisper_local;
 use crate::audio;
 use crate::db;
 use crate::groq;
 use crate::ids::new_id;
 use crate::pipeline::{self, TranscriptSeg};
 use crate::secrets;
+use crate::whisper_local;
 use crate::AppState;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -78,7 +78,6 @@ pub struct Person {
     pub last_note_at: Option<String>,
 }
 
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchHit {
     pub id: String,
@@ -95,7 +94,6 @@ pub struct GlobalSearchResult {
     pub hits: Vec<SearchHit>,
     pub matched_people: Vec<Person>,
 }
-
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ShareInfo {
@@ -203,7 +201,9 @@ pub fn db_status(app: AppHandle, state: State<AppState>) -> Result<DbStatus, Str
 pub fn list_folders(state: State<AppState>) -> Result<Vec<Folder>, String> {
     let conn = state.conn()?;
     let mut stmt = conn
-        .prepare("SELECT id, parent_id, name, is_shared, icon, description FROM folders ORDER BY name")
+        .prepare(
+            "SELECT id, parent_id, name, is_shared, icon, description FROM folders ORDER BY name",
+        )
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -222,7 +222,10 @@ pub fn list_folders(state: State<AppState>) -> Result<Vec<Folder>, String> {
 }
 
 #[tauri::command]
-pub fn list_meetings(state: State<AppState>, folder_id: Option<String>) -> Result<Vec<Meeting>, String> {
+pub fn list_meetings(
+    state: State<AppState>,
+    folder_id: Option<String>,
+) -> Result<Vec<Meeting>, String> {
     let conn = state.conn()?;
     let sql = if folder_id.is_some() {
         format!("SELECT {MEETING_COLS} FROM meetings WHERE folder_id = ?1 ORDER BY date DESC")
@@ -232,8 +235,12 @@ pub fn list_meetings(state: State<AppState>, folder_id: Option<String>) -> Resul
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     let map = |row: &rusqlite::Row| meeting_from_row(row);
     if let Some(fid) = folder_id {
-        let rows = stmt.query_map(params![fid], map).map_err(|e| e.to_string())?;
-        return rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string());
+        let rows = stmt
+            .query_map(params![fid], map)
+            .map_err(|e| e.to_string())?;
+        return rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string());
     }
     let rows = stmt.query_map([], map).map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>()
@@ -255,7 +262,9 @@ pub fn get_meeting(state: State<AppState>, id: String) -> Result<Meeting, String
 pub fn list_templates(state: State<AppState>) -> Result<Vec<Template>, String> {
     let conn = state.conn()?;
     let mut stmt = conn
-        .prepare("SELECT id, name, icon, prompt_template, structure_json FROM templates ORDER BY name")
+        .prepare(
+            "SELECT id, name, icon, prompt_template, structure_json FROM templates ORDER BY name",
+        )
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -363,7 +372,10 @@ pub fn save_title(state: State<AppState>, id: String, title: String) -> Result<(
 }
 
 #[tauri::command]
-pub fn start_recording(app: AppHandle, meeting_id: Option<String>) -> Result<audio::RecStatus, String> {
+pub fn start_recording(
+    app: AppHandle,
+    meeting_id: Option<String>,
+) -> Result<audio::RecStatus, String> {
     audio::start(&app, meeting_id)
 }
 
@@ -393,12 +405,15 @@ pub fn discard_audio(app: AppHandle) -> Result<audio::RecStatus, String> {
 }
 
 #[tauri::command]
-pub fn transcribe_pending(app: AppHandle, state: State<AppState>, meeting_id: String) -> Result<Vec<TranscriptSeg>, String> {
+pub fn transcribe_pending(
+    app: AppHandle,
+    state: State<AppState>,
+    meeting_id: String,
+) -> Result<Vec<TranscriptSeg>, String> {
     let (mic, sys) = audio::peek_pending(&app)?.ok_or_else(|| "no audio captured".to_string())?;
     let conn = state.conn()?;
-    let key = secrets::get_secret(&conn, "groq_api_key")?.ok_or_else(|| {
-        "Add a Groq API key in Settings to transcribe.".to_string()
-    })?;
+    let key = secrets::get_secret(&conn, "groq_api_key")?
+        .ok_or_else(|| "Add a Groq API key in Settings to transcribe.".to_string())?;
     let opts = pipeline::stt_options(&conn);
     drop(conn);
     let segs = pipeline::transcribe_pcm_files(&key, &mic, &sys, &opts)?;
@@ -407,7 +422,12 @@ pub fn transcribe_pending(app: AppHandle, state: State<AppState>, meeting_id: St
     if let Some(pending) = audio::take_pending(&app)? {
         pending.cleanup();
     }
-    notify(&app, &conn, "Transcript ready", "Your meeting transcript has finished processing.");
+    notify(
+        &app,
+        &conn,
+        "Transcript ready",
+        "Your meeting transcript has finished processing.",
+    );
     Ok(segs)
 }
 
@@ -445,7 +465,9 @@ fn enhance_context(conn: &rusqlite::Connection) -> pipeline::EnhanceContext {
             .then(|| get_opt("profile_name"))
             .flatten()
             .filter(|n| n != "You"),
-        job_title: share_profile.then(|| get_opt("profile_job_title")).flatten(),
+        job_title: share_profile
+            .then(|| get_opt("profile_job_title"))
+            .flatten(),
         company_description: share_profile
             .then(|| get_opt("profile_company_description"))
             .flatten(),
@@ -458,16 +480,14 @@ fn notify(app: &AppHandle, conn: &rusqlite::Connection, title: &str, body: &str)
         return;
     }
     use tauri_plugin_notification::NotificationExt;
-    let _ = app
-        .notification()
-        .builder()
-        .title(title)
-        .body(body)
-        .show();
+    let _ = app.notification().builder().title(title).body(body).show();
 }
 
 #[tauri::command]
-pub fn list_segments(state: State<AppState>, meeting_id: String) -> Result<Vec<TranscriptSeg>, String> {
+pub fn list_segments(
+    state: State<AppState>,
+    meeting_id: String,
+) -> Result<Vec<TranscriptSeg>, String> {
     let conn = state.conn()?;
     pipeline::load_segments(&conn, &meeting_id)
 }
@@ -527,19 +547,23 @@ pub fn enhance_meeting(
         params![&json, &meeting_id],
     )
     .map_err(|e| e.to_string())?;
-    let blob = format!(
-        "{} {} {}",
-        meeting.title,
-        meeting.scratchpad_raw,
-        json
-    );
+    let blob = format!("{} {} {}", meeting.title, meeting.scratchpad_raw, json);
     let _ = pipeline::store_embedding(&conn, &meeting_id, &blob);
-    notify(&app, &conn, "Notes ready", "Enhanced notes are ready to review.");
+    notify(
+        &app,
+        &conn,
+        "Notes ready",
+        "Enhanced notes are ready to review.",
+    );
     Ok(json)
 }
 
 #[tauri::command]
-pub fn run_recipe(state: State<AppState>, meeting_id: String, recipe_id: String) -> Result<String, String> {
+pub fn run_recipe(
+    state: State<AppState>,
+    meeting_id: String,
+    recipe_id: String,
+) -> Result<String, String> {
     let conn = state.conn()?;
     let recipe: String = conn
         .query_row(
@@ -568,9 +592,7 @@ pub fn run_recipe(state: State<AppState>, meeting_id: String, recipe_id: String)
     } else {
         Ok(format!(
             "{}\n\n---\n{}\n\n{}",
-            recipe,
-            meeting.scratchpad_raw,
-            user
+            recipe, meeting.scratchpad_raw, user
         ))
     }
 }
@@ -593,7 +615,9 @@ pub fn reprompt_selection(
         .collect::<Vec<_>>()
         .join("\n");
     let system = "Rewrite only the provided selection. Keep citations if present.";
-    let user = format!("INSTRUCTION: {instruction}\n\nSELECTION:\n{selection}\n\nTRANSCRIPT:\n{transcript}");
+    let user = format!(
+        "INSTRUCTION: {instruction}\n\nSELECTION:\n{selection}\n\nTRANSCRIPT:\n{transcript}"
+    );
     if let Some(k) = key.filter(|s| !s.is_empty()) {
         groq::chat(&k, system, &user, false, Some(&model))
     } else {
@@ -625,7 +649,8 @@ pub fn ask_bagrry(
             ));
         }
     } else {
-        let hits = pipeline::search_semantic(&conn, &query, folder_id.as_deref()).unwrap_or_default();
+        let hits =
+            pipeline::search_semantic(&conn, &query, folder_id.as_deref()).unwrap_or_default();
         for (id, _score) in hits.iter().take(6) {
             if let Ok(m) = conn.query_row(
                 &format!("SELECT {MEETING_COLS} FROM meetings WHERE id=?1"),
@@ -678,7 +703,11 @@ pub fn ask_bagrry(
 }
 
 #[tauri::command]
-pub fn live_ask(state: State<AppState>, query: String, live_transcript: String) -> Result<String, String> {
+pub fn live_ask(
+    state: State<AppState>,
+    query: String,
+    live_transcript: String,
+) -> Result<String, String> {
     let conn = state.conn()?;
     let key = secrets::get_secret(&conn, "groq_api_key")?;
     let model = chat_model(&conn);
@@ -762,7 +791,11 @@ pub fn search_global(state: State<AppState>, query: String) -> Result<GlobalSear
 
     // 1. FTS5 or LIKE query
     let has_text = !parsed.text.is_empty();
-    let match_expr = if has_text { fts_query(&parsed.text) } else { String::new() };
+    let match_expr = if has_text {
+        fts_query(&parsed.text)
+    } else {
+        String::new()
+    };
 
     let mut sql = String::new();
     if has_text && !match_expr.is_empty() {
@@ -816,40 +849,44 @@ pub fn search_global(state: State<AppState>, query: String) -> Result<GlobalSear
 
     let mut hits: Vec<SearchHit> = if has_text && !match_expr.is_empty() {
         let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-        let mapped = stmt.query_map(params![match_expr], |row| {
-            let att_str: Option<String> = row.get(6)?;
-            let attendees = att_str
-                .map(|s| s.split("; ").map(|p| p.to_string()).collect())
-                .unwrap_or_default();
-            Ok(SearchHit {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                date: row.get(2)?,
-                snippet: row.get(3)?,
-                folder_name: row.get(4)?,
-                has_open_loops: row.get::<_, i64>(5)? != 0,
-                attendees,
+        let mapped = stmt
+            .query_map(params![match_expr], |row| {
+                let att_str: Option<String> = row.get(6)?;
+                let attendees = att_str
+                    .map(|s| s.split("; ").map(|p| p.to_string()).collect())
+                    .unwrap_or_default();
+                Ok(SearchHit {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    date: row.get(2)?,
+                    snippet: row.get(3)?,
+                    folder_name: row.get(4)?,
+                    has_open_loops: row.get::<_, i64>(5)? != 0,
+                    attendees,
+                })
             })
-        }).map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())?;
         let res: Vec<SearchHit> = mapped.flatten().collect();
         res
     } else {
         let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-        let mapped = stmt.query_map([], |row| {
-            let att_str: Option<String> = row.get(6)?;
-            let attendees = att_str
-                .map(|s| s.split("; ").map(|p| p.to_string()).collect())
-                .unwrap_or_default();
-            Ok(SearchHit {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                date: row.get(2)?,
-                snippet: row.get(3)?,
-                folder_name: row.get(4)?,
-                has_open_loops: row.get::<_, i64>(5)? != 0,
-                attendees,
+        let mapped = stmt
+            .query_map([], |row| {
+                let att_str: Option<String> = row.get(6)?;
+                let attendees = att_str
+                    .map(|s| s.split("; ").map(|p| p.to_string()).collect())
+                    .unwrap_or_default();
+                Ok(SearchHit {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    date: row.get(2)?,
+                    snippet: row.get(3)?,
+                    folder_name: row.get(4)?,
+                    has_open_loops: row.get::<_, i64>(5)? != 0,
+                    attendees,
+                })
             })
-        }).map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())?;
         let res: Vec<SearchHit> = mapped.flatten().collect();
         res
     };
@@ -872,7 +909,8 @@ pub fn search_global(state: State<AppState>, query: String) -> Result<GlobalSear
             ));
         }
         if parsed.has_loop {
-            fallback_sql.push_str(" AND m.id IN (SELECT meeting_id FROM action_items WHERE done = 0)");
+            fallback_sql
+                .push_str(" AND m.id IN (SELECT meeting_id FROM action_items WHERE done = 0)");
         }
         if let Some(ref aft) = parsed.after {
             fallback_sql.push_str(&format!(" AND m.date >= '{aft}'"));
@@ -926,22 +964,24 @@ pub fn search_global(state: State<AppState>, query: String) -> Result<GlobalSear
              LIMIT 5"
         ).map_err(|e| e.to_string())?;
 
-        let p_rows = p_stmt.query_map(params![p_like], |row| {
-            Ok(Person {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                email: row.get(2)?,
-                domain: row.get(3)?,
-                company_id: row.get(4)?,
-                company_name: row.get(5)?,
-                role: row.get(6)?,
-                notes: row.get(7)?,
-                excluded: row.get::<_, i64>(8)? != 0,
-                note_count: row.get(9)?,
-                total_duration_ms: row.get(10)?,
-                last_note_at: row.get(11)?,
+        let p_rows = p_stmt
+            .query_map(params![p_like], |row| {
+                Ok(Person {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    email: row.get(2)?,
+                    domain: row.get(3)?,
+                    company_id: row.get(4)?,
+                    company_name: row.get(5)?,
+                    role: row.get(6)?,
+                    notes: row.get(7)?,
+                    excluded: row.get::<_, i64>(8)? != 0,
+                    note_count: row.get(9)?,
+                    total_duration_ms: row.get(10)?,
+                    last_note_at: row.get(11)?,
+                })
             })
-        }).map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())?;
 
         matched_people = p_rows.flatten().collect();
     }
@@ -1153,7 +1193,10 @@ pub fn upsert_person(
 }
 
 #[tauri::command]
-pub fn meetings_for_person(state: State<AppState>, person_id: String) -> Result<Vec<Meeting>, String> {
+pub fn meetings_for_person(
+    state: State<AppState>,
+    person_id: String,
+) -> Result<Vec<Meeting>, String> {
     let conn = state.conn()?;
     let mut stmt = conn
         .prepare(&format!(
@@ -1239,7 +1282,8 @@ pub fn pre_meeting_brief(state: State<AppState>, attendees_json: String) -> Resu
     let key = secrets::get_secret(&conn, "groq_api_key")?;
     let model = chat_model(&conn);
     drop(conn);
-    let system = "Write a short pre-meeting brief: past decisions, open action items, notes on attendees.";
+    let system =
+        "Write a short pre-meeting brief: past decisions, open action items, notes on attendees.";
     let user = format!("ATTENDEES: {attendees_json}\n\nHISTORY:\n{ctx}");
     if let Some(k) = key.filter(|s| !s.is_empty()) {
         groq::chat(&k, system, &user, false, Some(&model))
@@ -1304,7 +1348,14 @@ pub fn dispatch_webhook(state: State<AppState>, meeting_id: String) -> Result<St
         urls.push(("webhook".into(), primary));
     }
     for name in [
-        "gmail", "slack", "notion", "zapier", "affinity", "hubspot", "salesforce", "attio",
+        "gmail",
+        "slack",
+        "notion",
+        "zapier",
+        "affinity",
+        "hubspot",
+        "salesforce",
+        "attio",
         "pipedrive",
     ] {
         let enabled = secrets::get_setting(&conn, &format!("connector_{name}"), "0");
@@ -1398,31 +1449,37 @@ pub fn get_meeting_shares(
          ORDER BY created_at DESC"
     ).map_err(|e| e.to_string())?;
 
-    let rows = stmt.query_map(params![meeting_id], |row| {
-        let token: String = row.get(0)?;
-        let url = format!("http://127.0.0.1:{port}/s/{token}");
-        Ok(ShareInfo {
-            token,
-            meeting_id: row.get(1)?,
-            url,
-            include_transcript: row.get::<_, i64>(2)? != 0,
-            include_audio: row.get::<_, i64>(3)? != 0,
-            include_scratchpad: row.get::<_, i64>(4)? != 0,
-            expires_at: row.get(5)?,
-            revoked: row.get::<_, i64>(6)? != 0,
-            views_count: row.get(7)?,
-            created_at: row.get(8)?,
+    let rows = stmt
+        .query_map(params![meeting_id], |row| {
+            let token: String = row.get(0)?;
+            let url = format!("http://127.0.0.1:{port}/s/{token}");
+            Ok(ShareInfo {
+                token,
+                meeting_id: row.get(1)?,
+                url,
+                include_transcript: row.get::<_, i64>(2)? != 0,
+                include_audio: row.get::<_, i64>(3)? != 0,
+                include_scratchpad: row.get::<_, i64>(4)? != 0,
+                expires_at: row.get(5)?,
+                revoked: row.get::<_, i64>(6)? != 0,
+                views_count: row.get(7)?,
+                created_at: row.get(8)?,
+            })
         })
-    }).map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?;
 
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn revoke_share(state: State<AppState>, token: String) -> Result<(), String> {
     let conn = state.conn()?;
-    conn.execute("UPDATE shares SET revoked = 1 WHERE token = ?1", params![token])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE shares SET revoked = 1 WHERE token = ?1",
+        params![token],
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -1445,25 +1502,39 @@ pub fn export_formatted(
         "SELECT a.name FROM attendees a JOIN meeting_attendees ma ON ma.attendee_id = a.id WHERE ma.meeting_id = ?1"
     );
     let attendees: Vec<String> = if let Ok(mut stmt) = att_stmt {
-        stmt.query_map(params![meeting_id], |r| r.get(0)).ok()
+        stmt.query_map(params![meeting_id], |r| r.get(0))
+            .ok()
             .map(|rows| rows.flatten().collect())
             .unwrap_or_default()
     } else {
         Vec::new()
     };
-    let attendees_str = if attendees.is_empty() { "None listed".into() } else { attendees.join(", ") };
+    let attendees_str = if attendees.is_empty() {
+        "None listed".into()
+    } else {
+        attendees.join(", ")
+    };
 
-    let slug = m.title.to_lowercase()
+    let slug = m
+        .title
+        .to_lowercase()
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { '_' })
         .collect::<String>()
         .trim_matches('_')
         .to_string();
-    let safe_slug = if slug.is_empty() { "meeting_notes".to_string() } else { slug };
+    let safe_slug = if slug.is_empty() {
+        "meeting_notes".to_string()
+    } else {
+        slug
+    };
 
     match format.as_str() {
         "slack" => {
-            let mut out = format!("*Meeting: {}*\n_Date: {} · Attendees: {}_\n\n", m.title, m.date, attendees_str);
+            let mut out = format!(
+                "*Meeting: {}*\n_Date: {} · Attendees: {}_\n\n",
+                m.title, m.date, attendees_str
+            );
             if !m.scratchpad_raw.trim().is_empty() {
                 out.push_str("*Scratchpad Notes:*\n");
                 for line in m.scratchpad_raw.lines() {
@@ -1472,7 +1543,7 @@ pub fn export_formatted(
                         out.push_str(&format!("• {}\n", trimmed.trim_start_matches("- ")));
                     }
                 }
-                out.push_str("\n");
+                out.push('\n');
             }
 
             if let Some(ref enh_json) = m.enhanced_notes_json {
@@ -1480,9 +1551,14 @@ pub fn export_formatted(
                     if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
                         out.push_str("*Enhanced Summary:*\n");
                         for sec in sections {
-                            let title = sec.get("section_title").and_then(|t| t.as_str()).unwrap_or("Section");
+                            let title = sec
+                                .get("section_title")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("Section");
                             out.push_str(&format!("*{}*\n", title));
-                            if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                            if let Some(bullets) =
+                                sec.get("bullet_points").and_then(|b| b.as_array())
+                            {
                                 for b in bullets {
                                     let text = b.get("text").and_then(|t| t.as_str()).unwrap_or("");
                                     out.push_str(&format!("• {}\n", text));
@@ -1501,7 +1577,10 @@ pub fn export_formatted(
             })
         }
         "html_rich_text" => {
-            let mut html = format!("<h1>{}</h1><p><em>Date: {} | Attendees: {}</em></p>", m.title, m.date, attendees_str);
+            let mut html = format!(
+                "<h1>{}</h1><p><em>Date: {} | Attendees: {}</em></p>",
+                m.title, m.date, attendees_str
+            );
             if !m.scratchpad_raw.trim().is_empty() {
                 html.push_str("<h2>Scratchpad Notes</h2><ul>");
                 for line in m.scratchpad_raw.lines() {
@@ -1517,9 +1596,14 @@ pub fn export_formatted(
                     if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
                         html.push_str("<h2>AI Enhanced Summary</h2>");
                         for sec in sections {
-                            let title = sec.get("section_title").and_then(|t| t.as_str()).unwrap_or("Section");
+                            let title = sec
+                                .get("section_title")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("Section");
                             html.push_str(&format!("<h3>{}</h3><ul>", title));
-                            if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                            if let Some(bullets) =
+                                sec.get("bullet_points").and_then(|b| b.as_array())
+                            {
                                 for b in bullets {
                                     let text = b.get("text").and_then(|t| t.as_str()).unwrap_or("");
                                     html.push_str(&format!("<li>{}</li>", text));
@@ -1538,7 +1622,8 @@ pub fn export_formatted(
             })
         }
         "pdf_html" => {
-            let mut doc = format!(r#"<!DOCTYPE html>
+            let mut doc = format!(
+                r#"<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -1559,7 +1644,9 @@ pub fn export_formatted(
 <div class="brand">Bagrry · Executive Note</div>
 <h1>{}</h1>
 <div class="meta">Date: {} | Attendees: {}</div>
-"#, m.title, m.title, m.date, attendees_str);
+"#,
+                m.title, m.title, m.date, attendees_str
+            );
 
             if !m.scratchpad_raw.trim().is_empty() {
                 doc.push_str("<h2>Raw Scratchpad Notes</h2><ul>");
@@ -1577,9 +1664,14 @@ pub fn export_formatted(
                     if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
                         doc.push_str("<h2>Executive Summary & Decisions</h2>");
                         for sec in sections {
-                            let title = sec.get("section_title").and_then(|t| t.as_str()).unwrap_or("Section");
+                            let title = sec
+                                .get("section_title")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("Section");
                             doc.push_str(&format!("<h3>{}</h3><ul>", title));
-                            if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                            if let Some(bullets) =
+                                sec.get("bullet_points").and_then(|b| b.as_array())
+                            {
                                 for b in bullets {
                                     let text = b.get("text").and_then(|t| t.as_str()).unwrap_or("");
                                     doc.push_str(&format!("<li>{}</li>", text));
@@ -1602,7 +1694,11 @@ pub fn export_formatted(
         }
         _ => {
             // Default "markdown" with YAML frontmatter
-            let att_joined = attendees.iter().map(|a| format!("\"{}\"", a)).collect::<Vec<_>>().join(", ");
+            let att_joined = attendees
+                .iter()
+                .map(|a| format!("\"{}\"", a))
+                .collect::<Vec<_>>()
+                .join(", ");
             let mut md = format!(
                 "---\ntitle: \"{}\"\ndate: \"{}\"\nattendees: [{}]\nsource: \"Bagrry\"\n---\n\n# {}\n\n",
                 m.title, m.date, att_joined, m.title
@@ -1617,14 +1713,19 @@ pub fn export_formatted(
                     if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
                         md.push_str("## Enhanced Notes\n\n");
                         for sec in sections {
-                            let title = sec.get("section_title").and_then(|t| t.as_str()).unwrap_or("Section");
+                            let title = sec
+                                .get("section_title")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("Section");
                             md.push_str(&format!("### {}\n\n", title));
-                            if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                            if let Some(bullets) =
+                                sec.get("bullet_points").and_then(|b| b.as_array())
+                            {
                                 for b in bullets {
                                     let text = b.get("text").and_then(|t| t.as_str()).unwrap_or("");
                                     md.push_str(&format!("- {}\n", text));
                                 }
-                                md.push_str("\n");
+                                md.push('\n');
                             }
                         }
                     }
@@ -1727,8 +1828,11 @@ pub fn rename_folder(state: State<AppState>, id: String, name: String) -> Result
         return Err("Folder name can't be empty".into());
     }
     let conn = state.conn()?;
-    conn.execute("UPDATE folders SET name = ?1 WHERE id = ?2", params![name, id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE folders SET name = ?1 WHERE id = ?2",
+        params![name, id],
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -1826,7 +1930,8 @@ pub fn list_chat_sessions(state: State<AppState>) -> Result<Vec<ChatSession>, St
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1864,7 +1969,11 @@ pub fn create_chat_session(
 }
 
 #[tauri::command]
-pub fn rename_chat_session(state: State<AppState>, id: String, title: String) -> Result<(), String> {
+pub fn rename_chat_session(
+    state: State<AppState>,
+    id: String,
+    title: String,
+) -> Result<(), String> {
     let conn = state.conn()?;
     conn.execute(
         "UPDATE chat_sessions SET title = ?1, updated_at = datetime('now') WHERE id = ?2",
@@ -1905,7 +2014,8 @@ pub fn list_chat_messages(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -2224,14 +2334,17 @@ pub fn add_action_item(
     })
 }
 
-
 #[tauri::command]
-pub fn get_person_dossier(state: State<AppState>, person_id: String) -> Result<PersonDossier, String> {
+pub fn get_person_dossier(
+    state: State<AppState>,
+    person_id: String,
+) -> Result<PersonDossier, String> {
     let conn = state.conn()?;
-    
+
     // 1. Get person
-    let person = conn.query_row(
-        "SELECT a.id, a.name, a.email, a.domain, a.company_id, c.name,
+    let person = conn
+        .query_row(
+            "SELECT a.id, a.name, a.email, a.domain, a.company_id, c.name,
                 a.role, a.notes, COALESCE(a.excluded, 0),
                 COUNT(DISTINCT m.id), COALESCE(SUM(m.duration_ms), 0), MAX(m.date)
          FROM attendees a
@@ -2240,52 +2353,55 @@ pub fn get_person_dossier(state: State<AppState>, person_id: String) -> Result<P
          LEFT JOIN meetings m ON m.id = ma.meeting_id
          WHERE a.id = ?1
          GROUP BY a.id",
-        params![&person_id],
-        |row| {
-            Ok(Person {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                email: row.get(2)?,
-                domain: row.get(3)?,
-                company_id: row.get(4)?,
-                company_name: row.get(5)?,
-                role: row.get(6)?,
-                notes: row.get(7)?,
-                excluded: row.get::<_, i64>(8)? != 0,
-                note_count: row.get(9)?,
-                total_duration_ms: row.get(10)?,
-                last_note_at: row.get(11)?,
-            })
-        },
-    ).map_err(|e| format!("Person not found: {e}"))?;
+            params![&person_id],
+            |row| {
+                Ok(Person {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    email: row.get(2)?,
+                    domain: row.get(3)?,
+                    company_id: row.get(4)?,
+                    company_name: row.get(5)?,
+                    role: row.get(6)?,
+                    notes: row.get(7)?,
+                    excluded: row.get::<_, i64>(8)? != 0,
+                    note_count: row.get(9)?,
+                    total_duration_ms: row.get(10)?,
+                    last_note_at: row.get(11)?,
+                })
+            },
+        )
+        .map_err(|e| format!("Person not found: {e}"))?;
 
     // 2. Get attended meetings
-    let mut stmt = conn.prepare(
-        &format!(
+    let mut stmt = conn
+        .prepare(&format!(
             "SELECT {MEETING_COLS} FROM meetings m
              JOIN meeting_attendees ma ON ma.meeting_id = m.id
              WHERE ma.attendee_id = ?1
              ORDER BY m.date DESC"
-        )
-    ).map_err(|e| e.to_string())?;
-    let meetings = stmt.query_map(params![&person_id], meeting_from_row)
+        ))
+        .map_err(|e| e.to_string())?;
+    let meetings = stmt
+        .query_map(params![&person_id], meeting_from_row)
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
     // 3. Get action items
-    let mut act_stmt = conn.prepare(
-        "SELECT a.id, a.meeting_id, m.title, a.owner, a.task, a.deadline, a.done
+    let mut act_stmt = conn
+        .prepare(
+            "SELECT a.id, a.meeting_id, m.title, a.owner, a.task, a.deadline, a.done
          FROM action_items a
          JOIN meetings m ON m.id = a.meeting_id
          WHERE a.owner = ?1 OR (?2 IS NOT NULL AND a.owner = ?2) OR a.meeting_id IN (
              SELECT meeting_id FROM meeting_attendees WHERE attendee_id = ?3
          )
-         ORDER BY a.done ASC, a.deadline ASC"
-    ).map_err(|e| e.to_string())?;
-    let action_items = act_stmt.query_map(
-        params![&person.name, &person.email, &person_id],
-        |row| {
+         ORDER BY a.done ASC, a.deadline ASC",
+        )
+        .map_err(|e| e.to_string())?;
+    let action_items = act_stmt
+        .query_map(params![&person.name, &person.email, &person_id], |row| {
             Ok(ActionItem {
                 id: row.get(0)?,
                 meeting_id: row.get(1)?,
@@ -2295,10 +2411,10 @@ pub fn get_person_dossier(state: State<AppState>, person_id: String) -> Result<P
                 deadline: row.get(5)?,
                 done: row.get::<_, i64>(6)? != 0,
             })
-        }
-    ).map_err(|e| e.to_string())?
-    .collect::<Result<Vec<_>, _>>()
-    .map_err(|e| e.to_string())?;
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
 
     // 4. Generate pre-meeting 'Catch Me Up' briefing
     let mut brief = String::new();
@@ -2317,7 +2433,7 @@ pub fn get_person_dossier(state: State<AppState>, person_id: String) -> Result<P
             brief.push('\n');
         }
     }
-    
+
     let pending_items: Vec<&ActionItem> = action_items.iter().filter(|i| !i.done).collect();
     if !pending_items.is_empty() {
         brief.push_str("### Unresolved Commitments\n");
@@ -2327,11 +2443,7 @@ pub fn get_person_dossier(state: State<AppState>, person_id: String) -> Result<P
         }
     }
 
-    let catch_me_up_brief = if brief.is_empty() {
-        None
-    } else {
-        Some(brief)
-    };
+    let catch_me_up_brief = if brief.is_empty() { None } else { Some(brief) };
 
     Ok(PersonDossier {
         person,
@@ -2342,6 +2454,7 @@ pub fn get_person_dossier(state: State<AppState>, person_id: String) -> Result<P
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn update_person(
     state: State<AppState>,
     id: String,
@@ -2353,8 +2466,11 @@ pub fn update_person(
     excluded: Option<bool>,
 ) -> Result<Person, String> {
     let conn = state.conn()?;
-    let domain = email.as_ref().and_then(|e| e.split('@').nth(1)).map(|s| s.to_string());
-    
+    let domain = email
+        .as_ref()
+        .and_then(|e| e.split('@').nth(1))
+        .map(|s| s.to_string());
+
     // Resolve or upsert company if company_name provided
     let mut company_id: Option<String> = None;
     if let Some(ref cname) = company_name.filter(|s| !s.trim().is_empty()) {
@@ -2389,12 +2505,23 @@ pub fn update_person(
             excluded = ?7,
             last_seen = datetime('now')
          WHERE id = ?8",
-        params![name, email, domain, role, company_id, notes, excluded_int, id],
-    ).map_err(|e| e.to_string())?;
+        params![
+            name,
+            email,
+            domain,
+            role,
+            company_id,
+            notes,
+            excluded_int,
+            id
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
     // Return updated Person
-    let mut stmt = conn.prepare(
-        "SELECT a.id, a.name, a.email, a.domain, a.company_id, c.name,
+    let mut stmt = conn
+        .prepare(
+            "SELECT a.id, a.name, a.email, a.domain, a.company_id, c.name,
                 a.role, a.notes, COALESCE(a.excluded, 0),
                 COUNT(DISTINCT m.id), COALESCE(SUM(m.duration_ms), 0), MAX(m.date)
          FROM attendees a
@@ -2402,8 +2529,9 @@ pub fn update_person(
          LEFT JOIN meeting_attendees ma ON ma.attendee_id = a.id
          LEFT JOIN meetings m ON m.id = ma.meeting_id
          WHERE a.id = ?1
-         GROUP BY a.id"
-    ).map_err(|e| e.to_string())?;
+         GROUP BY a.id",
+        )
+        .map_err(|e| e.to_string())?;
 
     stmt.query_row(params![id], |row| {
         Ok(Person {
@@ -2420,7 +2548,8 @@ pub fn update_person(
             total_duration_ms: row.get(10)?,
             last_note_at: row.get(11)?,
         })
-    }).map_err(|e| e.to_string())
+    })
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -2433,7 +2562,7 @@ pub fn merge_people(
         return Err("Cannot merge contact into itself".into());
     }
     let conn = state.conn()?;
-    
+
     // Get duplicate name and email
     let dup_info: Result<(String, Option<String>), _> = conn.query_row(
         "SELECT name, email FROM attendees WHERE id = ?1",
@@ -2445,23 +2574,27 @@ pub fn merge_people(
         Err(_) => return Err("Duplicate contact not found".into()),
     };
 
-    let prim_name: String = conn.query_row(
-        "SELECT name FROM attendees WHERE id = ?1",
-        params![&primary_id],
-        |r| r.get(0),
-    ).map_err(|e| format!("Primary contact not found: {e}"))?;
+    let prim_name: String = conn
+        .query_row(
+            "SELECT name FROM attendees WHERE id = ?1",
+            params![&primary_id],
+            |r| r.get(0),
+        )
+        .map_err(|e| format!("Primary contact not found: {e}"))?;
 
     // Transfer meeting connections
     conn.execute(
         "INSERT OR IGNORE INTO meeting_attendees (meeting_id, attendee_id)
          SELECT meeting_id, ?1 FROM meeting_attendees WHERE attendee_id = ?2",
         params![&primary_id, &duplicate_id],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "DELETE FROM meeting_attendees WHERE attendee_id = ?1",
         params![&duplicate_id],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Update action item owner
     let _ = conn.execute(
@@ -2470,8 +2603,11 @@ pub fn merge_people(
     );
 
     // Remove duplicate attendee record
-    conn.execute("DELETE FROM attendees WHERE id = ?1", params![&duplicate_id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM attendees WHERE id = ?1",
+        params![&duplicate_id],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -2479,8 +2615,11 @@ pub fn merge_people(
 #[tauri::command]
 pub fn delete_person(state: State<AppState>, id: String) -> Result<(), String> {
     let conn = state.conn()?;
-    conn.execute("DELETE FROM meeting_attendees WHERE attendee_id = ?1", params![&id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM meeting_attendees WHERE attendee_id = ?1",
+        params![&id],
+    )
+    .map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM attendees WHERE id = ?1", params![&id])
         .map_err(|e| e.to_string())?;
     Ok(())
@@ -2496,29 +2635,48 @@ pub fn index_all_attendees(state: State<AppState>) -> Result<usize, String> {
         "SELECT id, title, start_at, attendees_json FROM calendar_events WHERE attendees_json IS NOT NULL"
     ).map_err(|e| e.to_string())?;
 
-    let events: Vec<(String, String, String, String)> = cal_stmt.query_map([], |row| {
-        Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
-    }).map_err(|e| e.to_string())?
-    .flatten()
-    .collect();
+    let events: Vec<(String, String, String, String)> = cal_stmt
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })
+        .map_err(|e| e.to_string())?
+        .flatten()
+        .collect();
 
     for (_event_id, title, start_at, att_json) in events {
         let attendees_parsed: Result<Vec<serde_json::Value>, _> = serde_json::from_str(&att_json);
         if let Ok(list) = attendees_parsed {
             for item in list {
-                let name = item.get("name").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
-                let email = item.get("email").and_then(|v| v.as_str()).map(|s| s.trim().to_lowercase());
-                
+                let name = item
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
+                let email = item
+                    .get("email")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.trim().to_lowercase());
+
                 if name.is_empty() && email.as_deref().unwrap_or("").is_empty() {
                     continue;
                 }
                 let display_name = if name.is_empty() {
-                    email.as_deref().unwrap_or("Unknown").split('@').next().unwrap_or("Unknown").to_string()
+                    email
+                        .as_deref()
+                        .unwrap_or("Unknown")
+                        .split('@')
+                        .next()
+                        .unwrap_or("Unknown")
+                        .to_string()
                 } else {
                     name
                 };
 
-                let domain = email.as_ref().and_then(|e| e.split('@').nth(1)).map(|s| s.to_string());
+                let domain = email
+                    .as_ref()
+                    .and_then(|e| e.split('@').nth(1))
+                    .map(|s| s.to_string());
 
                 // Find existing person
                 let existing_id: Option<String> = if let Some(ref em) = email {
@@ -2526,18 +2684,23 @@ pub fn index_all_attendees(state: State<AppState>) -> Result<usize, String> {
                         "SELECT id FROM attendees WHERE email = ?1 LIMIT 1",
                         params![em],
                         |r| r.get(0),
-                    ).ok()
+                    )
+                    .ok()
                 } else {
                     conn.query_row(
                         "SELECT id FROM attendees WHERE LOWER(name) = LOWER(?1) LIMIT 1",
                         params![&display_name],
                         |r| r.get(0),
-                    ).ok()
+                    )
+                    .ok()
                 };
 
                 let person_id = match existing_id {
                     Some(id) => {
-                        let _ = conn.execute("UPDATE attendees SET last_seen = datetime('now') WHERE id = ?1", params![&id]);
+                        let _ = conn.execute(
+                            "UPDATE attendees SET last_seen = datetime('now') WHERE id = ?1",
+                            params![&id],
+                        );
                         id
                     }
                     None => {
@@ -2545,19 +2708,32 @@ pub fn index_all_attendees(state: State<AppState>) -> Result<usize, String> {
                         // Link company if business domain
                         let mut comp_id: Option<String> = None;
                         if let Some(ref d) = domain {
-                            let common = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "proton.me"];
+                            let common = [
+                                "gmail.com",
+                                "yahoo.com",
+                                "hotmail.com",
+                                "outlook.com",
+                                "icloud.com",
+                                "proton.me",
+                            ];
                             if !common.contains(&d.as_str()) {
-                                let c_existing: Option<String> = conn.query_row(
-                                    "SELECT id FROM companies WHERE domain = ?1 LIMIT 1",
-                                    params![d],
-                                    |r| r.get(0),
-                                ).ok();
+                                let c_existing: Option<String> = conn
+                                    .query_row(
+                                        "SELECT id FROM companies WHERE domain = ?1 LIMIT 1",
+                                        params![d],
+                                        |r| r.get(0),
+                                    )
+                                    .ok();
                                 comp_id = match c_existing {
                                     Some(cid) => Some(cid),
                                     None => {
                                         let cid = new_id("co");
                                         let cname = d.split('.').next().unwrap_or("Company");
-                                        let cname_cap = format!("{}{}", &cname[..1].to_uppercase(), &cname[1..]);
+                                        let cname_cap = format!(
+                                            "{}{}",
+                                            &cname[..1].to_uppercase(),
+                                            &cname[1..]
+                                        );
                                         let _ = conn.execute(
                                             "INSERT INTO companies (id, name, domain, first_seen, last_seen) VALUES (?1, ?2, ?3, datetime('now'), datetime('now'))",
                                             params![&cid, cname_cap, d],
@@ -2594,7 +2770,10 @@ pub fn index_all_attendees(state: State<AppState>) -> Result<usize, String> {
 }
 
 #[tauri::command]
-pub fn get_local_stt_status(app: AppHandle, state: State<AppState>) -> Result<whisper_local::LocalSttStatus, String> {
+pub fn get_local_stt_status(
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<whisper_local::LocalSttStatus, String> {
     let conn = state.conn()?;
     whisper_local::get_status(&conn, &app)
 }
@@ -2626,4 +2805,3 @@ pub fn download_local_model(app: AppHandle, model_id: String) -> Result<(), Stri
 pub fn delete_local_model(app: AppHandle, model_id: String) -> Result<(), String> {
     whisper_local::delete_model(&app, &model_id)
 }
-

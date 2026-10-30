@@ -364,7 +364,6 @@ ALTER TABLE attendees ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0;
 UPDATE attendees SET role = 'Head of Infrastructure' WHERE id = 'p_alex';
 "#;
 
-
 const V10: &str = r#"
 DROP TRIGGER IF EXISTS meetings_ai;
 DROP TRIGGER IF EXISTS meetings_ad;
@@ -402,7 +401,6 @@ INSERT INTO meetings_fts(rowid, title, scratchpad_raw, enhanced_notes_json, tran
 SELECT rowid, title, scratchpad_raw, ifnull(enhanced_notes_json, ''), ifnull(transcript_json, '') FROM meetings;
 "#;
 
-
 const V11: &str = r#"
 -- Add privacy controls, expiration, revocation, and views count to shares
 ALTER TABLE shares ADD COLUMN include_transcript INTEGER NOT NULL DEFAULT 1;
@@ -423,20 +421,18 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
         .unwrap_or(0);
 
     if current < 1 {
-        conn.execute_batch("CREATE TABLE IF NOT EXISTS schema_migrations (
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS schema_migrations (
           version INTEGER PRIMARY KEY,
           applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );")
+        );",
+        )
         .map_err(|e| format!("migrations table: {e}"))?;
         conn.execute_batch(V1)
             .map_err(|e| format!("migration v1: {e}"))?;
-        conn.execute_batch(SEED)
-            .map_err(|e| format!("seed: {e}"))?;
-        conn.execute(
-            "INSERT INTO schema_migrations (version) VALUES (1)",
-            [],
-        )
-        .map_err(|e| format!("record v1: {e}"))?;
+        conn.execute_batch(SEED).map_err(|e| format!("seed: {e}"))?;
+        conn.execute("INSERT INTO schema_migrations (version) VALUES (1)", [])
+            .map_err(|e| format!("record v1: {e}"))?;
     }
 
     if current < 2 {
@@ -540,8 +536,6 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
         )
         .map_err(|e| format!("record v11: {e}"))?;
     }
-
-
 
     if vec_enabled {
         let _ = conn.execute_batch(

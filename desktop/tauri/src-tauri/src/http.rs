@@ -67,13 +67,19 @@ fn handle(db_path: &Path, mut req: Request) {
     }
 
     if method == Method::Get && url.starts_with("/v1/folders") {
-        respond(req, json_res(200, json!({ "folders": list_folders(&conn) })));
+        respond(
+            req,
+            json_res(200, json!({ "folders": list_folders(&conn) })),
+        );
         return;
     }
 
     if method == Method::Post && url.starts_with("/v1/notes/search") {
         let body = read_body(&mut req);
-        let query = body.get("query").and_then(|v| v.as_str()).unwrap_or_default();
+        let query = body
+            .get("query")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
         let results = search_notes(&conn, query);
         respond(req, json_res(200, json!({ "results": results })));
         return;
@@ -95,7 +101,10 @@ fn handle(db_path: &Path, mut req: Request) {
         let token = token.split('?').next().unwrap_or(token);
         match share_payload(&conn, token) {
             Some(payload) => respond(req, html_or_json(&accept, payload)),
-            None => respond(req, json_res(404, json!({ "error": "Share link not found or expired" }))),
+            None => respond(
+                req,
+                json_res(404, json!({ "error": "Share link not found or expired" })),
+            ),
         }
         return;
     }
@@ -179,7 +188,13 @@ fn build(code: u16, content_type: &str, body: Vec<u8>) -> Response<Cursor<Vec<u8
     .collect::<Vec<_>>();
 
     let len = body.len();
-    Response::new(StatusCode(code), headers, Cursor::new(body), Some(len), None)
+    Response::new(
+        StatusCode(code),
+        headers,
+        Cursor::new(body),
+        Some(len),
+        None,
+    )
 }
 
 fn json_res(code: u16, value: serde_json::Value) -> Response<Cursor<Vec<u8>>> {
@@ -211,11 +226,17 @@ fn html_or_json(accept: &str, value: serde_json::Value) -> Response<Cursor<Vec<u
         if let Ok(doc) = serde_json::from_str::<serde_json::Value>(enhanced) {
             if let Some(sections) = doc.get("sections").and_then(|s| s.as_array()) {
                 for sec in sections {
-                    let stitle = escape_html(sec.get("section_title").and_then(|t| t.as_str()).unwrap_or("Section"));
-                    enhanced_html.push_str(&format!("<div class=\"section\"><h3>{}</h3><ul>", stitle));
+                    let stitle = escape_html(
+                        sec.get("section_title")
+                            .and_then(|t| t.as_str())
+                            .unwrap_or("Section"),
+                    );
+                    enhanced_html
+                        .push_str(&format!("<div class=\"section\"><h3>{}</h3><ul>", stitle));
                     if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
                         for b in bullets {
-                            let text = escape_html(b.get("text").and_then(|t| t.as_str()).unwrap_or(""));
+                            let text =
+                                escape_html(b.get("text").and_then(|t| t.as_str()).unwrap_or(""));
                             enhanced_html.push_str(&format!("<li>{}</li>", text));
                         }
                     }
@@ -229,10 +250,18 @@ fn html_or_json(accept: &str, value: serde_json::Value) -> Response<Cursor<Vec<u
     if !transcript.is_empty() {
         if let Ok(segs) = serde_json::from_str::<serde_json::Value>(transcript) {
             if let Some(arr) = segs.as_array() {
-                transcript_html.push_str("<details class=\"transcript-box\"><summary>Verbatim Transcript (" );
-                transcript_html.push_str(&format!("{} utterances)</summary><div class=\"transcript-lines\">", arr.len()));
+                transcript_html
+                    .push_str("<details class=\"transcript-box\"><summary>Verbatim Transcript (");
+                transcript_html.push_str(&format!(
+                    "{} utterances)</summary><div class=\"transcript-lines\">",
+                    arr.len()
+                ));
                 for seg in arr {
-                    let speaker = escape_html(seg.get("speaker").and_then(|s| s.as_str()).unwrap_or("speaker"));
+                    let speaker = escape_html(
+                        seg.get("speaker")
+                            .and_then(|s| s.as_str())
+                            .unwrap_or("speaker"),
+                    );
                     let text = escape_html(seg.get("text").and_then(|t| t.as_str()).unwrap_or(""));
                     let is_me = speaker == "me";
                     let spk_label = if is_me { "You" } else { "Attendee" };
@@ -259,7 +288,8 @@ fn html_or_json(accept: &str, value: serde_json::Value) -> Response<Cursor<Vec<u
         ""
     };
 
-    let html = format!(r#"<!DOCTYPE html>
+    let html = format!(
+        r#"<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -331,7 +361,8 @@ fn html_or_json(accept: &str, value: serde_json::Value) -> Response<Cursor<Vec<u
     {transcript_html}
   </main>
 </body>
-</html>"#);
+</html>"#
+    );
 
     build(200, "text/html; charset=utf-8", html.into_bytes())
 }
@@ -444,7 +475,8 @@ fn share_payload(conn: &Connection, token: &str) -> Option<serde_json::Value> {
         )
         .ok()?;
 
-    let (meeting_id, visibility, inc_transcript, inc_audio, inc_scratchpad, expires_at, revoked) = row;
+    let (meeting_id, visibility, inc_transcript, inc_audio, inc_scratchpad, expires_at, revoked) =
+        row;
 
     if visibility == "private" || revoked {
         return None;
@@ -452,11 +484,7 @@ fn share_payload(conn: &Connection, token: &str) -> Option<serde_json::Value> {
 
     if let Some(ref exp) = expires_at {
         let is_expired: bool = conn
-            .query_row(
-                "SELECT datetime('now') > datetime(?1)",
-                [exp],
-                |r| r.get(0),
-            )
+            .query_row("SELECT datetime('now') > datetime(?1)", [exp], |r| r.get(0))
             .unwrap_or(false);
         if is_expired {
             return None;
@@ -464,7 +492,10 @@ fn share_payload(conn: &Connection, token: &str) -> Option<serde_json::Value> {
     }
 
     // Increment views count
-    let _ = conn.execute("UPDATE shares SET views_count = ifnull(views_count, 0) + 1 WHERE token = ?1", [token]);
+    let _ = conn.execute(
+        "UPDATE shares SET views_count = ifnull(views_count, 0) + 1 WHERE token = ?1",
+        [token],
+    );
 
     let mut note = get_note(conn, &meeting_id)?;
     if !inc_scratchpad {
@@ -590,7 +621,11 @@ fn mcp_get_contact_context(conn: &Connection, query: &str) -> serde_json::Value 
                  JOIN meeting_attendees ma ON ma.meeting_id = m.id
                  WHERE ma.attendee_id = ?1 ORDER BY m.date DESC LIMIT 10",
                 [&pid],
-                |r| Ok(json!({ "id": r.get::<_, String>(0)?, "title": r.get::<_, String>(1)?, "date": r.get::<_, String>(2)? })),
+                |r| {
+                    Ok(
+                        json!({ "id": r.get::<_, String>(0)?, "title": r.get::<_, String>(1)?, "date": r.get::<_, String>(2)? }),
+                    )
+                },
             );
             let open_loops = query_json(
                 conn,
@@ -723,22 +758,30 @@ fn mcp(conn: &Connection, body: &serde_json::Value) -> serde_json::Value {
             let args = params.get("arguments").cloned().unwrap_or(json!({}));
             let text = match name {
                 "query_notes" | "query_bagrry_meetings" => {
-                    let q = args.get("query").and_then(|v| v.as_str()).unwrap_or_default();
+                    let q = args
+                        .get("query")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default();
                     mcp_query_notes(conn, q).to_string()
                 }
                 "get_meeting_transcript" => {
-                    let mid = args.get("meeting_id")
+                    let mid = args
+                        .get("meeting_id")
                         .or_else(|| args.get("id"))
                         .and_then(|v| v.as_str())
                         .unwrap_or_default();
                     mcp_get_transcript(conn, mid).to_string()
                 }
                 "list_open_loops" => {
-                    let inc_done = args.get("include_done").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let inc_done = args
+                        .get("include_done")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
                     mcp_list_open_loops(conn, inc_done).to_string()
                 }
                 "get_contact_context" => {
-                    let query = args.get("name_or_email")
+                    let query = args
+                        .get("name_or_email")
                         .or_else(|| args.get("name"))
                         .and_then(|v| v.as_str())
                         .unwrap_or_default();
@@ -750,11 +793,13 @@ fn mcp(conn: &Connection, body: &serde_json::Value) -> serde_json::Value {
                     let mid = args.get("id").and_then(|v| v.as_str()).unwrap_or_default();
                     get_note(conn, mid).unwrap_or_else(|| json!({})).to_string()
                 }
-                _ => return json!({
-                    "jsonrpc": "2.0",
-                    "id": id,
-                    "error": { "code": -32601, "message": format!("Unknown MCP tool: '{name}'") }
-                }),
+                _ => {
+                    return json!({
+                        "jsonrpc": "2.0",
+                        "id": id,
+                        "error": { "code": -32601, "message": format!("Unknown MCP tool: '{name}'") }
+                    })
+                }
             };
             json!({
                 "content": [
@@ -765,17 +810,22 @@ fn mcp(conn: &Connection, body: &serde_json::Value) -> serde_json::Value {
         }
         "resources/list" => {
             let meetings = list_notes(conn);
-            let resources = meetings.as_array().map(|arr| {
-                arr.iter().map(|m| {
-                    let id = m["id"].as_str().unwrap_or_default();
-                    let title = m["title"].as_str().unwrap_or_default();
-                    json!({
-                        "uri": format!("bagrry://meetings/{id}"),
-                        "name": title,
-                        "mimeType": "application/json"
-                    })
-                }).collect::<Vec<_>>()
-            }).unwrap_or_default();
+            let resources = meetings
+                .as_array()
+                .map(|arr| {
+                    arr.iter()
+                        .map(|m| {
+                            let id = m["id"].as_str().unwrap_or_default();
+                            let title = m["title"].as_str().unwrap_or_default();
+                            json!({
+                                "uri": format!("bagrry://meetings/{id}"),
+                                "name": title,
+                                "mimeType": "application/json"
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
             json!({ "resources": resources })
         }
         "resources/read" => {

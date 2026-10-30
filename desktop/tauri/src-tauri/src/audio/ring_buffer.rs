@@ -60,7 +60,11 @@ impl<T: Copy + Default> AudioRingBuffer<T> {
             let buf_ptr = self.buffer.as_ptr() as *mut T;
             std::ptr::copy_nonoverlapping(data.as_ptr(), buf_ptr.add(tail), first_chunk);
             if second_chunk > 0 {
-                std::ptr::copy_nonoverlapping(data.as_ptr().add(first_chunk), buf_ptr, second_chunk);
+                std::ptr::copy_nonoverlapping(
+                    data.as_ptr().add(first_chunk),
+                    buf_ptr,
+                    second_chunk,
+                );
             }
         }
 
@@ -85,7 +89,11 @@ impl<T: Copy + Default> AudioRingBuffer<T> {
             let buf_ptr = self.buffer.as_ptr();
             std::ptr::copy_nonoverlapping(buf_ptr.add(head), dest.as_mut_ptr(), first_chunk);
             if second_chunk > 0 {
-                std::ptr::copy_nonoverlapping(buf_ptr, dest.as_mut_ptr().add(first_chunk), second_chunk);
+                std::ptr::copy_nonoverlapping(
+                    buf_ptr,
+                    dest.as_mut_ptr().add(first_chunk),
+                    second_chunk,
+                );
             }
         }
 

@@ -114,9 +114,7 @@ pub fn read_i16_range(path: &Path, start: u64, len: u64) -> Result<Vec<i16>, Str
         return Ok(Vec::new());
     }
     let mut file = File::open(path).map_err(|e| format!("read pcm {}: {e}", path.display()))?;
-    let meta = file
-        .metadata()
-        .map_err(|e| format!("pcm metadata: {e}"))?;
+    let meta = file.metadata().map_err(|e| format!("pcm metadata: {e}"))?;
     let available = meta.len() / 2;
     if start >= available {
         return Ok(Vec::new());
@@ -150,4 +148,3 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 }
-

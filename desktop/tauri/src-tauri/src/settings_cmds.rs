@@ -14,7 +14,11 @@ use tauri_plugin_autostart::ManagerExt;
 // Launch on login
 
 #[tauri::command]
-pub fn set_launch_on_login(app: AppHandle, state: State<AppState>, enable: bool) -> Result<bool, String> {
+pub fn set_launch_on_login(
+    app: AppHandle,
+    state: State<AppState>,
+    enable: bool,
+) -> Result<bool, String> {
     let manager = app.autolaunch();
     let result = if enable {
         manager.enable()
@@ -174,7 +178,11 @@ pub fn import_notes(state: State<AppState>, notes: Vec<ImportNote>) -> Result<us
         if title.is_empty() && note.body.trim().is_empty() {
             continue;
         }
-        let title = if title.is_empty() { "Imported note" } else { title };
+        let title = if title.is_empty() {
+            "Imported note"
+        } else {
+            title
+        };
         conn.execute(
             "INSERT INTO meetings (id, folder_id, title, date, scratchpad_raw)
              VALUES (?1, NULL, ?2, ifnull(?3, datetime('now')), ?4)",
@@ -246,12 +254,20 @@ pub fn list_api_keys(state: State<AppState>) -> Result<Vec<ApiKey>, String> {
                 id: row.get(0)?,
                 label: row.get(1)?,
                 kind: row.get(2)?,
-                token_tail: token.chars().rev().take(4).collect::<String>().chars().rev().collect(),
+                token_tail: token
+                    .chars()
+                    .rev()
+                    .take(4)
+                    .collect::<String>()
+                    .chars()
+                    .rev()
+                    .collect(),
                 created_at: row.get(4)?,
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 /// 128 bits of entropy via the std hasher's OS-seeded RandomState — no extra
@@ -274,11 +290,23 @@ fn random_token() -> String {
 }
 
 #[tauri::command]
-pub fn create_api_key(state: State<AppState>, label: String, kind: String) -> Result<String, String> {
+pub fn create_api_key(
+    state: State<AppState>,
+    label: String,
+    kind: String,
+) -> Result<String, String> {
     let conn = state.conn()?;
     let token = format!("bag_sk_{}", random_token());
-    let label = if label.trim().is_empty() { "API key".to_string() } else { label };
-    let kind = if kind == "workspace" { "workspace" } else { "personal" };
+    let label = if label.trim().is_empty() {
+        "API key".to_string()
+    } else {
+        label
+    };
+    let kind = if kind == "workspace" {
+        "workspace"
+    } else {
+        "personal"
+    };
     conn.execute(
         "INSERT INTO api_keys (id, label, kind, token) VALUES (?1, ?2, ?3, ?4)",
         params![new_id("key"), label.trim(), kind, token],
@@ -299,7 +327,11 @@ pub fn revoke_api_key(state: State<AppState>, id: String) -> Result<(), String> 
 // Feedback
 
 #[tauri::command]
-pub fn submit_feedback(state: State<AppState>, category: String, content: String) -> Result<(), String> {
+pub fn submit_feedback(
+    state: State<AppState>,
+    category: String,
+    content: String,
+) -> Result<(), String> {
     if content.trim().is_empty() {
         return Err("Write something first.".into());
     }
@@ -367,7 +399,11 @@ pub fn import_ics(state: State<AppState>, content: String) -> Result<usize, Stri
         if line.eq_ignore_ascii_case("END:VEVENT") {
             if in_event {
                 if let Some(start) = dtstart.take() {
-                    let title = if summary.is_empty() { "Untitled event" } else { summary.as_str() };
+                    let title = if summary.is_empty() {
+                        "Untitled event"
+                    } else {
+                        summary.as_str()
+                    };
                     let attendees_json = if attendees.is_empty() {
                         None
                     } else {
@@ -432,7 +468,11 @@ pub fn get_referral_code(state: State<AppState>) -> Result<String, String> {
     if !existing.is_empty() {
         return Ok(existing);
     }
-    let code = new_id("ref").replace("ref_", "").chars().take(8).collect::<String>();
+    let code = new_id("ref")
+        .replace("ref_", "")
+        .chars()
+        .take(8)
+        .collect::<String>();
     secrets::set_setting(&conn, "referral_code", &code)?;
     Ok(code)
 }

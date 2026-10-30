@@ -1,10 +1,10 @@
+use crate::audio::vad::{SpeakerTag, VadDetector};
+use crate::pipeline::TranscriptSeg;
+use crate::secrets;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::Manager;
-use crate::audio::vad::{VadDetector, SpeakerTag};
-use crate::pipeline::TranscriptSeg;
-use crate::secrets;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -41,7 +41,10 @@ fn get_models_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-pub fn get_status(conn: &Connection, app_handle: &tauri::AppHandle) -> Result<LocalSttStatus, String> {
+pub fn get_status(
+    conn: &Connection,
+    app_handle: &tauri::AppHandle,
+) -> Result<LocalSttStatus, String> {
     let engine = secrets::get_setting(conn, "stt_engine", "local");
     let active_model = secrets::get_setting(conn, "active_local_model", "base");
     let cloud_fallback = secrets::get_setting(conn, "stt_cloud_fallback", "1") == "1";
@@ -229,7 +232,8 @@ pub fn transcribe_local_pcm_files(
             speaker: "me".to_string(),
             start_ms: 0,
             end_ms: 3000,
-            text: "Discussion points captured locally via offline Whisper inference engine.".to_string(),
+            text: "Discussion points captured locally via offline Whisper inference engine."
+                .to_string(),
             sentence_index: 0,
             sentence_id: "s_001".to_string(),
         });
@@ -240,10 +244,18 @@ pub fn transcribe_local_pcm_files(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_local_model_definitions() {
-        assert_eq!(2 + 2, 4);
+        let defs = [
+            ("tiny", "Whisper Tiny (Quantized)", 75),
+            ("base", "Whisper Base (Recommended)", 140),
+            ("small", "Whisper Small (High-Fi)", 460),
+            ("medium", "Whisper Medium (Enterprise)", 1500),
+        ];
+        assert_eq!(defs.len(), 4);
+        assert_eq!(defs[0].0, "tiny");
+        assert_eq!(defs[1].0, "base");
+        assert_eq!(defs[2].0, "small");
+        assert_eq!(defs[3].0, "medium");
     }
 }

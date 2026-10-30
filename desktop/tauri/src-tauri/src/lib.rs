@@ -37,13 +37,12 @@ pub fn run() {
             None,
         ))
         .setup(|app| {
-            let pool = db::open(app.handle())
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            let pool = db::open(app.handle()).map_err(std::io::Error::other)?;
 
             let port: u16 = {
                 let conn = pool
                     .get()
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| std::io::Error::other(e.to_string()))?;
                 // Honour the auto-deletion preference on every launch.
                 if let Err(e) = settings_cmds::apply_retention_inner(&conn) {
                     eprintln!("retention sweep: {e}");
@@ -172,7 +171,11 @@ pub fn run() {
 
 /// Registers a global hotkey, trying each combo until one is accepted — another
 /// app may already own the preferred binding.
-fn register_first_available(app: &tauri::AppHandle, combos: &[&str], action: fn(&tauri::AppHandle)) {
+fn register_first_available(
+    app: &tauri::AppHandle,
+    combos: &[&str],
+    action: fn(&tauri::AppHandle),
+) {
     for combo in combos {
         let handle = app.clone();
         let registered = app
@@ -191,14 +194,22 @@ fn register_first_available(app: &tauri::AppHandle, combos: &[&str], action: fn(
 }
 
 fn register_recording_shortcuts(app: &tauri::AppHandle) {
-    register_first_available(app, &["super+shift+r", "ctrl+shift+r", "ctrl+alt+r"], |handle| {
-        if let Err(e) = audio::toggle(handle) {
-            eprintln!("toggle recording: {e}");
-        }
-    });
-    register_first_available(app, &["super+shift+p", "ctrl+shift+p", "ctrl+alt+p"], |handle| {
-        if let Err(e) = audio::pause(handle) {
-            eprintln!("pause recording: {e}");
-        }
-    });
+    register_first_available(
+        app,
+        &["super+shift+r", "ctrl+shift+r", "ctrl+alt+r"],
+        |handle| {
+            if let Err(e) = audio::toggle(handle) {
+                eprintln!("toggle recording: {e}");
+            }
+        },
+    );
+    register_first_available(
+        app,
+        &["super+shift+p", "ctrl+shift+p", "ctrl+alt+p"],
+        |handle| {
+            if let Err(e) = audio::pause(handle) {
+                eprintln!("pause recording: {e}");
+            }
+        },
+    );
 }

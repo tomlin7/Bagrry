@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop-frontend:
+    name: Desktop Frontend (React + Vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop/tauri
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desktop/tauri/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Run Vitest unit tests
+        run: npm run test:run
+
+      - name: Run Vite production build
+        run: npm run build
+
+  desktop-backend:
+    name: Desktop Backend (Rust + WASAPI)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/tauri/src-tauri -> target
+
+      - name: Check code formatting
+        run: cargo fmt --manifest-path desktop/tauri/src-tauri/Cargo.toml -- --check
+
+      - name: Run Clippy linter
+        run: cargo clippy --manifest-path desktop/tauri/src-tauri/Cargo.toml -- -D warnings
+
+      - name: Run Cargo unit tests
+        run: cargo test --manifest-path desktop/tauri/src-tauri/Cargo.toml
+
+  web-marketing:
+    name: Marketing Site (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Next.js lint
+        run: npm run lint
+
+      - name: Run Next.js production build
+        run: npm run build
