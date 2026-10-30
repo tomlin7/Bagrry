@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useAppStore } from "@/store/app";
+import { useAudioPlayerStore } from "@/store/audio";
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -17,6 +18,7 @@ export function useGlobalShortcuts() {
     function onKeyDown(event: KeyboardEvent) {
       const mod = event.ctrlKey || event.metaKey;
       const store = useAppStore.getState();
+      const audioStore = useAudioPlayerStore.getState();
 
       if (mod && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -40,6 +42,32 @@ export function useGlobalShortcuts() {
         event.preventDefault();
         store.back();
         return;
+      }
+
+      // Audio Playback shortcuts when not typing
+      if (!isTypingTarget(event.target) && !store.paletteOpen) {
+        if (audioStore.isVisible || audioStore.isPlaying) {
+          if (event.key.toLowerCase() === "j" && !mod) {
+            event.preventDefault();
+            audioStore.skip(-5000);
+            return;
+          }
+          if (event.key.toLowerCase() === "l" && !mod) {
+            event.preventDefault();
+            audioStore.skip(5000);
+            return;
+          }
+          if (event.key.toLowerCase() === "k" && !mod) {
+            event.preventDefault();
+            audioStore.togglePlay();
+            return;
+          }
+          if ((event.key === "[" || event.key === "]") && !mod) {
+            event.preventDefault();
+            audioStore.cyclePlaybackRate();
+            return;
+          }
+        }
       }
 
       // Escape leaves a note/settings view, but only when nothing is being typed.

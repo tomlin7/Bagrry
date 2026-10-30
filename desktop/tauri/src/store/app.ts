@@ -85,6 +85,8 @@ type AppState = {
   transcriptMinimized: boolean;
   setTranscriptOpen: (v: boolean) => void;
   setTranscriptMinimized: (v: boolean) => void;
+  highlightSentenceId: string | null;
+  setHighlightSentenceId: (id: string | null) => void;
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -189,4 +191,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   transcriptMinimized: false,
   setTranscriptOpen: (transcriptOpen) => set({ transcriptOpen }),
   setTranscriptMinimized: (transcriptMinimized) => set({ transcriptMinimized }),
+  highlightSentenceId: null,
+  setHighlightSentenceId: (highlightSentenceId) => {
+    if (highlightSentenceId) {
+      set({ highlightSentenceId, transcriptOpen: true, transcriptMinimized: false });
+    } else {
+      set({ highlightSentenceId: null });
+    }
+  },
 }));

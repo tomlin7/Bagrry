@@ -23,6 +23,7 @@ import { useAppStore } from "@/store/app";
 import { NoteEditor, type NoteEditorHandle } from "@/components/notes/NoteEditor";
 import { EnhancedNotes } from "@/components/notes/EnhancedNotes";
 import { TranscriptPanel } from "@/components/notes/TranscriptPanel";
+import { AudioPlayerBar } from "@/components/notes/AudioPlayerBar";
 import { AskBar } from "@/components/chat/AskBar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/misc";
@@ -61,6 +62,11 @@ export function NotePage({ noteId }: { noteId: string }) {
   const [selection, setSelection] = useState("");
   const editorRef = useRef<NoteEditorHandle>(null);
   const splitContainerRef = useRef<HTMLDivElement>(null);
+
+  const { data: segments = [] } = useQuery({
+    queryKey: api.qk.segments(noteId),
+    queryFn: () => api.listSegments(noteId),
+  });
 
   const { data: note, isLoading } = useQuery({
     queryKey: api.qk.meeting(noteId),
@@ -656,6 +662,11 @@ export function NotePage({ noteId }: { noteId: string }) {
           />
         )}
       </AnimatePresence>
+
+      {/* Audio Player Scrubber Bar */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-16 z-30 px-6">
+        <AudioPlayerBar meetingId={noteId} segments={segments} />
+      </div>
 
       {/* Bottom Floating Bar: Transcript or AskBar */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-4">

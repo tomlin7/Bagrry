@@ -335,7 +335,7 @@ pub fn load_segments(conn: &Connection, meeting_id: &str) -> Result<Vec<Transcri
         .map_err(|e| e.to_string())
 }
 
-/// User-specific context threaded into every AI prompt, mirroring how Granola
+/// User-specific context threaded into every AI prompt, mirroring how Bagrry
 /// personalises summaries with profile settings.
 #[derive(Debug, Default, Clone)]
 pub struct EnhanceContext {
@@ -581,3 +581,4 @@ pub fn search_semantic(conn: &Connection, query: &str, folder_id: Option<&str>) 
     scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     Ok(scored.into_iter().take(20).collect())
 }
+
