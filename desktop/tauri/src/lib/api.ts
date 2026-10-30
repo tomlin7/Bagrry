@@ -8,6 +8,7 @@ import type {
   ChatRole,
   ChatSession,
   Company,
+  CompanyDossier,
   DbStatus,
   Folder,
   FormattedExport,
@@ -143,6 +144,12 @@ export const deletePerson = (id: string) =>
 export const indexAllAttendees = () =>
   invoke<number>("index_all_attendees");
 export const listCompanies = () => invoke<Company[]>("list_companies");
+export const getCompanyDossier = (companyId: string) =>
+  invoke<CompanyDossier>("get_company_dossier", { companyId });
+export const updateCompany = (id: string, name: string, domain?: string | null) =>
+  invoke<Company>("update_company", { id, name, domain: domain ?? null });
+export const autoIndexCompanies = () =>
+  invoke<number>("auto_index_companies");
 export const upsertPerson = (name: string, email?: string | null) =>
   invoke<Person>("upsert_person", { name, email: email ?? null });
 export const meetingsForPerson = (personId: string) =>
@@ -304,6 +311,7 @@ export const qk = {
   people: () => ["people"] as const,
   personDossier: (id: string) => ["person-dossier", id] as const,
   companies: () => ["companies"] as const,
+  companyDossier: (id: string) => ["company-dossier", id] as const,
   calendar: () => ["calendar"] as const,
   actionItems: () => ["action-items"] as const,
   chatSessions: () => ["chat-sessions"] as const,

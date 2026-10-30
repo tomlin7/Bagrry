@@ -191,6 +191,14 @@ export type Company = {
   last_note_at: string | null;
 };
 
+export type CompanyDossier = {
+  company: Company;
+  attendees: Person[];
+  meetings: Meeting[];
+  action_items: ActionItem[];
+  account_brief: string | null;
+};
+
 export type CalendarEvent = {
   id: string;
   title: string;

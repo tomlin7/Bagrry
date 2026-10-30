@@ -135,6 +135,15 @@ pub struct Company {
 }
 
 #[derive(Serialize)]
+pub struct CompanyDossier {
+    pub company: Company,
+    pub attendees: Vec<Person>,
+    pub meetings: Vec<Meeting>,
+    pub action_items: Vec<ActionItem>,
+    pub account_brief: Option<String>,
+}
+
+#[derive(Serialize)]
 pub struct ActionItem {
     pub id: String,
     pub meeting_id: String,
@@ -2804,4 +2813,261 @@ pub fn download_local_model(app: AppHandle, model_id: String) -> Result<(), Stri
 #[tauri::command]
 pub fn delete_local_model(app: AppHandle, model_id: String) -> Result<(), String> {
     whisper_local::delete_model(&app, &model_id)
+}
+
+#[tauri::command]
+pub fn get_company_dossier(
+    state: State<AppState>,
+    company_id: String,
+) -> Result<CompanyDossier, String> {
+    let conn = state.conn()?;
+
+    let company = conn
+        .query_row(
+            "SELECT c.id, c.name, c.domain,
+                    COUNT(DISTINCT m.id), MAX(m.date)
+             FROM companies c
+             LEFT JOIN attendees a
+               ON a.company_id = c.id OR (c.domain IS NOT NULL AND a.domain = c.domain)
+             LEFT JOIN meeting_attendees ma ON ma.attendee_id = a.id
+             LEFT JOIN meetings m ON m.id = ma.meeting_id
+             WHERE c.id = ?1
+             GROUP BY c.id",
+            params![&company_id],
+            |row| {
+                Ok(Company {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    domain: row.get(2)?,
+                    note_count: row.get(3)?,
+                    last_note_at: row.get(4)?,
+                })
+            },
+        )
+        .map_err(|e| format!("Company not found: {e}"))?;
+
+    let mut att_stmt = conn
+        .prepare(
+            "SELECT a.id, a.name, a.email, a.domain, a.company_id, c.name,
+                    a.role, a.notes, COALESCE(a.excluded, 0),
+                    COUNT(DISTINCT m.id), COALESCE(SUM(m.duration_ms), 0), MAX(m.date)
+             FROM attendees a
+             LEFT JOIN companies c ON c.id = a.company_id
+             LEFT JOIN meeting_attendees ma ON ma.attendee_id = a.id
+             LEFT JOIN meetings m ON m.id = ma.meeting_id
+             WHERE a.company_id = ?1 OR (?2 IS NOT NULL AND a.domain = ?2)
+             GROUP BY a.id
+             ORDER BY COUNT(DISTINCT m.id) DESC, a.name ASC",
+        )
+        .map_err(|e| e.to_string())?;
+    let attendees = att_stmt
+        .query_map(params![&company.id, &company.domain], |row| {
+            Ok(Person {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                email: row.get(2)?,
+                domain: row.get(3)?,
+                company_id: row.get(4)?,
+                company_name: row.get(5)?,
+                role: row.get(6)?,
+                notes: row.get(7)?,
+                excluded: row.get::<_, i64>(8)? != 0,
+                note_count: row.get(9)?,
+                total_duration_ms: row.get(10)?,
+                last_note_at: row.get(11)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let mut meet_stmt = conn
+        .prepare(&format!(
+            "SELECT DISTINCT {MEETING_COLS} FROM meetings m
+             JOIN meeting_attendees ma ON ma.meeting_id = m.id
+             JOIN attendees a ON a.id = ma.attendee_id
+             WHERE a.company_id = ?1 OR (?2 IS NOT NULL AND a.domain = ?2)
+             ORDER BY m.date DESC"
+        ))
+        .map_err(|e| e.to_string())?;
+    let meetings = meet_stmt
+        .query_map(params![&company.id, &company.domain], meeting_from_row)
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let mut act_stmt = conn
+        .prepare(
+            "SELECT DISTINCT a.id, a.meeting_id, m.title, a.owner, a.task, a.deadline, a.done
+             FROM action_items a
+             JOIN meetings m ON m.id = a.meeting_id
+             JOIN meeting_attendees ma ON ma.meeting_id = m.id
+             JOIN attendees att ON att.id = ma.attendee_id
+             WHERE att.company_id = ?1 OR (?2 IS NOT NULL AND att.domain = ?2)
+             ORDER BY a.done ASC, a.deadline ASC",
+        )
+        .map_err(|e| e.to_string())?;
+    let action_items = act_stmt
+        .query_map(params![&company.id, &company.domain], |row| {
+            Ok(ActionItem {
+                id: row.get(0)?,
+                meeting_id: row.get(1)?,
+                meeting_title: row.get(2)?,
+                owner: row.get(3)?,
+                task: row.get(4)?,
+                deadline: row.get(5)?,
+                done: row.get::<_, i64>(6)? != 0,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let mut brief = format!(
+        "Account briefing for {}:\n• {} recorded meeting(s) with {} key contact(s).\n",
+        company.name,
+        meetings.len(),
+        attendees.len()
+    );
+    if let Some(last) = &company.last_note_at {
+        brief.push_str(&format!(
+            "• Most recent interaction occurred on {}.\n",
+            last
+        ));
+    }
+    let pending_items = action_items.iter().filter(|i| !i.done).count();
+    brief.push_str(&format!(
+        "• {} pending open loop(s) across account engagements.\n",
+        pending_items
+    ));
+    if !attendees.is_empty() {
+        let names = attendees
+            .iter()
+            .take(3)
+            .map(|a| a.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        brief.push_str(&format!("• Primary contacts: {}.\n", names));
+    }
+
+    Ok(CompanyDossier {
+        company,
+        attendees,
+        meetings,
+        action_items,
+        account_brief: Some(brief),
+    })
+}
+
+#[tauri::command]
+pub fn update_company(
+    state: State<AppState>,
+    id: String,
+    name: String,
+    domain: Option<String>,
+) -> Result<Company, String> {
+    let conn = state.conn()?;
+    let domain_clean = domain
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+    conn.execute(
+        "UPDATE companies SET name = ?1, domain = ?2 WHERE id = ?3",
+        params![name.trim(), domain_clean, &id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    conn.query_row(
+        "SELECT c.id, c.name, c.domain, COUNT(DISTINCT m.id), MAX(m.date)
+         FROM companies c
+         LEFT JOIN attendees a ON a.company_id = c.id OR (c.domain IS NOT NULL AND a.domain = c.domain)
+         LEFT JOIN meeting_attendees ma ON ma.attendee_id = a.id
+         LEFT JOIN meetings m ON m.id = ma.meeting_id
+         WHERE c.id = ?1
+         GROUP BY c.id",
+        params![&id],
+        |row| {
+            Ok(Company {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                domain: row.get(2)?,
+                note_count: row.get(3)?,
+                last_note_at: row.get(4)?,
+            })
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn auto_index_companies(state: State<AppState>) -> Result<usize, String> {
+    let conn = state.conn()?;
+    let public_domains = [
+        "gmail.com",
+        "googlemail.com",
+        "yahoo.com",
+        "hotmail.com",
+        "outlook.com",
+        "icloud.com",
+        "me.com",
+        "proton.me",
+        "protonmail.com",
+        "aol.com",
+        "live.com",
+    ];
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT DISTINCT domain FROM attendees WHERE domain IS NOT NULL AND trim(domain) != ''",
+        )
+        .map_err(|e| e.to_string())?;
+    let domains: Vec<String> = stmt
+        .query_map([], |r| r.get::<_, String>(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    let mut count = 0;
+    for dom in domains {
+        let lower = dom.to_lowercase();
+        if public_domains.iter().any(|p| *p == lower) {
+            continue;
+        }
+
+        let parts: Vec<&str> = lower.split('.').collect();
+        let raw_name = parts.first().copied().unwrap_or(lower.as_str());
+        let mut chars = raw_name.chars();
+        let company_name = match chars.next() {
+            None => raw_name.to_string(),
+            Some(f) => f.to_uppercase().collect::<String>() + chars.as_str(),
+        };
+
+        let existing_id: Option<String> = conn
+            .query_row(
+                "SELECT id FROM companies WHERE domain = ?1",
+                params![&dom],
+                |r| r.get(0),
+            )
+            .ok();
+
+        let company_id = match existing_id {
+            Some(id) => id,
+            None => {
+                let id = new_id("co");
+                conn.execute(
+                    "INSERT INTO companies (id, name, domain, first_seen, last_seen) VALUES (?1, ?2, ?3, datetime('now'), datetime('now'))",
+                    params![&id, &company_name, &dom],
+                ).map_err(|e| e.to_string())?;
+                count += 1;
+                id
+            }
+        };
+
+        conn.execute(
+            "UPDATE attendees SET company_id = ?1 WHERE domain = ?2 AND (company_id IS NULL OR company_id = '')",
+            params![&company_id, &dom],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    Ok(count)
 }
