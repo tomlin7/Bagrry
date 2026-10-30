@@ -5,7 +5,23 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import { Bold, Heading1, Heading2, Italic, List, ListOrdered, Minus, Quote, SquareCheck, Strikethrough } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import {
+  Bold,
+  CornerDownLeft,
+  Heading1,
+  Heading2,
+  Italic,
+  List,
+  ListOrdered,
+  Minus,
+  Quote,
+  Sparkles,
+  SquareCheck,
+  Strikethrough,
+} from "lucide-react";
+import * as api from "@/lib/api";
+import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 const AUTOSAVE_MS = 300;
@@ -86,6 +102,31 @@ export const NoteEditor = forwardRef<
   onStatsChangeRef.current = onStatsChange;
   const [slash, setSlash] = useState<{ query: string; from: number } | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState("");
+
+  const repromptMutation = useMutation({
+    mutationFn: async (instruction: string) => {
+      if (!editor) return;
+      const { from, to } = editor.state.selection;
+      const selectedText = editor.state.doc.textBetween(from, to, " ");
+      if (!selectedText.trim()) throw new Error("No text selected");
+
+      const result = await api.repromptSelection(noteId, selectedText, instruction);
+      return { selectedText, result };
+    },
+    onSuccess: (data) => {
+      if (!editor || !data) return;
+      editor.chain().focus().insertContent(data.result.replace(/\n/g, "<br>")).run();
+      persist(editor);
+      setShowAiPrompt(false);
+      setCustomPrompt("");
+      toast.success("Selection rewritten with AI!");
+    },
+    onError: (err) => {
+      toast.error(typeof err === "string" ? err : "Failed to rewrite selection");
+    },
+  });
 
   const persist = (instance: Editor) => {
     const text = instance.getText();
@@ -205,19 +246,104 @@ export const NoteEditor = forwardRef<
   return (
     <div className="relative">
       {editor && (
-        <BubbleMenu editor={editor} className="flex items-center gap-0.5 rounded-full border border-border bg-elevated px-1 py-0.5 shadow-lg">
-          <MarkButton label="Bold" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
-            <Bold className="size-3.5" />
-          </MarkButton>
-          <MarkButton label="Italic" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}>
-            <Italic className="size-3.5" />
-          </MarkButton>
-          <MarkButton label="Strike" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}>
-            <Strikethrough className="size-3.5" />
-          </MarkButton>
-          <MarkButton label="Bullet list" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-            <List className="size-3.5" />
-          </MarkButton>
+        <BubbleMenu
+          editor={editor}
+          className="flex flex-col gap-1.5 rounded-2xl border border-border bg-elevated p-1 shadow-xl max-w-sm"
+        >
+          <div className="flex items-center gap-0.5">
+            <MarkButton
+              label="Bold"
+              active={editor.isActive("bold")}
+              onClick={() => editor.chain().focus().toggleBold().run()}
+            >
+              <Bold className="size-3.5" />
+            </MarkButton>
+            <MarkButton
+              label="Italic"
+              active={editor.isActive("italic")}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+            >
+              <Italic className="size-3.5" />
+            </MarkButton>
+            <MarkButton
+              label="Strike"
+              active={editor.isActive("strike")}
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+            >
+              <Strikethrough className="size-3.5" />
+            </MarkButton>
+            <MarkButton
+              label="Bullet list"
+              active={editor.isActive("bulletList")}
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+            >
+              <List className="size-3.5" />
+            </MarkButton>
+
+            <div className="w-px h-4 bg-border/80 mx-1" />
+
+            <button
+              type="button"
+              onClick={() => setShowAiPrompt(!showAiPrompt)}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
+                showAiPrompt
+                  ? "bg-accent text-white"
+                  : "bg-accent/10 text-accent hover:bg-accent/20"
+              )}
+            >
+              <Sparkles className="size-3.5" />
+              <span>Ask AI</span>
+            </button>
+          </div>
+
+          {showAiPrompt && (
+            <div className="flex flex-col gap-2 p-2 border-t border-border/60 bg-surface/50 rounded-xl">
+              <div className="flex flex-wrap gap-1">
+                {[
+                  "Make more concise",
+                  "Executive summary",
+                  "Extract key decisions",
+                  "Format as bullet list",
+                  "Professional tone",
+                ].map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    disabled={repromptMutation.isPending}
+                    onClick={() => repromptMutation.mutate(chip)}
+                    className="px-2 py-0.5 rounded-full text-[11px] bg-hover hover:bg-selected text-text transition-colors border border-border/40"
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1.5 pt-1">
+                <input
+                  type="text"
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && customPrompt.trim()) {
+                      e.preventDefault();
+                      repromptMutation.mutate(customPrompt.trim());
+                    }
+                  }}
+                  placeholder="Ask AI to edit selection..."
+                  className="flex-1 px-2.5 py-1 text-xs rounded-lg bg-bg border border-border text-text placeholder:text-subtle focus:outline-none focus:border-accent"
+                />
+                <button
+                  type="button"
+                  disabled={repromptMutation.isPending || !customPrompt.trim()}
+                  onClick={() => repromptMutation.mutate(customPrompt.trim())}
+                  className="px-2.5 py-1 rounded-lg bg-accent text-white text-xs font-medium hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1"
+                >
+                  {repromptMutation.isPending ? "Editing..." : <CornerDownLeft className="size-3" />}
+                </button>
+              </div>
+            </div>
+          )}
         </BubbleMenu>
       )}
 
