@@ -127,6 +127,21 @@ export type PersonDossier = {
   catch_me_up_brief: string | null;
 };
 
+export type SearchHit = {
+  id: string;
+  title: string;
+  date: string;
+  snippet: string;
+  folder_name: string | null;
+  attendees: string[];
+  has_open_loops: boolean;
+};
+
+export type GlobalSearchResult = {
+  hits: SearchHit[];
+  matched_people: Person[];
+};
+
 export type Company = {
   id: string;
   name: string;

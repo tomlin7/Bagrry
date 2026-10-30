@@ -364,6 +364,44 @@ ALTER TABLE attendees ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0;
 UPDATE attendees SET role = 'Head of Infrastructure' WHERE id = 'p_alex';
 "#;
 
+
+const V10: &str = r#"
+DROP TRIGGER IF EXISTS meetings_ai;
+DROP TRIGGER IF EXISTS meetings_ad;
+DROP TRIGGER IF EXISTS meetings_au;
+DROP TABLE IF EXISTS meetings_fts;
+
+CREATE VIRTUAL TABLE meetings_fts USING fts5(
+  title,
+  scratchpad_raw,
+  enhanced_notes_json,
+  transcript_json,
+  content='meetings',
+  content_rowid='rowid',
+  tokenize='porter unicode61'
+);
+
+CREATE TRIGGER meetings_ai AFTER INSERT ON meetings BEGIN
+  INSERT INTO meetings_fts(rowid, title, scratchpad_raw, enhanced_notes_json, transcript_json)
+  VALUES (new.rowid, new.title, new.scratchpad_raw, ifnull(new.enhanced_notes_json, ''), ifnull(new.transcript_json, ''));
+END;
+
+CREATE TRIGGER meetings_ad AFTER DELETE ON meetings BEGIN
+  INSERT INTO meetings_fts(meetings_fts, rowid, title, scratchpad_raw, enhanced_notes_json, transcript_json)
+  VALUES('delete', old.rowid, old.title, old.scratchpad_raw, ifnull(old.enhanced_notes_json, ''), ifnull(old.transcript_json, ''));
+END;
+
+CREATE TRIGGER meetings_au AFTER UPDATE ON meetings BEGIN
+  INSERT INTO meetings_fts(meetings_fts, rowid, title, scratchpad_raw, enhanced_notes_json, transcript_json)
+  VALUES('delete', old.rowid, old.title, old.scratchpad_raw, ifnull(old.enhanced_notes_json, ''), ifnull(old.transcript_json, ''));
+  INSERT INTO meetings_fts(rowid, title, scratchpad_raw, enhanced_notes_json, transcript_json)
+  VALUES (new.rowid, new.title, new.scratchpad_raw, ifnull(new.enhanced_notes_json, ''), ifnull(new.transcript_json, ''));
+END;
+
+INSERT INTO meetings_fts(rowid, title, scratchpad_raw, enhanced_notes_json, transcript_json)
+SELECT rowid, title, scratchpad_raw, ifnull(enhanced_notes_json, ''), ifnull(transcript_json, '') FROM meetings;
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -471,6 +509,17 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
         )
         .map_err(|e| format!("record v9: {e}"))?;
     }
+
+    if current < 10 {
+        conn.execute_batch(V10)
+            .map_err(|e| format!("migration v10: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (10)",
+            [],
+        )
+        .map_err(|e| format!("record v10: {e}"))?;
+    }
+
 
     if vec_enabled {
         let _ = conn.execute_batch(

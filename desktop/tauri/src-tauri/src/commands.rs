@@ -77,6 +77,24 @@ pub struct Person {
     pub last_note_at: Option<String>,
 }
 
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SearchHit {
+    pub id: String,
+    pub title: String,
+    pub date: String,
+    pub snippet: String,
+    pub folder_name: Option<String>,
+    pub attendees: Vec<String>,
+    pub has_open_loops: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct GlobalSearchResult {
+    pub hits: Vec<SearchHit>,
+    pub matched_people: Vec<Person>,
+}
+
 #[derive(Serialize)]
 pub struct PersonDossier {
     pub person: Person,
@@ -660,6 +678,254 @@ fn fts_query(query: &str) -> String {
         .map(|token| format!("\"{token}\"*"))
         .collect::<Vec<_>>()
         .join(" AND ")
+}
+
+pub struct ParsedQuery {
+    pub text: String,
+    pub from: Option<String>,
+    pub has_loop: bool,
+    pub after: Option<String>,
+    pub before: Option<String>,
+    pub folder: Option<String>,
+}
+
+pub fn parse_search_query(raw: &str) -> ParsedQuery {
+    let mut text_tokens = Vec::new();
+    let mut from = None;
+    let mut has_loop = false;
+    let mut after = None;
+    let mut before = None;
+    let mut folder = None;
+
+    for part in raw.split_whitespace() {
+        if let Some(val) = part.strip_prefix("from:") {
+            from = Some(val.trim_start_matches('@').to_lowercase());
+        } else if part == "has:loop" || part == "has:action" {
+            has_loop = true;
+        } else if let Some(val) = part.strip_prefix("after:") {
+            after = Some(val.to_string());
+        } else if let Some(val) = part.strip_prefix("before:") {
+            before = Some(val.to_string());
+        } else if let Some(val) = part.strip_prefix("folder:") {
+            folder = Some(val.trim_matches('"').to_lowercase());
+        } else {
+            text_tokens.push(part);
+        }
+    }
+
+    ParsedQuery {
+        text: text_tokens.join(" "),
+        from,
+        has_loop,
+        after,
+        before,
+        folder,
+    }
+}
+
+#[tauri::command]
+pub fn search_global(state: State<AppState>, query: String) -> Result<GlobalSearchResult, String> {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return Ok(GlobalSearchResult {
+            hits: Vec::new(),
+            matched_people: Vec::new(),
+        });
+    }
+
+    let conn = state.conn()?;
+    let parsed = parse_search_query(trimmed);
+
+    // 1. FTS5 or LIKE query
+    let has_text = !parsed.text.is_empty();
+    let match_expr = if has_text { fts_query(&parsed.text) } else { String::new() };
+
+    let mut sql = String::new();
+    if has_text && !match_expr.is_empty() {
+        sql.push_str(
+            "SELECT m.id, m.title, m.date,
+                    snippet(meetings_fts, -1, '<mark>', '</mark>', ' … ', 20) AS snippet,
+                    (SELECT name FROM folders WHERE id = m.folder_id) AS folder_name,
+                    (SELECT EXISTS(SELECT 1 FROM action_items WHERE meeting_id = m.id AND done = 0)) AS has_open_loops,
+                    (SELECT group_concat(a.name, '; ') FROM attendees a JOIN meeting_attendees ma ON ma.attendee_id = a.id WHERE ma.meeting_id = m.id) AS attendees_str
+             FROM meetings m
+             JOIN meetings_fts f ON f.rowid = m.rowid
+             WHERE meetings_fts MATCH ?1"
+        );
+    } else {
+        sql.push_str(
+            "SELECT m.id, m.title, m.date,
+                    substr(m.scratchpad_raw, 1, 120) AS snippet,
+                    (SELECT name FROM folders WHERE id = m.folder_id) AS folder_name,
+                    (SELECT EXISTS(SELECT 1 FROM action_items WHERE meeting_id = m.id AND done = 0)) AS has_open_loops,
+                    (SELECT group_concat(a.name, '; ') FROM attendees a JOIN meeting_attendees ma ON ma.attendee_id = a.id WHERE ma.meeting_id = m.id) AS attendees_str
+             FROM meetings m
+             WHERE 1=1"
+        );
+    }
+
+    if let Some(ref f) = parsed.from {
+        sql.push_str(&format!(
+            " AND m.id IN (SELECT ma.meeting_id FROM meeting_attendees ma JOIN attendees a ON a.id = ma.attendee_id WHERE LOWER(a.name) LIKE '%{f}%' OR LOWER(COALESCE(a.email, '')) LIKE '%{f}%')"
+        ));
+    }
+    if parsed.has_loop {
+        sql.push_str(" AND m.id IN (SELECT meeting_id FROM action_items WHERE done = 0)");
+    }
+    if let Some(ref aft) = parsed.after {
+        sql.push_str(&format!(" AND m.date >= '{aft}'"));
+    }
+    if let Some(ref bef) = parsed.before {
+        sql.push_str(&format!(" AND m.date <= '{bef}'"));
+    }
+    if let Some(ref fold) = parsed.folder {
+        sql.push_str(&format!(
+            " AND m.folder_id IN (SELECT id FROM folders WHERE LOWER(name) LIKE '%{fold}%')"
+        ));
+    }
+
+    if has_text && !match_expr.is_empty() {
+        sql.push_str(" ORDER BY rank LIMIT 40");
+    } else {
+        sql.push_str(" ORDER BY m.date DESC LIMIT 40");
+    }
+
+    let mut hits: Vec<SearchHit> = if has_text && !match_expr.is_empty() {
+        let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+        let mapped = stmt.query_map(params![match_expr], |row| {
+            let att_str: Option<String> = row.get(6)?;
+            let attendees = att_str
+                .map(|s| s.split("; ").map(|p| p.to_string()).collect())
+                .unwrap_or_default();
+            Ok(SearchHit {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                date: row.get(2)?,
+                snippet: row.get(3)?,
+                folder_name: row.get(4)?,
+                has_open_loops: row.get::<_, i64>(5)? != 0,
+                attendees,
+            })
+        }).map_err(|e| e.to_string())?;
+        let res: Vec<SearchHit> = mapped.flatten().collect();
+        res
+    } else {
+        let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+        let mapped = stmt.query_map([], |row| {
+            let att_str: Option<String> = row.get(6)?;
+            let attendees = att_str
+                .map(|s| s.split("; ").map(|p| p.to_string()).collect())
+                .unwrap_or_default();
+            Ok(SearchHit {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                date: row.get(2)?,
+                snippet: row.get(3)?,
+                folder_name: row.get(4)?,
+                has_open_loops: row.get::<_, i64>(5)? != 0,
+                attendees,
+            })
+        }).map_err(|e| e.to_string())?;
+        let res: Vec<SearchHit> = mapped.flatten().collect();
+        res
+    };
+
+    // Fallback to LIKE if FTS returned nothing but text was provided
+    if hits.is_empty() && has_text {
+        let like = format!("%{}%", parsed.text.to_lowercase());
+        let mut fallback_sql = String::from(
+            "SELECT m.id, m.title, m.date,
+                    substr(m.scratchpad_raw, 1, 120) AS snippet,
+                    (SELECT name FROM folders WHERE id = m.folder_id) AS folder_name,
+                    (SELECT EXISTS(SELECT 1 FROM action_items WHERE meeting_id = m.id AND done = 0)) AS has_open_loops,
+                    (SELECT group_concat(a.name, '; ') FROM attendees a JOIN meeting_attendees ma ON ma.attendee_id = a.id WHERE ma.meeting_id = m.id) AS attendees_str
+             FROM meetings m
+             WHERE (LOWER(m.title) LIKE ?1 OR LOWER(m.scratchpad_raw) LIKE ?1 OR LOWER(COALESCE(m.enhanced_notes_json, '')) LIKE ?1 OR LOWER(COALESCE(m.transcript_json, '')) LIKE ?1)"
+        );
+        if let Some(ref f) = parsed.from {
+            fallback_sql.push_str(&format!(
+                " AND m.id IN (SELECT ma.meeting_id FROM meeting_attendees ma JOIN attendees a ON a.id = ma.attendee_id WHERE LOWER(a.name) LIKE '%{f}%' OR LOWER(COALESCE(a.email, '')) LIKE '%{f}%')"
+            ));
+        }
+        if parsed.has_loop {
+            fallback_sql.push_str(" AND m.id IN (SELECT meeting_id FROM action_items WHERE done = 0)");
+        }
+        if let Some(ref aft) = parsed.after {
+            fallback_sql.push_str(&format!(" AND m.date >= '{aft}'"));
+        }
+        if let Some(ref bef) = parsed.before {
+            fallback_sql.push_str(&format!(" AND m.date <= '{bef}'"));
+        }
+        if let Some(ref fold) = parsed.folder {
+            fallback_sql.push_str(&format!(
+                " AND m.folder_id IN (SELECT id FROM folders WHERE LOWER(name) LIKE '%{fold}%')"
+            ));
+        }
+        fallback_sql.push_str(" ORDER BY m.date DESC LIMIT 30");
+
+        if let Ok(mut stmt) = conn.prepare(&fallback_sql) {
+            if let Ok(mapped) = stmt.query_map(params![like], |row| {
+                let att_str: Option<String> = row.get(6)?;
+                let attendees = att_str
+                    .map(|s| s.split("; ").map(|p| p.to_string()).collect())
+                    .unwrap_or_default();
+                Ok(SearchHit {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    date: row.get(2)?,
+                    snippet: row.get(3)?,
+                    folder_name: row.get(4)?,
+                    has_open_loops: row.get::<_, i64>(5)? != 0,
+                    attendees,
+                })
+            }) {
+                hits = mapped.flatten().collect();
+            }
+        }
+    }
+
+    // 2. People matching
+    let mut matched_people = Vec::new();
+    if has_text {
+        let p_like = format!("%{}%", parsed.text.to_lowercase());
+        let mut p_stmt = conn.prepare(
+            "SELECT a.id, a.name, a.email, a.domain, a.company_id, c.name,
+                    a.role, a.notes, COALESCE(a.excluded, 0),
+                    COUNT(DISTINCT m.id), COALESCE(SUM(m.duration_ms), 0), MAX(m.date)
+             FROM attendees a
+             LEFT JOIN companies c ON c.id = a.company_id
+             LEFT JOIN meeting_attendees ma ON ma.attendee_id = a.id
+             LEFT JOIN meetings m ON m.id = ma.meeting_id
+             WHERE a.excluded = 0 AND (LOWER(a.name) LIKE ?1 OR LOWER(COALESCE(a.email, '')) LIKE ?1 OR LOWER(COALESCE(c.name, '')) LIKE ?1 OR LOWER(COALESCE(a.role, '')) LIKE ?1)
+             GROUP BY a.id
+             ORDER BY COUNT(DISTINCT m.id) DESC, a.name
+             LIMIT 5"
+        ).map_err(|e| e.to_string())?;
+
+        let p_rows = p_stmt.query_map(params![p_like], |row| {
+            Ok(Person {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                email: row.get(2)?,
+                domain: row.get(3)?,
+                company_id: row.get(4)?,
+                company_name: row.get(5)?,
+                role: row.get(6)?,
+                notes: row.get(7)?,
+                excluded: row.get::<_, i64>(8)? != 0,
+                note_count: row.get(9)?,
+                total_duration_ms: row.get(10)?,
+                last_note_at: row.get(11)?,
+            })
+        }).map_err(|e| e.to_string())?;
+
+        matched_people = p_rows.flatten().collect();
+    }
+
+    Ok(GlobalSearchResult {
+        hits,
+        matched_people,
+    })
 }
 
 #[tauri::command]

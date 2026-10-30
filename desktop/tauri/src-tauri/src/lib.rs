@@ -112,6 +112,7 @@ pub fn run() {
             commands::list_chat_messages,
             commands::append_chat_message,
             commands::search_meetings,
+            commands::search_global,
             commands::list_people,
             commands::get_person_dossier,
             commands::update_person,

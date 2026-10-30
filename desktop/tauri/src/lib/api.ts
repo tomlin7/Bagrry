@@ -10,6 +10,7 @@ import type {
   Company,
   DbStatus,
   Folder,
+  GlobalSearchResult,
   Meeting,
   Person,
   PersonDossier,
@@ -109,6 +110,8 @@ export const appendChatMessage = (sessionId: string, role: ChatRole, content: st
 /* ------------------------------------------------------------------ */
 
 export const searchMeetings = (query: string) => invoke<Meeting[]>("search_meetings", { query });
+export const searchGlobal = (query: string) =>
+  invoke<GlobalSearchResult>("search_global", { query });
 export const listPeople = () => invoke<Person[]>("list_people");
 export const getPersonDossier = (personId: string) =>
   invoke<PersonDossier>("get_person_dossier", { personId });
@@ -270,6 +273,7 @@ export const qk = {
   chatSessions: () => ["chat-sessions"] as const,
   chatMessages: (id: string) => ["chat-messages", id] as const,
   search: (query: string) => ["search", query] as const,
+  searchGlobal: (query: string) => ["search-global", query] as const,
   dbStatus: () => ["db-status"] as const,
   profile: () => ["profile"] as const,
   settings: (keys: string[]) => ["settings", ...keys] as const,
