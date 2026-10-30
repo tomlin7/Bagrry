@@ -50,6 +50,7 @@ type AppState = {
   openNote: (id: string) => void;
   openSpace: (id: string) => void;
   openSettings: (tab?: SettingsTab) => void;
+  openActionItems: () => void;
 
   /* Chrome */
   sidebarOpen: boolean;
@@ -113,6 +114,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   openNote: (id) => get().navigate({ kind: "note", noteId: id }),
   openSpace: (id) => get().navigate({ kind: "space", spaceId: id || MY_NOTES_SPACE }),
+  openActionItems: () => get().navigate({ kind: "action-items" }),
   openSettings: (tab = "preferences") => {
     if (!get().sidebarOpen) get().setSidebarOpen(true);
     get().navigate({ kind: "settings", tab });

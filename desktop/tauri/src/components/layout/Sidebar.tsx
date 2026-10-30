@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
+  CheckSquare,
   ChevronDown,
   ChevronsUpDown,
   CircleHelp,
@@ -85,6 +86,11 @@ function AppSidebar() {
   const [newFolderIn, setNewFolderIn] = useState<null | { shared: boolean }>(null);
 
   const { data: profile } = useQuery({ queryKey: api.qk.profile(), queryFn: api.getProfile });
+  const { data: allActionItems = [] } = useQuery({
+    queryKey: api.qk.actionItems(),
+    queryFn: api.listActionItems,
+  });
+  const pendingLoopsCount = allActionItems.filter((i) => !i.done).length;
   const { data: sessions = [] } = useQuery({
     queryKey: api.qk.chatSessions(),
     queryFn: api.listChatSessions,
@@ -123,6 +129,19 @@ function AppSidebar() {
         </button>
 
         <NavItem icon={Home} label="Home" active={route.kind === "home"} onClick={() => navigate({ kind: "home" })} />
+        <NavItem
+          icon={CheckSquare}
+          label="Open loops"
+          active={route.kind === "action-items"}
+          onClick={() => navigate({ kind: "action-items" })}
+          trailing={
+            pendingLoopsCount > 0 ? (
+              <span className="rounded-full bg-accent/15 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-accent">
+                {pendingLoopsCount}
+              </span>
+            ) : null
+          }
+        />
         <NavItem
           icon={Users}
           label="Shared with me"

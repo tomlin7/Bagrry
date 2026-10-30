@@ -209,6 +209,7 @@ export type Route =
   | { kind: "note"; noteId: string }
   | { kind: "people" }
   | { kind: "companies" }
+  | { kind: "action-items" }
   | { kind: "settings"; tab: SettingsTab };
 
 export function routeKey(route: Route): string {

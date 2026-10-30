@@ -22,6 +22,7 @@ import { SpacePage } from "@/components/pages/SpacePage";
 import { SharedPage } from "@/components/pages/SharedPage";
 import { PeoplePage } from "@/components/pages/PeoplePage";
 import { CompaniesPage } from "@/components/pages/CompaniesPage";
+import { ActionItemsPage } from "@/components/pages/ActionItemsPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
 import { LiveMeetingIndicator, useRepositionForMeetings } from "@/components/layout/LiveMeetingIndicator";
 import { snappy } from "@/lib/motion";
@@ -65,6 +66,7 @@ export default function App() {
                   {route.kind === "chat" && <ChatPage sessionId={route.sessionId} />}
                   {route.kind === "people" && <PeoplePage />}
                   {route.kind === "companies" && <CompaniesPage />}
+                  {route.kind === "action-items" && <ActionItemsPage />}
                   {route.kind === "settings" && <SettingsPage tab={route.tab} />}
                 </motion.div>
               </AnimatePresence>

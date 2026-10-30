@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
+  Mail,
   Check,
   Columns2,
   Download,
@@ -24,6 +25,7 @@ import { NoteEditor, type NoteEditorHandle } from "@/components/notes/NoteEditor
 import { EnhancedNotes } from "@/components/notes/EnhancedNotes";
 import { TranscriptPanel } from "@/components/notes/TranscriptPanel";
 import { AudioPlayerBar } from "@/components/notes/AudioPlayerBar";
+import { FollowUpDialog } from "@/components/action-items/FollowUpDialog";
 import {
   TemplateDialog,
   getTemplateIcon,
@@ -70,6 +72,7 @@ export function NotePage({ noteId }: { noteId: string }) {
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [templateToEdit, setTemplateToEdit] = useState<Template | null>(null);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
   const editorRef = useRef<NoteEditorHandle>(null);
   const splitContainerRef = useRef<HTMLDivElement>(null);
 
@@ -425,6 +428,16 @@ export function NotePage({ noteId }: { noteId: string }) {
                 </button>
               </Tooltip>
             </div>
+
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => setFollowUpOpen(true)}
+              className="h-7 gap-1.5 text-[11px] text-muted hover:text-text cursor-pointer"
+            >
+              <Mail className="size-3 text-accent" />
+              <span>Follow-Up</span>
+            </Button>
 
             <EnhanceButton
               templates={templates}
@@ -783,6 +796,12 @@ export function NotePage({ noteId }: { noteId: string }) {
       <div className="pointer-events-none absolute inset-x-0 bottom-16 z-30 px-6">
         <AudioPlayerBar meetingId={noteId} segments={segments} />
       </div>
+
+      <FollowUpDialog
+        open={followUpOpen}
+        onOpenChange={setFollowUpOpen}
+        meetingId={noteId}
+      />
 
       {/* Template Builder & Customization Dialog */}
       <TemplateDialog
