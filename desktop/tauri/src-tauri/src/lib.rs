@@ -8,7 +8,7 @@ mod pipeline;
 mod secrets;
 mod settings_cmds;
 mod tray;
-
+pub mod whisper_local;
 use db::{PooledConn, SharedPool};
 use tauri::Manager;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
@@ -140,6 +140,12 @@ pub fn run() {
             commands::get_meeting_shares,
             commands::revoke_share,
             commands::export_formatted,
+            commands::get_local_stt_status,
+            commands::set_local_stt_engine,
+            commands::set_active_local_model,
+            commands::set_stt_cloud_fallback,
+            commands::download_local_model,
+            commands::delete_local_model,
             commands::dispatch_webhook,
             commands::export_markdown,
             commands::save_attachment_text,

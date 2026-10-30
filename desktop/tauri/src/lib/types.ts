@@ -162,6 +162,27 @@ export type FormattedExport = {
   mime_type: string;
 };
 
+export type LocalModelInfo = {
+  id: string;
+  name: string;
+  sizeMb: number;
+  downloaded: boolean;
+  active: boolean;
+  sha256: string;
+  speedFactor: string;
+  description: string;
+};
+
+export type LocalSttStatus = {
+  engine: "local" | "cloud";
+  activeModel: string;
+  avx2Supported: boolean;
+  cpuThreads: number;
+  gpuAvailable: boolean;
+  cloudFallback: boolean;
+  models: LocalModelInfo[];
+};
+
 export type Company = {
   id: string;
   name: string;

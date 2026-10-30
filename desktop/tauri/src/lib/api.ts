@@ -12,6 +12,7 @@ import type {
   Folder,
   FormattedExport,
   GlobalSearchResult,
+  LocalSttStatus,
   Meeting,
   Person,
   PersonDossier,
@@ -254,6 +255,18 @@ export const saveAttachmentText = (meetingId: string, filename: string, extracte
 /* Functional settings                                                 */
 /* ------------------------------------------------------------------ */
 
+export const getLocalSttStatus = () => invoke<LocalSttStatus>("get_local_stt_status");
+export const setLocalSttEngine = (engine: "local" | "cloud") =>
+  invoke<void>("set_local_stt_engine", { engine });
+export const setActiveLocalModel = (modelId: string) =>
+  invoke<void>("set_active_local_model", { modelId });
+export const setSttCloudFallback = (enable: boolean) =>
+  invoke<void>("set_stt_cloud_fallback", { enable });
+export const downloadLocalModel = (modelId: string) =>
+  invoke<void>("download_local_model", { modelId });
+export const deleteLocalModel = (modelId: string) =>
+  invoke<void>("delete_local_model", { modelId });
+
 export const setLaunchOnLogin = (enable: boolean) =>
   invoke<boolean>("set_launch_on_login", { enable });
 export const getLaunchOnLogin = () => invoke<boolean>("get_launch_on_login");
@@ -303,4 +316,5 @@ export const qk = {
   apiKeys: () => ["api-keys"] as const,
   referral: () => ["referral"] as const,
   autostart: () => ["autostart"] as const,
+  localSttStatus: () => ["local-stt-status"] as const,
 };

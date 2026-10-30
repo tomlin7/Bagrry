@@ -1,3 +1,4 @@
+use crate::whisper_local;
 use crate::audio;
 use crate::db;
 use crate::groq;
@@ -2591,3 +2592,38 @@ pub fn index_all_attendees(state: State<AppState>) -> Result<usize, String> {
 
     Ok(total_indexed)
 }
+
+#[tauri::command]
+pub fn get_local_stt_status(app: AppHandle, state: State<AppState>) -> Result<whisper_local::LocalSttStatus, String> {
+    let conn = state.conn()?;
+    whisper_local::get_status(&conn, &app)
+}
+
+#[tauri::command]
+pub fn set_local_stt_engine(state: State<AppState>, engine: String) -> Result<(), String> {
+    let conn = state.conn()?;
+    whisper_local::set_engine(&conn, &engine)
+}
+
+#[tauri::command]
+pub fn set_active_local_model(state: State<AppState>, model_id: String) -> Result<(), String> {
+    let conn = state.conn()?;
+    whisper_local::set_active_model(&conn, &model_id)
+}
+
+#[tauri::command]
+pub fn set_stt_cloud_fallback(state: State<AppState>, enable: bool) -> Result<(), String> {
+    let conn = state.conn()?;
+    whisper_local::set_cloud_fallback(&conn, enable)
+}
+
+#[tauri::command]
+pub fn download_local_model(app: AppHandle, model_id: String) -> Result<(), String> {
+    whisper_local::download_model(&app, &model_id)
+}
+
+#[tauri::command]
+pub fn delete_local_model(app: AppHandle, model_id: String) -> Result<(), String> {
+    whisper_local::delete_model(&app, &model_id)
+}
+
