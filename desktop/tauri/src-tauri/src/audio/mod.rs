@@ -1,5 +1,7 @@
 pub mod capture;
 pub mod resample;
+pub mod ring_buffer;
+pub mod vad;
 pub mod sink;
 pub mod wav;
 
