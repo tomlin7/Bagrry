@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   RotateCcw,
   Share2,
+  X,
   Sparkles,
   Trash2,
   Users,
@@ -31,7 +32,9 @@ import {
   getTemplateIcon,
   parseTemplateSections,
 } from "@/components/templates/TemplateDialog";
-import type { Template } from "@/lib/types";
+import type { Template, CalendarEvent } from "@/lib/types";
+import { parseAttendeesList, isEventStartingSoonOrActive } from "@/lib/calendar";
+import { parseDbDate } from "@/lib/format";
 import { ChevronDown, Edit3, PlusCircle } from "lucide-react";
 import { AskBar } from "@/components/chat/AskBar";
 import { Button } from "@/components/ui/button";
@@ -84,6 +87,45 @@ export function NotePage({ noteId }: { noteId: string }) {
   const { data: note, isLoading } = useQuery({
     queryKey: api.qk.meeting(noteId),
     queryFn: () => api.getMeeting(noteId),
+  });
+
+  const { data: calendarEvents = [] } = useQuery<CalendarEvent[]>({
+    queryKey: api.qk.calendar(),
+    queryFn: api.listCalendar,
+  });
+  const [dismissedMatch, setDismissedMatch] = useState(false);
+
+  const matchedCalendarEvent = useMemo(() => {
+    if (dismissedMatch || note?.calendar_event_id) return null;
+    const now = Date.now();
+    for (const ev of calendarEvents) {
+      const start = parseDbDate(ev.start_at);
+      if (!start) continue;
+      const end = parseDbDate(ev.end_at);
+      const check = isEventStartingSoonOrActive(start, end, now, 10);
+      if (check.status === "ongoing" || check.status === "starting_soon") {
+        return ev;
+      }
+    }
+    return null;
+  }, [calendarEvents, note?.calendar_event_id, dismissedMatch]);
+
+  const linkEventMutation = useMutation({
+    mutationFn: async (ev: CalendarEvent) => {
+      await api.saveTitle(noteId, ev.title);
+      const attendees = parseAttendeesList(ev);
+      for (const a of attendees) {
+        const person = await api.upsertPerson(a.name, a.email || null);
+        await api.addMeetingAttendee(noteId, person.id);
+      }
+    },
+    onSuccess: () => {
+      setDismissedMatch(true);
+      void queryClient.invalidateQueries({ queryKey: api.qk.meeting(noteId) });
+      void queryClient.invalidateQueries({ queryKey: api.qk.attendees(noteId) });
+      toast.success("Linked calendar event and imported attendees");
+    },
+    onError: (e) => toast.error(e),
   });
 
   const { data: attendees = [] } = useQuery({
@@ -480,6 +522,37 @@ export function NotePage({ noteId }: { noteId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Retroactive Calendar Matching Banner */}
+      {matchedCalendarEvent && (
+        <div className="mx-6 mt-3 flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/10 px-4 py-2 text-xs text-text shadow-xs">
+          <div className="flex items-center gap-2 truncate">
+            <CalendarDays className="size-4 text-accent shrink-0" />
+            <span className="truncate">
+              Ongoing calendar meeting: <strong>{matchedCalendarEvent.title}</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="solid"
+              size="xs"
+              loading={linkEventMutation.isPending}
+              onClick={() => linkEventMutation.mutate(matchedCalendarEvent)}
+              className="cursor-pointer"
+            >
+              Link & Import Attendees
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss calendar suggestion"
+              onClick={() => setDismissedMatch(true)}
+              className="grid size-5 place-items-center text-subtle hover:text-text cursor-pointer"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Workspace Canvas */}
       <div className="min-h-0 flex-1 overflow-hidden" ref={splitContainerRef}>

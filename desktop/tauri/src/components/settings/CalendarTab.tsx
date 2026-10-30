@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, Users } from "lucide-react";
+import { CalendarPlus, Users, Link2, Sparkles } from "lucide-react";
 import * as api from "@/lib/api";
 import { pickTextFile } from "@/lib/open";
 import { useBoolSetting } from "@/hooks/useSetting";
@@ -14,6 +15,7 @@ export function CalendarTab() {
   const { data: events = [] } = useQuery({ queryKey: api.qk.calendar(), queryFn: api.listCalendar });
   const [emptyEvents, setEmptyEvents] = useBoolSetting("calendar_show_empty_events", true);
   const [calendarOn, setCalendarOn] = useBoolSetting("calendar_primary_visible", true);
+  const [subUrl, setSubUrl] = useState("");
   const email = profile?.email || "Local calendar";
 
   const importIcs = useMutation({
@@ -29,6 +31,56 @@ export function CalendarTab() {
       }
       void queryClient.invalidateQueries({ queryKey: api.qk.calendar() });
       toast.success(`Imported ${count} event${count === 1 ? "" : "s"}`);
+    },
+    onError: (e) => toast.error(e),
+  });
+
+  const syncUrlMutation = useMutation({
+    mutationFn: async (urlToFetch: string) => {
+      let url = urlToFetch.trim();
+      if (!url) throw new Error("Enter a valid calendar URL");
+      if (url.startsWith("webcal://")) {
+        url = "https://" + url.slice(9);
+      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status} when fetching calendar feed`);
+      const text = await res.text();
+      return api.importIcs(text);
+    },
+    onSuccess: (count) => {
+      void queryClient.invalidateQueries({ queryKey: api.qk.calendar() });
+      toast.success(`Synced ${count} event${count === 1 ? "" : "s"} from subscription feed`);
+      setSubUrl("");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to sync calendar feed"),
+  });
+
+  const seedSampleEvents = useMutation({
+    mutationFn: async () => {
+      const now = new Date();
+      const inFiveMin = new Date(now.getTime() + 5 * 60_000).toISOString().slice(0, 19).replace("T", " ");
+      const inOneHour = new Date(now.getTime() + 65 * 60_000).toISOString().slice(0, 19).replace("T", " ");
+
+      await api.upsertCalendarEvent(
+        "Sprint Roadmap & Architecture Sync https://meet.google.com/xyz-abcd-qrs",
+        inFiveMin,
+        JSON.stringify([
+          { name: "Alex Chen", email: "alex@northwind.example" },
+          { name: "Sarah Lin", email: "sarah@company.example" },
+        ]),
+      );
+
+      await api.upsertCalendarEvent(
+        "Quarterly Business Review (Zoom) https://northwind.zoom.us/j/987654321",
+        inOneHour,
+        JSON.stringify([
+          { name: "David Kim", email: "david@acme.example" },
+        ]),
+      );
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: api.qk.calendar() });
+      toast.success("Seeded demo calendar events with Zoom & Meet links");
     },
     onError: (e) => toast.error(e),
   });
@@ -66,16 +118,16 @@ export function CalendarTab() {
         <SettingRow
           icon={<span className="size-3.5 rounded-sm bg-[#7ab8ff]" />}
           title={email}
-          description={`${events.length} event${events.length === 1 ? "" : "s"} stored locally`}
+          description={`${events.length} event${events.length === 1 ? "" : "s"} stored locally in SQLite`}
           control={<Switch checked={calendarOn} onCheckedChange={setCalendarOn} />}
         />
       </SettingsCard>
 
-      <SettingsCard title="Import">
+      <SettingsCard title="Sync Google / Outlook / ICS">
         <SettingRow
           icon={<CalendarPlus />}
           title="Import an .ics file"
-          description="Export from Google Calendar or Outlook, then drop the file here."
+          description="Export from Google Calendar or Microsoft 365, then drop the file here."
           control={
             <Button
               variant="outline"
@@ -83,15 +135,60 @@ export function CalendarTab() {
               shape="square"
               loading={importIcs.isPending}
               onClick={() => importIcs.mutate()}
+              className="cursor-pointer"
             >
               Choose file
+            </Button>
+          }
+        />
+
+        <SettingRow
+          icon={<Link2 />}
+          title="Calendar Subscription URL"
+          description="Sync read-only webcal or secret .ics link from Google Calendar or Outlook."
+          control={
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={subUrl}
+                onChange={(e) => setSubUrl(e.target.value)}
+                placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
+                className="h-8 w-64 rounded-lg border border-border bg-surface-2 px-2.5 text-xs text-text outline-none focus:border-accent"
+              />
+              <Button
+                variant="solid"
+                size="sm"
+                loading={syncUrlMutation.isPending}
+                disabled={!subUrl.trim()}
+                onClick={() => syncUrlMutation.mutate(subUrl)}
+                className="cursor-pointer"
+              >
+                Sync URL
+              </Button>
+            </div>
+          }
+        />
+
+        <SettingRow
+          icon={<Sparkles className="text-accent" />}
+          title="Seed Demo Calendar Events"
+          description="Populate Coming Up with Google Meet and Zoom scheduled events for instant testing."
+          control={
+            <Button
+              variant="outline"
+              size="sm"
+              loading={seedSampleEvents.isPending}
+              onClick={() => seedSampleEvents.mutate()}
+              className="cursor-pointer"
+            >
+              Seed Events
             </Button>
           }
         />
       </SettingsCard>
 
       <p className="px-1 text-[13px] text-muted">
-        Google and Outlook OAuth is not wired yet — import an .ics export to populate Coming up.
+        Bagrry monitors upcoming calendar events locally and fires unobtrusive desktop join prompts 1 minute before scheduled start.
       </p>
     </>
   );

@@ -25,6 +25,7 @@ import { CompaniesPage } from "@/components/pages/CompaniesPage";
 import { ActionItemsPage } from "@/components/pages/ActionItemsPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
 import { LiveMeetingIndicator, useRepositionForMeetings } from "@/components/layout/LiveMeetingIndicator";
+import { PreMeetingPrompt } from "@/components/calendar/PreMeetingPrompt";
 import { snappy } from "@/lib/motion";
 
 export default function App() {
@@ -76,6 +77,7 @@ export default function App() {
           <CommandPalette />
           <Onboarding />
           <LiveMeetingIndicator />
+          <PreMeetingPrompt />
           <Toaster />
         </div>
       </TooltipProvider>
