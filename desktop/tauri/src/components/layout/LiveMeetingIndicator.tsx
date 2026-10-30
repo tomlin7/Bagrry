@@ -6,7 +6,7 @@ import { currentWindow } from "@/lib/tauri";
 import { useAppStore } from "@/store/app";
 import { Elapsed } from "@/components/notes/TranscriptPanel";
 
-/** Granola-style pill on the right while a meeting is being transcribed. */
+/** Lightweight floating status pill on the right while a meeting is being transcribed. */
 export function LiveMeetingIndicator() {
   const recState = useAppStore((s) => s.recState);
   const startedAt = useAppStore((s) => s.recordingStartedAt);
