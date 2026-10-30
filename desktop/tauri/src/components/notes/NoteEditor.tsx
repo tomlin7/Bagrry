@@ -8,7 +8,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import { Bold, Heading1, Heading2, Italic, List, ListOrdered, Minus, Quote, SquareCheck, Strikethrough } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const AUTOSAVE_MS = 600;
+const AUTOSAVE_MS = 300;
 
 export type NoteDraft = {
   text: string;
@@ -61,22 +61,46 @@ export const NoteEditor = forwardRef<
     initialJson?: string | null;
     onSave: (draft: NoteDraft) => void;
     onSelectionChange?: (text: string) => void;
+    onStatsChange?: (stats: { words: number; chars: number }) => void;
+    onSaveStatusChange?: (status: "saved" | "saving") => void;
   }
->(function NoteEditor({ noteId, initialContent, initialJson, onSave, onSelectionChange }, ref) {
+>(function NoteEditor(
+  {
+    noteId,
+    initialContent,
+    initialJson,
+    onSave,
+    onSelectionChange,
+    onStatsChange,
+    onSaveStatusChange,
+  },
+  ref,
+) {
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const latest = useRef<NoteDraft>({ text: initialContent, json: initialJson ?? "" });
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
+  const onSaveStatusChangeRef = useRef(onSaveStatusChange);
+  onSaveStatusChangeRef.current = onSaveStatusChange;
+  const onStatsChangeRef = useRef(onStatsChange);
+  onStatsChangeRef.current = onStatsChange;
   const [slash, setSlash] = useState<{ query: string; from: number } | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
 
   const persist = (instance: Editor) => {
+    const text = instance.getText();
     latest.current = {
-      text: instance.getText(),
+      text,
       json: JSON.stringify(instance.getJSON()),
     };
+    onSaveStatusChangeRef.current?.("saving");
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    onStatsChangeRef.current?.({ words, chars: text.length });
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => onSaveRef.current(latest.current), AUTOSAVE_MS);
+    saveTimer.current = setTimeout(() => {
+      onSaveRef.current(latest.current);
+      onSaveStatusChangeRef.current?.("saved");
+    }, AUTOSAVE_MS);
   };
 
   const editor = useEditor(

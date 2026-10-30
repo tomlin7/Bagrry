@@ -2,9 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
+  Check,
+  Columns2,
   Download,
+  FileText,
   FolderInput,
+  Loader2,
   MoreHorizontal,
+  RotateCcw,
   Share2,
   Sparkles,
   Trash2,
@@ -18,7 +23,6 @@ import { useAppStore } from "@/store/app";
 import { NoteEditor, type NoteEditorHandle } from "@/components/notes/NoteEditor";
 import { EnhancedNotes } from "@/components/notes/EnhancedNotes";
 import { TranscriptPanel } from "@/components/notes/TranscriptPanel";
-import { RecordingControls } from "@/components/notes/RecordingControls";
 import { AskBar } from "@/components/chat/AskBar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/misc";
@@ -35,7 +39,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { snappy } from "@/lib/motion";
 
-type Tab = "notes" | "enhanced";
+export type ViewMode = "split" | "notes" | "enhanced";
 
 export function NotePage({ noteId }: { noteId: string }) {
   const queryClient = useQueryClient();
@@ -44,9 +48,19 @@ export function NotePage({ noteId }: { noteId: string }) {
   const setTranscriptOpen = useAppStore((s) => s.setTranscriptOpen);
   const recState = useAppStore((s) => s.recState);
 
-  const [tab, setTab] = useState<Tab>("notes");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    return (localStorage.getItem("bagrry:note-view-mode") as ViewMode) || "split";
+  });
+  const [splitRatio, setSplitRatio] = useState<number>(() => {
+    const saved = localStorage.getItem("bagrry:note-split-ratio");
+    return saved ? Math.min(75, Math.max(25, parseFloat(saved))) : 50;
+  });
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
+  const [stats, setStats] = useState({ words: 0, chars: 0 });
+  const [isResizing, setIsResizing] = useState(false);
   const [selection, setSelection] = useState("");
   const editorRef = useRef<NoteEditorHandle>(null);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: note, isLoading } = useQuery({
     queryKey: api.qk.meeting(noteId),
@@ -87,7 +101,6 @@ export function NotePage({ noteId }: { noteId: string }) {
     mutationFn: (templateId: string | null) => api.enhanceMeeting(noteId, templateId),
     onSuccess: async () => {
       void queryClient.invalidateQueries({ queryKey: api.qk.meeting(noteId) });
-      setTab("enhanced");
       toast.success("Notes enhanced");
       try {
         const followUp = await api.getSetting("suggested_follow_up_emails");
@@ -122,8 +135,14 @@ export function NotePage({ noteId }: { noteId: string }) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: api.qk.meeting(noteId) });
       void queryClient.invalidateQueries({ queryKey: ["meetings"] });
-      toast.success("Note moved");
+      toast.success("Moved");
     },
+    onError: (e) => toast.error(e),
+  });
+
+  const addAttendee = useMutation({
+    mutationFn: (personId: string) => api.addMeetingAttendee(noteId, personId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: api.qk.attendees(noteId) }),
     onError: (e) => toast.error(e),
   });
 
@@ -132,9 +151,9 @@ export function NotePage({ noteId }: { noteId: string }) {
     onSuccess: async (url) => {
       try {
         await navigator.clipboard.writeText(url);
-        toast.success("Share link copied", url);
+        toast.success("Share link copied");
       } catch {
-        toast.info("Share link created", url);
+        toast.info("Share URL", url);
       }
     },
     onError: (e) => toast.error(e),
@@ -142,12 +161,12 @@ export function NotePage({ noteId }: { noteId: string }) {
 
   const exportMd = useMutation({
     mutationFn: () => api.exportMarkdown(noteId),
-    onSuccess: async (markdown) => {
+    onSuccess: async (md) => {
       try {
-        await navigator.clipboard.writeText(markdown);
+        await navigator.clipboard.writeText(md);
         toast.success("Markdown copied to clipboard");
-      } catch (error) {
-        toast.error(error);
+      } catch {
+        toast.info("Markdown", md.slice(0, 200));
       }
     },
     onError: (e) => toast.error(e),
@@ -155,48 +174,29 @@ export function NotePage({ noteId }: { noteId: string }) {
 
   const webhook = useMutation({
     mutationFn: () => api.dispatchWebhook(noteId),
-    onSuccess: (result) => toast.success("Webhook sent", result),
-    onError: (e) => toast.error(e, "Set a webhook URL in Settings first."),
-  });
-
-  const reprompt = useMutation({
-    mutationFn: (instruction: string) => api.repromptSelection(noteId, selection, instruction),
-    onSuccess: (result) => {
-      editorRef.current?.replaceSelection(result.trim());
-      toast.success("Selection rewritten");
-    },
+    onSuccess: () => toast.success("Sent to webhook"),
     onError: (e) => toast.error(e),
   });
 
   const recipe = useMutation({
     mutationFn: (recipeId: string) => api.runRecipe(noteId, recipeId),
-    onSuccess: async (result, recipeId) => {
+    onSuccess: async (result) => {
       try {
         await navigator.clipboard.writeText(result);
         toast.success("Recipe result copied");
       } catch {
-        toast.info("Recipe", result.slice(0, 400));
-      }
-      if (recipeId === "rcp_actions") {
-        const lines = result
-          .split("\n")
-          .map((l) => l.replace(/^[-*•\d.\s]+/, "").trim())
-          .filter((l) => l.length > 4);
-        for (const line of lines.slice(0, 8)) {
-          await api.addActionItem(noteId, line).catch(() => undefined);
-        }
-        void queryClient.invalidateQueries({ queryKey: api.qk.actionItems() });
+        toast.info("Result", result.slice(0, 280));
       }
     },
     onError: (e) => toast.error(e),
   });
 
-  const addAttendee = useMutation({
-    mutationFn: (personId: string) => api.addMeetingAttendee(noteId, personId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: api.qk.attendees(noteId) });
-      void queryClient.invalidateQueries({ queryKey: api.qk.people() });
-      toast.success("Attendee added");
+  const reprompt = useMutation({
+    mutationFn: (instruction: string) => api.repromptSelection(noteId, selection, instruction),
+    onSuccess: (replacement) => {
+      editorRef.current?.replaceSelection(replacement);
+      setSelection("");
+      toast.success("Replaced");
     },
     onError: (e) => toast.error(e),
   });
@@ -214,7 +214,61 @@ export function NotePage({ noteId }: { noteId: string }) {
     onError: (e) => toast.error(e),
   });
 
-  // Opening a note while it is the one being recorded should reveal the panel.
+  // Global Keyboard Shortcuts: Ctrl+1 (Split), Ctrl+2 (Notes), Ctrl+3 (Enhanced), Ctrl+Enter (Enhance)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCtrl = e.ctrlKey || e.metaKey;
+      if (isCtrl && e.key === "1") {
+        e.preventDefault();
+        setViewMode("split");
+        localStorage.setItem("bagrry:note-view-mode", "split");
+      } else if (isCtrl && e.key === "2") {
+        e.preventDefault();
+        setViewMode("notes");
+        localStorage.setItem("bagrry:note-view-mode", "notes");
+      } else if (isCtrl && e.key === "3") {
+        e.preventDefault();
+        setViewMode("enhanced");
+        localStorage.setItem("bagrry:note-view-mode", "enhanced");
+      } else if (isCtrl && e.key === "Enter" && !e.shiftKey) {
+        if (!enhance.isPending) {
+          e.preventDefault();
+          enhance.mutate(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [enhance]);
+
+  // Handle divider dragging
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    const startX = e.clientX;
+    const initialRatio = splitRatio;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const deltaX = moveEvent.clientX - startX;
+      const deltaPercent = (deltaX / rect.width) * 100;
+      const nextRatio = Math.min(75, Math.max(25, initialRatio + deltaPercent));
+      setSplitRatio(nextRatio);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      localStorage.setItem("bagrry:note-split-ratio", splitRatio.toString());
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  // Opening a note while it is being recorded reveals the panel
   const recordingMeetingId = useAppStore((s) => s.recordingMeetingId);
   useEffect(() => {
     if (recState !== "idle" && recordingMeetingId === noteId) setTranscriptOpen(true);
@@ -235,21 +289,23 @@ export function NotePage({ noteId }: { noteId: string }) {
 
   return (
     <div className="relative flex h-full flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[640px] px-6 pb-[22rem] pt-4">
+      {/* Top Header Bar */}
+      <div className="border-b border-border bg-bg/80 px-6 py-3 backdrop-blur-md">
+        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-2">
           <TitleField
             key={noteId}
             value={note.title}
             onCommit={(next) => next !== note.title && saveTitle.mutate(next)}
           />
 
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Chip icon={<CalendarDays className="size-3" />} label={formatDayLabel(note.date)} />
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex h-6 max-w-[14rem] items-center gap-1 rounded-full border border-border px-2 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-text"
+                  className="flex h-6 max-w-[14rem] items-center gap-1 rounded-full border border-border px-2 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-text cursor-pointer"
                 >
                   <Users className="size-3" />
                   <span className="truncate">
@@ -277,7 +333,7 @@ export function NotePage({ noteId }: { noteId: string }) {
                 <button
                   type="button"
                   aria-label="Move to folder"
-                  className="flex h-6 items-center gap-1 rounded-full border border-border px-2 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-text"
+                  className="flex h-6 items-center gap-1 rounded-full border border-border px-2 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-text cursor-pointer"
                 >
                   <FolderInput className="size-3" />
                   {currentFolder?.name ?? "Inbox"}
@@ -296,16 +352,63 @@ export function NotePage({ noteId }: { noteId: string }) {
 
             <div className="flex-1" />
 
-            {hasEnhanced && (
-              <div className="flex rounded-full border border-border p-0.5">
-                <TabButton active={tab === "notes"} onClick={() => setTab("notes")}>
-                  My notes
-                </TabButton>
-                <TabButton active={tab === "enhanced"} onClick={() => setTab("enhanced")}>
-                  Enhanced
-                </TabButton>
-              </div>
-            )}
+            {/* View Mode Switcher Pills */}
+            <div className="flex items-center rounded-full border border-border bg-hover/40 p-0.5">
+              <Tooltip label="Split view (Ctrl+1)">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("split");
+                    localStorage.setItem("bagrry:note-view-mode", "split");
+                  }}
+                  className={cn(
+                    "flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium transition-all cursor-pointer",
+                    viewMode === "split"
+                      ? "bg-bg text-text shadow-xs"
+                      : "text-muted hover:text-text",
+                  )}
+                >
+                  <Columns2 className="size-3" />
+                  <span>Split</span>
+                </button>
+              </Tooltip>
+              <Tooltip label="Scratchpad only (Ctrl+2)">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("notes");
+                    localStorage.setItem("bagrry:note-view-mode", "notes");
+                  }}
+                  className={cn(
+                    "flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium transition-all cursor-pointer",
+                    viewMode === "notes"
+                      ? "bg-bg text-text shadow-xs"
+                      : "text-muted hover:text-text",
+                  )}
+                >
+                  <FileText className="size-3" />
+                  <span>Notes</span>
+                </button>
+              </Tooltip>
+              <Tooltip label="AI Enhanced only (Ctrl+3)">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("enhanced");
+                    localStorage.setItem("bagrry:note-view-mode", "enhanced");
+                  }}
+                  className={cn(
+                    "flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium transition-all cursor-pointer",
+                    viewMode === "enhanced"
+                      ? "bg-bg text-text shadow-xs"
+                      : "text-muted hover:text-text",
+                  )}
+                >
+                  <Sparkles className="size-3" />
+                  <span>Enhanced</span>
+                </button>
+              </Tooltip>
+            </div>
 
             <EnhanceButton
               templates={templates}
@@ -320,66 +423,233 @@ export function NotePage({ noteId }: { noteId: string }) {
                 <button
                   type="button"
                   aria-label="Note actions"
-                  className="grid size-6 place-items-center rounded-full text-subtle transition-colors hover:bg-hover hover:text-text"
+                  className="grid size-6 place-items-center rounded-full text-subtle transition-colors hover:bg-hover hover:text-text cursor-pointer"
                 >
                   <MoreHorizontal className="size-3.5" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => share.mutate()}>
-                  <Share2 />
+                  <Share2 className="size-3.5" />
                   Copy share link
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => exportMd.mutate()}>
-                  <Download />
+                  <Download className="size-3.5" />
                   Copy as Markdown
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => webhook.mutate()}>
-                  <Webhook />
+                  <Webhook className="size-3.5" />
                   Send to webhook
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem destructive onSelect={() => remove.mutate()}>
-                  <Trash2 />
+                  <Trash2 className="size-3.5" />
                   Delete note
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+        </div>
+      </div>
 
-          <div className="mt-5">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={tab === "enhanced" && hasEnhanced ? "enhanced" : "notes"}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={snappy}
-              >
-                {tab === "enhanced" && hasEnhanced ? (
+      {/* Main Workspace Canvas */}
+      <div className="min-h-0 flex-1 overflow-hidden" ref={splitContainerRef}>
+        {viewMode === "split" ? (
+          <div className="flex h-full w-full">
+            {/* Left Pane: Scratchpad */}
+            <div
+              style={{ width: `${splitRatio}%` }}
+              className="flex h-full flex-col overflow-hidden border-r border-border"
+            >
+              {/* Scratchpad Subheader */}
+              <div className="flex items-center justify-between border-b border-border/60 bg-hover/20 px-6 py-2 text-[11px] text-muted">
+                <span className="font-semibold uppercase tracking-wider text-subtle">
+                  Raw Scratchpad
+                </span>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-[10px]">
+                    {stats.words} words · {stats.chars} chars
+                  </span>
+                  <span className="flex items-center gap-1 font-mono text-[10px]">
+                    {saveStatus === "saving" ? (
+                      <>
+                        <Loader2 className="size-2.5 animate-spin text-accent" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="size-2.5 text-emerald-500" />
+                        <span className="text-subtle">Saved</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Editor Content Area */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+                <NoteEditor
+                  ref={editorRef}
+                  noteId={noteId}
+                  initialContent={note.scratchpad_raw}
+                  initialJson={note.scratchpad_json}
+                  onSave={(draft) => saveBody.mutate(draft)}
+                  onSelectionChange={setSelection}
+                  onStatsChange={setStats}
+                  onSaveStatusChange={setSaveStatus}
+                />
+              </div>
+            </div>
+
+            {/* Draggable Divider Handle */}
+            <div
+              onMouseDown={handleMouseDownResize}
+              className={cn(
+                "group relative flex w-2 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-accent/20",
+                isResizing && "bg-accent/30",
+              )}
+            >
+              <div className="h-8 w-1 rounded-full bg-border transition-colors group-hover:bg-accent" />
+            </div>
+
+            {/* Right Pane: AI Enhanced */}
+            <div
+              style={{ width: `${100 - splitRatio}%` }}
+              className="flex h-full flex-col overflow-hidden bg-bg"
+            >
+              {/* Enhanced Subheader */}
+              <div className="flex items-center justify-between border-b border-border/60 bg-hover/20 px-6 py-2 text-[11px] text-muted">
+                <span className="font-semibold uppercase tracking-wider text-subtle">
+                  AI Enhanced
+                </span>
+                <div className="flex items-center gap-2">
+                  {hasEnhanced && (
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      disabled={enhance.isPending}
+                      onClick={() => enhance.mutate(null)}
+                      className="h-5 gap-1 text-[10px] text-muted hover:text-text cursor-pointer"
+                    >
+                      <RotateCcw className="size-2.5" />
+                      <span>Regenerate</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Enhanced Content Area */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+                {hasEnhanced ? (
                   <EnhancedNotes
                     noteId={noteId}
                     json={note.enhanced_notes_json}
                     onChange={(next) => saveEnhanced.mutate(next)}
                   />
                 ) : (
-                  <NoteEditor
-                    ref={editorRef}
-                    noteId={noteId}
-                    initialContent={note.scratchpad_raw}
-                    initialJson={note.scratchpad_json}
-                    onSave={(draft) => saveBody.mutate(draft)}
-                    onSelectionChange={setSelection}
-                  />
+                  <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+                    <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent">
+                      <Sparkles className="size-6" />
+                    </div>
+                    <h4 className="font-display mb-1.5 text-[15px] font-semibold text-text">
+                      No AI synthesis yet
+                    </h4>
+                    <p className="mb-6 max-w-sm text-[13px] leading-relaxed text-muted">
+                      Take notes on the left or record audio. When you&apos;re ready, enhance with AI to generate structured takeaways and verified citations.
+                    </p>
+                    <Button
+                      variant="solid"
+                      size="sm"
+                      loading={enhance.isPending}
+                      onClick={() => enhance.mutate(null)}
+                      className="gap-2 cursor-pointer shadow-sm"
+                    >
+                      <Sparkles className="size-3.5" />
+                      <span>Enhance Notes (Ctrl+Enter)</span>
+                    </Button>
+
+                    {templates.length > 0 && (
+                      <div className="mt-8 flex flex-col items-center gap-2">
+                        <span className="text-[11px] text-subtle">Or apply a specialized template:</span>
+                        <div className="flex flex-wrap justify-center gap-1.5">
+                          {templates.slice(0, 3).map((t) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => enhance.mutate(t.id)}
+                              className="rounded-full border border-border bg-hover/30 px-2.5 py-1 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-text cursor-pointer"
+                            >
+                              {t.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Single Pane Mode (Notes or Enhanced) */
+          <div className="h-full overflow-y-auto px-6 py-6">
+            <div className="mx-auto w-full max-w-[760px] pb-32">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={viewMode}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={snappy}
+                >
+                  {viewMode === "enhanced" ? (
+                    hasEnhanced ? (
+                      <EnhancedNotes
+                        noteId={noteId}
+                        json={note.enhanced_notes_json}
+                        onChange={(next) => saveEnhanced.mutate(next)}
+                      />
+                    ) : (
+                      <div className="flex h-64 flex-col items-center justify-center p-8 text-center">
+                        <Sparkles className="mb-3 size-8 text-accent" />
+                        <h4 className="font-display mb-1 text-[15px] font-semibold text-text">
+                          No AI synthesis yet
+                        </h4>
+                        <p className="mb-4 text-[13px] text-muted">
+                          Press Ctrl+Enter or click Enhance to generate notes.
+                        </p>
+                        <Button
+                          variant="solid"
+                          size="sm"
+                          loading={enhance.isPending}
+                          onClick={() => enhance.mutate(null)}
+                        >
+                          Enhance Notes
+                        </Button>
+                      </div>
+                    )
+                  ) : (
+                    <NoteEditor
+                      ref={editorRef}
+                      noteId={noteId}
+                      initialContent={note.scratchpad_raw}
+                      initialJson={note.scratchpad_json}
+                      onSave={(draft) => saveBody.mutate(draft)}
+                      onSelectionChange={setSelection}
+                      onStatsChange={setStats}
+                      onSaveStatusChange={setSaveStatus}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Floating Selection AI Toolbar */}
       <AnimatePresence>
-        {selection && tab === "notes" && (
+        {selection && viewMode !== "enhanced" && (
           <SelectionToolbar
             busy={reprompt.isPending}
             onInstruction={(instruction) => reprompt.mutate(instruction)}
@@ -387,6 +657,7 @@ export function NotePage({ noteId }: { noteId: string }) {
         )}
       </AnimatePresence>
 
+      {/* Bottom Floating Bar: Transcript or AskBar */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-4">
         <AnimatePresence mode="wait" initial={false}>
           {transcriptOpen ? (
@@ -408,15 +679,9 @@ export function NotePage({ noteId }: { noteId: string }) {
               transition={snappy}
               className="pointer-events-auto mx-auto flex w-full max-w-[640px] items-center gap-2"
             >
-              <div className="rounded-full border border-border bg-surface px-2.5 py-1.5 shadow-md">
-                <RecordingControls noteId={noteId} compact />
-              </div>
               <AskBar
-                className="flex-1"
-                placeholder={recState !== "idle" ? "Ask about this live meeting" : "Ask anything"}
-                showModel={false}
-                busy={ask.isPending}
-                onSubmit={(value) => ask.mutate(value)}
+                busy={recState !== "idle" || ask.isPending}
+                onSubmit={(q: string) => ask.mutate(q)}
                 onAttach={async (file) => {
                   await api.saveAttachmentText(noteId, file.name, file.text);
                   toast.success(`Attached ${file.name}`);
@@ -432,7 +697,7 @@ export function NotePage({ noteId }: { noteId: string }) {
 
 /* ------------------------------------------------------------------ */
 
-/** Uncontrolled so typing never fights the autosave round-trip. */
+/** Uncontrolled title field so typing never fights autosave round-trips */
 function TitleField({ value, onCommit }: { value: string; onCommit: (value: string) => void }) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -476,29 +741,6 @@ function Chip({ icon, label }: { icon: React.ReactNode; label: string }) {
   );
 }
 
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "h-5 rounded-full px-2 text-[11px] font-medium transition-colors",
-        active ? "bg-selected text-text" : "text-subtle hover:text-text",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 function EnhanceButton({
   templates,
   recipes,
@@ -514,11 +756,11 @@ function EnhanceButton({
 }) {
   return (
     <DropdownMenu>
-      <Tooltip label="Enhance notes with AI">
+      <Tooltip label="Enhance notes with AI (Ctrl+Enter)">
         <DropdownMenuTrigger asChild>
-          <Button variant="subtle" size="xs" loading={loading}>
-            <Sparkles />
-            Enhance
+          <Button variant="subtle" size="xs" loading={loading} className="cursor-pointer">
+            <Sparkles className="size-3 text-accent" />
+            <span>Enhance</span>
           </Button>
         </DropdownMenuTrigger>
       </Tooltip>
@@ -572,6 +814,7 @@ function SelectionToolbar({
             size="xs"
             disabled={busy}
             onClick={() => onInstruction(action)}
+            className="cursor-pointer"
           >
             {action}
           </Button>
