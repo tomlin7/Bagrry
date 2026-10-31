@@ -25,8 +25,12 @@ vi.mock("@/lib/api", async (importOriginal) => {
     setSecret: vi.fn().mockResolvedValue(undefined),
     createApiKey: vi.fn().mockResolvedValue("bagrry_key_secret_123"),
     revokeApiKey: vi.fn().mockResolvedValue(undefined),
+    getSetting: vi.fn().mockResolvedValue(""),
+    setSetting: vi.fn().mockResolvedValue(undefined),
     verifyNotionConnection: vi.fn().mockResolvedValue("Connected to Notion as 'Bagrry Bot'"),
     verifyLinearConnection: vi.fn().mockResolvedValue("Connected to Linear as Dheeraj (Acme)"),
+    verifyTeamsWebhook: vi.fn().mockResolvedValue("Microsoft Teams webhook connected and verified successfully"),
+    verifyDiscordWebhook: vi.fn().mockResolvedValue("Discord webhook connected and verified successfully"),
   };
 });
 
@@ -105,6 +109,35 @@ describe("ConnectorsTab & MCP Server", () => {
 
     await waitFor(() => {
       expect(api.verifyNotionConnection).toHaveBeenCalledWith("secret_notion_key_123");
+    });
+  });
+
+  it("renders Microsoft Teams and Discord webhook cards and tests connections (#50)", async () => {
+    renderWithClient(<ConnectorsTab />);
+
+    expect(screen.getByText("Microsoft Teams Recaps")).toBeDefined();
+    expect(screen.getByText("Discord Broadcasts")).toBeDefined();
+
+    // Fill Teams webhook and test
+    const teamsInput = screen.getByPlaceholderText(/outlook\.office\.com\/webhook/i);
+    fireEvent.change(teamsInput, { target: { value: "https://outlook.office.com/webhook/test-teams-webhook" } });
+
+    const testTeamsBtn = screen.getByRole("button", { name: /Test Teams Connection/i });
+    fireEvent.click(testTeamsBtn);
+
+    await waitFor(() => {
+      expect(api.verifyTeamsWebhook).toHaveBeenCalledWith("https://outlook.office.com/webhook/test-teams-webhook");
+    });
+
+    // Fill Discord webhook and test
+    const discordInput = screen.getByPlaceholderText(/discord\.com\/api\/webhooks/i);
+    fireEvent.change(discordInput, { target: { value: "https://discord.com/api/webhooks/123/abc" } });
+
+    const testDiscordBtn = screen.getByRole("button", { name: /Test Discord Connection/i });
+    fireEvent.click(testDiscordBtn);
+
+    await waitFor(() => {
+      expect(api.verifyDiscordWebhook).toHaveBeenCalledWith("https://discord.com/api/webhooks/123/abc");
     });
   });
 });

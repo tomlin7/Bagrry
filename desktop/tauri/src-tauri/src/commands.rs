@@ -3463,6 +3463,274 @@ pub fn send_to_slack(
 }
 
 #[tauri::command]
+pub fn verify_teams_webhook(webhook_url: String) -> Result<String, String> {
+    let url = webhook_url.trim();
+    if url.is_empty() {
+        return Err("Microsoft Teams webhook URL cannot be empty".into());
+    }
+
+    let payload = serde_json::json!({
+        "@type": "MessageCard",
+        "@context": "https://schema.org/extensions",
+        "summary": "Bagrry Webhook Connected",
+        "themeColor": "5B5FC7",
+        "title": "⚡ Bagrry Connected",
+        "text": "Microsoft Teams incoming webhook configured successfully. Meeting recaps will broadcast here."
+    });
+
+    let resp = ureq::post(url)
+        .set("Content-Type", "application/json")
+        .send_json(&payload)
+        .map_err(|e| format!("Microsoft Teams verification failed: {e}"))?;
+
+    if resp.status() == 200 || resp.status() == 202 {
+        Ok("Microsoft Teams webhook connected and verified successfully".into())
+    } else {
+        Err(format!(
+            "Teams webhook responded with status {}",
+            resp.status()
+        ))
+    }
+}
+
+#[tauri::command]
+pub fn send_to_teams_webhook(
+    state: State<AppState>,
+    meeting_id: String,
+    webhook_url: Option<String>,
+) -> Result<String, String> {
+    let conn = state.conn()?;
+    let target_url = webhook_url
+        .filter(|u| !u.trim().is_empty())
+        .unwrap_or_else(|| secrets::get_setting(&conn, "connector_teams_url", ""));
+
+    if target_url.is_empty() {
+        return Err("Microsoft Teams webhook URL not configured. Enter a valid Incoming Webhook URL in Settings -> Connectors.".into());
+    }
+
+    let meeting = conn
+        .query_row(
+            &format!("SELECT {MEETING_COLS} FROM meetings WHERE id=?1"),
+            params![meeting_id],
+            meeting_from_row,
+        )
+        .map_err(|e| format!("Meeting not found: {e}"))?;
+
+    let mut act_stmt = conn
+        .prepare("SELECT task, owner, deadline FROM action_items WHERE meeting_id=?1 AND done=0")
+        .map_err(|e| e.to_string())?;
+    let action_items: Vec<(String, Option<String>, Option<String>)> = act_stmt
+        .query_map(params![meeting_id], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    drop(act_stmt);
+    drop(conn);
+
+    let mut summary_lines = Vec::new();
+    if let Some(enh_json) = &meeting.enhanced_notes_json {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(enh_json) {
+            if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
+                for sec in sections.iter().take(3) {
+                    if let Some(title) = sec.get("section_title").and_then(|t| t.as_str()) {
+                        summary_lines.push(format!("**{}**", title));
+                    }
+                    if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                        for b in bullets.iter().take(3) {
+                            if let Some(text) = b.get("text").and_then(|t| t.as_str()) {
+                                summary_lines.push(format!("• {}", text));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let summary_text = if summary_lines.is_empty() {
+        meeting.scratchpad_raw.chars().take(400).collect::<String>()
+    } else {
+        summary_lines.join("\n")
+    };
+
+    let mut actions_text = String::new();
+    if !action_items.is_empty() {
+        actions_text.push_str("\n\n**Action Items:**");
+        for (task, owner, deadline) in action_items {
+            let mut line = format!("\n• {}", task);
+            if let Some(o) = owner {
+                line.push_str(&format!(" (Owner: {o})"));
+            }
+            if let Some(d) = deadline {
+                line.push_str(&format!(" (Due: {d})"));
+            }
+            actions_text.push_str(&line);
+        }
+    }
+
+    let payload = serde_json::json!({
+        "@type": "MessageCard",
+        "@context": "https://schema.org/extensions",
+        "summary": format!("Meeting Recap: {}", meeting.title),
+        "themeColor": "5B5FC7",
+        "title": format!("📋 Meeting Recap: {}", meeting.title),
+        "sections": [{
+            "activityTitle": format!("**Date:** {}", meeting.date),
+            "text": format!("{}\n\n{}", summary_text, actions_text),
+            "markdown": true
+        }]
+    });
+
+    let resp = ureq::post(&target_url)
+        .set("Content-Type", "application/json")
+        .send_json(&payload)
+        .map_err(|e| format!("Microsoft Teams dispatch failed: {e}"))?;
+
+    if resp.status() == 200 || resp.status() == 202 {
+        Ok("Dispatched meeting recap to Microsoft Teams channel successfully".into())
+    } else {
+        Err(format!("Teams responded with status {}", resp.status()))
+    }
+}
+
+#[tauri::command]
+pub fn verify_discord_webhook(webhook_url: String) -> Result<String, String> {
+    let url = webhook_url.trim();
+    if url.is_empty() {
+        return Err("Discord webhook URL cannot be empty".into());
+    }
+
+    let payload = serde_json::json!({
+        "username": "Bagrry",
+        "embeds": [{
+            "title": "⚡ Bagrry Connected",
+            "description": "Discord incoming webhook configured successfully. Meeting recaps will broadcast to this channel.",
+            "color": 5793266
+        }]
+    });
+
+    let resp = ureq::post(url)
+        .set("Content-Type", "application/json")
+        .send_json(&payload)
+        .map_err(|e| format!("Discord verification failed: {e}"))?;
+
+    if resp.status() == 200 || resp.status() == 204 {
+        Ok("Discord webhook connected and verified successfully".into())
+    } else {
+        Err(format!(
+            "Discord webhook responded with status {}",
+            resp.status()
+        ))
+    }
+}
+
+#[tauri::command]
+pub fn send_to_discord_webhook(
+    state: State<AppState>,
+    meeting_id: String,
+    webhook_url: Option<String>,
+) -> Result<String, String> {
+    let conn = state.conn()?;
+    let target_url = webhook_url
+        .filter(|u| !u.trim().is_empty())
+        .unwrap_or_else(|| secrets::get_setting(&conn, "connector_discord_url", ""));
+
+    if target_url.is_empty() {
+        return Err("Discord webhook URL not configured. Enter a valid Incoming Webhook URL in Settings -> Connectors.".into());
+    }
+
+    let meeting = conn
+        .query_row(
+            &format!("SELECT {MEETING_COLS} FROM meetings WHERE id=?1"),
+            params![meeting_id],
+            meeting_from_row,
+        )
+        .map_err(|e| format!("Meeting not found: {e}"))?;
+
+    let mut act_stmt = conn
+        .prepare("SELECT task, owner, deadline FROM action_items WHERE meeting_id=?1 AND done=0")
+        .map_err(|e| e.to_string())?;
+    let action_items: Vec<(String, Option<String>, Option<String>)> = act_stmt
+        .query_map(params![meeting_id], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    drop(act_stmt);
+    drop(conn);
+
+    let mut summary_lines = Vec::new();
+    if let Some(enh_json) = &meeting.enhanced_notes_json {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(enh_json) {
+            if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
+                for sec in sections.iter().take(3) {
+                    if let Some(title) = sec.get("section_title").and_then(|t| t.as_str()) {
+                        summary_lines.push(format!("**{}**", title));
+                    }
+                    if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                        for b in bullets.iter().take(3) {
+                            if let Some(text) = b.get("text").and_then(|t| t.as_str()) {
+                                summary_lines.push(format!("• {}", text));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let summary_text = if summary_lines.is_empty() {
+        meeting.scratchpad_raw.chars().take(400).collect::<String>()
+    } else {
+        summary_lines.join("\n")
+    };
+
+    let mut actions_text = String::new();
+    if !action_items.is_empty() {
+        actions_text.push_str("\n\n**Action Items:**");
+        for (task, owner, deadline) in action_items {
+            let mut line = format!("\n• {}", task);
+            if let Some(o) = owner {
+                line.push_str(&format!(" (Owner: {o})"));
+            }
+            if let Some(d) = deadline {
+                line.push_str(&format!(" (Due: {d})"));
+            }
+            actions_text.push_str(&line);
+        }
+    }
+
+    let payload = serde_json::json!({
+        "username": "Bagrry",
+        "avatar_url": "https://bagrry.app/icon.png",
+        "embeds": [{
+            "title": format!("📋 Meeting Recap: {}", meeting.title),
+            "description": format!("**Date:** {}\n\n{}\n\n{}", meeting.date, summary_text, actions_text),
+            "color": 5793266,
+            "footer": {
+                "text": "Bagrry · Zero meeting bots · Local SQLite"
+            }
+        }]
+    });
+
+    let resp = ureq::post(&target_url)
+        .set("Content-Type", "application/json")
+        .send_json(&payload)
+        .map_err(|e| format!("Discord dispatch failed: {e}"))?;
+
+    if resp.status() == 200 || resp.status() == 204 {
+        Ok("Dispatched meeting recap to Discord channel successfully".into())
+    } else {
+        Err(format!("Discord responded with status {}", resp.status()))
+    }
+}
+
+#[tauri::command]
 pub fn verify_linear_connection(state: State<AppState>, api_key: String) -> Result<String, String> {
     let key = api_key.trim();
     if key.is_empty() {

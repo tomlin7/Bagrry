@@ -264,6 +264,14 @@ export const verifyNotionConnection = (apiKey: string) =>
   invoke<string>("verify_notion_connection", { apiKey });
 export const sendToSlack = (meetingId: string, webhookUrl?: string | null) =>
   invoke<string>("send_to_slack", { meetingId, webhookUrl: webhookUrl ?? null });
+export const verifyTeamsWebhook = (webhookUrl: string) =>
+  invoke<string>("verify_teams_webhook", { webhookUrl });
+export const sendToTeams = (meetingId: string, webhookUrl?: string | null) =>
+  invoke<string>("send_to_teams_webhook", { meetingId, webhookUrl: webhookUrl ?? null });
+export const verifyDiscordWebhook = (webhookUrl: string) =>
+  invoke<string>("verify_discord_webhook", { webhookUrl });
+export const sendToDiscord = (meetingId: string, webhookUrl?: string | null) =>
+  invoke<string>("send_to_discord_webhook", { meetingId, webhookUrl: webhookUrl ?? null });
 export const verifyLinearConnection = (apiKey: string) =>
   invoke<string>("verify_linear_connection", { apiKey });
 export const createLinearIssue = (title: string, description?: string | null, teamKey?: string | null) =>

@@ -13,6 +13,8 @@ import { TabHeading } from "./shared";
 const integrations: { id: string; name: string; hint: string; color: string; placeholder: string }[] = [
   { id: "gmail", name: "Gmail", hint: "Follow-up emails via webhook", color: "#ea4335", placeholder: "https://hooks.zapier.com/…" },
   { id: "slack", name: "Slack", hint: "Incoming webhook to a channel", color: "#4a154b", placeholder: "https://hooks.slack.com/services/…" },
+  { id: "teams", name: "Microsoft Teams", hint: "Recap webhook to Teams channel", color: "#5b5fc7", placeholder: "https://outlook.office.com/webhook/…" },
+  { id: "discord", name: "Discord", hint: "Rich embed recap to Discord channel", color: "#5865f2", placeholder: "https://discord.com/api/webhooks/…" },
   { id: "notion", name: "Notion", hint: "Export via Zapier / Make", color: "#37352f", placeholder: "https://hooks.zapier.com/…" },
   { id: "zapier", name: "Zapier", hint: "Catch-hook for any Zap", color: "#ff4a00", placeholder: "https://hooks.zapier.com/…" },
   { id: "affinity", name: "Affinity", hint: "CRM via Zapier", color: "#1f6feb", placeholder: "https://hooks.zapier.com/…" },
@@ -44,6 +46,36 @@ export function ConnectorsTab() {
 
   // Slack state
   const [slackWebhookUrl, setSlackWebhookUrl] = useSetting("connector_slack_url", "");
+
+  // Microsoft Teams state
+  const [teamsWebhookUrl, setTeamsWebhookUrl] = useSetting("connector_teams_url", "");
+  const [teamsInput, setTeamsInput] = useState<string | null>(null);
+  const currentTeamsUrl = teamsInput ?? teamsWebhookUrl;
+  const [teamsStatus, setTeamsStatus] = useState<string | null>(null);
+
+  // Discord state
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useSetting("connector_discord_url", "");
+  const [discordInput, setDiscordInput] = useState<string | null>(null);
+  const currentDiscordUrl = discordInput ?? discordWebhookUrl;
+  const [discordStatus, setDiscordStatus] = useState<string | null>(null);
+
+  const verifyTeams = useMutation({
+    mutationFn: () => api.verifyTeamsWebhook(currentTeamsUrl.trim()),
+    onSuccess: (msg) => {
+      setTeamsStatus(msg);
+      toast.success(msg);
+    },
+    onError: (e) => toast.error(e),
+  });
+
+  const verifyDiscord = useMutation({
+    mutationFn: () => api.verifyDiscordWebhook(currentDiscordUrl.trim()),
+    onSuccess: (msg) => {
+      setDiscordStatus(msg);
+      toast.success(msg);
+    },
+    onError: (e) => toast.error(e),
+  });
 
   const verifyNotion = useMutation({
     mutationFn: () => api.verifyNotionConnection(notionKey.trim()),
@@ -178,6 +210,90 @@ export function ConnectorsTab() {
               onChange={(e) => setSlackWebhookUrl(e.target.value)}
               className="mt-1"
             />
+          </div>
+        </div>
+
+        {/* Microsoft Teams Webhook Connector */}
+        <div className="flex flex-col gap-3 p-4 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="grid size-7 place-items-center rounded-lg bg-surface border border-border text-[#5b5fc7] font-bold text-xs">
+                T
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-text">Microsoft Teams Recaps</span>
+                <span className="block text-[11px] text-subtle">
+                  Broadcast adaptive cards with key decisions and actions to a Teams channel
+                </span>
+              </div>
+            </div>
+            {(teamsStatus || currentTeamsUrl) && <Badge tone="success">{teamsStatus ? "Verified" : "Configured"}</Badge>}
+          </div>
+
+          <div>
+            <label className="text-[11px] text-subtle font-medium">Teams Incoming Webhook / Workflow URL</label>
+            <Input
+              placeholder="https://outlook.office.com/webhook/..."
+              value={currentTeamsUrl}
+              onChange={(e) => {
+                setTeamsInput(e.target.value);
+                setTeamsWebhookUrl(e.target.value);
+              }}
+              className="mt-1"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={verifyTeams.isPending || !currentTeamsUrl.trim()}
+              onClick={() => verifyTeams.mutate()}
+            >
+              {verifyTeams.isPending ? "Testing..." : "Test Teams Connection"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Discord Webhook Connector */}
+        <div className="flex flex-col gap-3 p-4 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="grid size-7 place-items-center rounded-lg bg-surface border border-border text-[#5865f2] font-bold text-xs">
+                D
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-text">Discord Broadcasts</span>
+                <span className="block text-[11px] text-subtle">
+                  Send rich embeds with summaries, attendee rosters, and commitments to Discord
+                </span>
+              </div>
+            </div>
+            {(discordStatus || currentDiscordUrl) && <Badge tone="success">{discordStatus ? "Verified" : "Configured"}</Badge>}
+          </div>
+
+          <div>
+            <label className="text-[11px] text-subtle font-medium">Discord Channel Webhook URL</label>
+            <Input
+              placeholder="https://discord.com/api/webhooks/..."
+              value={currentDiscordUrl}
+              onChange={(e) => {
+                setDiscordInput(e.target.value);
+                setDiscordWebhookUrl(e.target.value);
+              }}
+              className="mt-1"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={verifyDiscord.isPending || !currentDiscordUrl.trim()}
+              onClick={() => verifyDiscord.mutate()}
+            >
+              {verifyDiscord.isPending ? "Testing..." : "Test Discord Connection"}
+            </Button>
           </div>
         </div>
 
