@@ -288,6 +288,21 @@ export type Route =
   | { kind: "action-items" }
   | { kind: "settings"; tab: SettingsTab };
 
+export type AudioDeviceInfo = {
+  name: string;
+  kind: "input" | "output";
+  is_default: boolean;
+};
+
+export type AudioDiagnostics = {
+  default_input: string;
+  default_output: string;
+  wasapi_supported: boolean;
+  sample_rate_hz: number;
+  latency_ms: number;
+  channels: number;
+};
+
 export function routeKey(route: Route): string {
   switch (route.kind) {
     case "chat":

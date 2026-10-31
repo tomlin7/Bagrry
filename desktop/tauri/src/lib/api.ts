@@ -3,6 +3,8 @@ import type {
   ActionItem,
   ApiKey,
   Attachment,
+  AudioDeviceInfo,
+  AudioDiagnostics,
   CalendarEvent,
   ChatMessage,
   ChatRole,
@@ -300,6 +302,9 @@ export const submitFeedback = (category: string, content: string) =>
   invoke<void>("submit_feedback", { category, content });
 export const getReferralCode = () => invoke<string>("get_referral_code");
 
+export const listAudioDevices = () => invoke<AudioDeviceInfo[]>("list_audio_devices");
+export const getAudioDiagnostics = () => invoke<AudioDiagnostics>("get_audio_diagnostics");
+
 /* ------------------------------------------------------------------ */
 /* Query keys                                                          */
 /* ------------------------------------------------------------------ */
@@ -335,4 +340,6 @@ export const qk = {
   referral: () => ["referral"] as const,
   autostart: () => ["autostart"] as const,
   localSttStatus: () => ["local-stt-status"] as const,
+  audioDevices: () => ["audio-devices"] as const,
+  audioDiagnostics: () => ["audio-diagnostics"] as const,
 };

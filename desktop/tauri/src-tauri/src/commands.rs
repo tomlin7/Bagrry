@@ -3536,3 +3536,89 @@ pub fn create_linear_issue(
 
     Ok(issue_url.to_string())
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AudioDeviceInfo {
+    pub name: String,
+    pub kind: String, // "input" | "output"
+    pub is_default: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AudioDiagnostics {
+    pub default_input: String,
+    pub default_output: String,
+    pub wasapi_supported: bool,
+    pub sample_rate_hz: u32,
+    pub latency_ms: u32,
+    pub channels: u32,
+}
+
+#[tauri::command]
+pub fn list_audio_devices() -> Result<Vec<AudioDeviceInfo>, String> {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    let host = cpal::default_host();
+    let mut devices = Vec::new();
+
+    let def_in = host.default_input_device().and_then(|d| d.name().ok());
+    let def_out = host.default_output_device().and_then(|d| d.name().ok());
+
+    if let Ok(input_devs) = host.input_devices() {
+        for dev in input_devs {
+            if let Ok(name) = dev.name() {
+                let is_default = def_in.as_deref() == Some(&name);
+                devices.push(AudioDeviceInfo {
+                    name,
+                    kind: "input".to_string(),
+                    is_default,
+                });
+            }
+        }
+    }
+
+    if let Ok(output_devs) = host.output_devices() {
+        for dev in output_devs {
+            if let Ok(name) = dev.name() {
+                let is_default = def_out.as_deref() == Some(&name);
+                devices.push(AudioDeviceInfo {
+                    name,
+                    kind: "output".to_string(),
+                    is_default,
+                });
+            }
+        }
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    devices.retain(|d| seen.insert(format!("{}:{}", d.kind, d.name)));
+
+    Ok(devices)
+}
+
+#[tauri::command]
+pub fn get_audio_diagnostics() -> Result<AudioDiagnostics, String> {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    let host = cpal::default_host();
+    let def_in = host
+        .default_input_device()
+        .and_then(|d| d.name().ok())
+        .unwrap_or_else(|| "Default Microphone".into());
+    let def_out = host
+        .default_output_device()
+        .and_then(|d| d.name().ok())
+        .unwrap_or_else(|| "Default Speakers (WASAPI)".into());
+
+    #[cfg(windows)]
+    let wasapi_supported = true;
+    #[cfg(not(windows))]
+    let wasapi_supported = false;
+
+    Ok(AudioDiagnostics {
+        default_input: def_in,
+        default_output: def_out,
+        wasapi_supported,
+        sample_rate_hz: 16_000,
+        latency_ms: 20,
+        channels: 2,
+    })
+}

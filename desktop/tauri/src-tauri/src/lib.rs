@@ -162,6 +162,8 @@ pub fn run() {
             commands::list_attachments,
             commands::set_action_item_done,
             commands::delete_action_item,
+            commands::list_audio_devices,
+            commands::get_audio_diagnostics,
             settings_cmds::set_launch_on_login,
             settings_cmds::get_launch_on_login,
             settings_cmds::apply_retention,
