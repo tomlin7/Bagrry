@@ -10,11 +10,13 @@ import {
   Play,
   Sparkles,
   Trash2,
+  Tv,
 } from "lucide-react";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/app";
 import { Elapsed } from "@/components/notes/TranscriptPanel";
 import { DualChannelVuMeter } from "@/components/notes/DualChannelVuMeter";
+import { MeetingTeleprompterHud } from "@/components/layout/MeetingTeleprompterHud";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 
@@ -28,6 +30,7 @@ export function FloatingRecordingPill() {
   const openNote = useAppStore((s) => s.openNote);
 
   const [minimized, setMinimized] = useState(false);
+  const [hudOpen, setHudOpen] = useState(false);
   const [discardModalOpen, setDiscardModalOpen] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const pillRef = useRef<HTMLDivElement>(null);
@@ -186,6 +189,17 @@ export function FloatingRecordingPill() {
                     <span>Finish</span>
                   </button>
 
+                  {/* Open Teleprompter HUD */}
+                  <button
+                    type="button"
+                    onClick={() => setHudOpen(!hudOpen)}
+                    className="grid size-7 place-items-center rounded-full text-subtle hover:text-accent hover:bg-hover transition-colors"
+                    title={hudOpen ? "Close Teleprompter HUD" : "Open Teleprompter HUD"}
+                    aria-label="Open Teleprompter HUD"
+                  >
+                    <Tv className="size-3.5" />
+                  </button>
+
                   {/* Discard / Cancel */}
                   <button
                     type="button"
@@ -211,6 +225,12 @@ export function FloatingRecordingPill() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <MeetingTeleprompterHud
+        open={hudOpen && visible}
+        onClose={() => setHudOpen(false)}
+        onMinimizeToPill={() => setHudOpen(false)}
+      />
 
       {/* Discard Confirmation Dialog */}
       <Dialog open={discardModalOpen} onOpenChange={setDiscardModalOpen}>
