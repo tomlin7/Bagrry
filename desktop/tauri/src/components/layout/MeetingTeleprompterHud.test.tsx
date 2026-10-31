@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MeetingTeleprompterHud } from "./MeetingTeleprompterHud";
@@ -35,7 +35,6 @@ describe("MeetingTeleprompterHud (#44)", () => {
       liveSegments: [
         {
           id: "seg_1",
-          meeting_id: "m_test_101",
           speaker: "attendees",
           start_ms: 12000,
           end_ms: 18000,
@@ -112,7 +111,6 @@ describe("MeetingTeleprompterHud (#44)", () => {
     const input = screen.getByPlaceholderText(/Ask about this call…/i);
     fireEvent.change(input, { target: { value: "When is the launch?" } });
 
-    const submitBtn = screen.getByRole("button", { name: "" });
     fireEvent.submit(input.closest("form")!);
 
     expect(await screen.findByText(/The attendees agreed to review launch dates on Friday/i)).toBeDefined();

@@ -3,14 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Bot,
-  Check,
-  CheckCircle2,
-  ChevronDown,
   GripVertical,
-  ListTodo,
   Loader2,
-  Maximize2,
-  Mic,
   Minimize2,
   Pause,
   Pin,
@@ -18,9 +12,7 @@ import {
   Radio,
   Send,
   Sparkles,
-  Trash2,
   Tv,
-  Volume2,
   X,
 } from "lucide-react";
 import * as api from "@/lib/api";

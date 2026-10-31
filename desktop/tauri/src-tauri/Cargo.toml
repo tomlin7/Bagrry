@@ -1,8 +1,8 @@
 [package]
 name = "bagrry"
-version = "0.1.0"
-description = "Bagrry meeting notes"
-authors = ["you"]
+version = "1.0.0"
+description = "Bagrry AI meeting notepad"
+authors = ["Bagrry Team"]
 edition = "2021"
 
 [lib]
@@ -38,3 +38,10 @@ windows = { version = "0.58", features = [
     "Win32_Media_Audio",
     "Win32_System_Com",
 ] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

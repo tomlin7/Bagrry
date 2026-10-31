@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Bagrry",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "com.bit.bagrry",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -42,12 +42,29 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Bagrry Workspace",
+    "copyright": "Copyright © 2026 Bagrry Workspace. All rights reserved.",
+    "category": "Productivity",
+    "shortDescription": "AI-Powered Meeting Notepad with Sentence Grounding & Verbatim Citations",
+    "longDescription": "Bagrry is the production-grade local-first AI meeting notepad for Windows. Features dual-channel WASAPI loopback capture, offline speech-to-text, dual-pane editor, and cross-meeting workspace intelligence.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      },
+      "wix": {
+        "language": ["en-US"]
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
   }
 }

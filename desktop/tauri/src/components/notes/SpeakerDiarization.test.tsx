@@ -59,8 +59,26 @@ describe("Speaker Diarization & Attendee Attribution (#45)", () => {
     ]);
 
     vi.mocked(api.listMeetingAttendees).mockResolvedValue([
-      { id: "att_1", name: "Sarah Connor", email: "sarah@skynet.com", company_name: "Cyberdyne" },
-      { id: "att_2", name: "John Doe", email: "john@example.com", company_name: null },
+      {
+        id: "att_1",
+        name: "Sarah Connor",
+        email: "sarah@skynet.com",
+        domain: "skynet.com",
+        company_id: "comp_1",
+        company_name: "Cyberdyne",
+        note_count: 3,
+        last_note_at: new Date().toISOString(),
+      },
+      {
+        id: "att_2",
+        name: "John Doe",
+        email: "john@example.com",
+        domain: "example.com",
+        company_id: null,
+        company_name: null,
+        note_count: 1,
+        last_note_at: new Date().toISOString(),
+      },
     ]);
 
     vi.mocked(api.assignSpeakerName).mockResolvedValue([]);
