@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAppStore } from "@/store/app";
 import { useAudioPlayerStore } from "@/store/audio";
+import * as api from "@/lib/api";
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -35,6 +36,24 @@ export function useGlobalShortcuts() {
       if (mod && event.key === ",") {
         event.preventDefault();
         store.openSettings();
+        return;
+      }
+
+      if (mod && event.shiftKey && event.key.toLowerCase() === "r") {
+        event.preventDefault();
+        if (store.recState === "recording" || store.recState === "paused") {
+          void api.stopRecording().then((status) => store.applyRecStatus(status));
+        } else {
+          void api.startRecording(store.recordingMeetingId ?? null).then((status) => store.applyRecStatus(status));
+        }
+        return;
+      }
+
+      if (mod && event.shiftKey && event.key.toLowerCase() === "p") {
+        event.preventDefault();
+        if (store.recState !== "idle") {
+          void api.pauseRecording().then((status) => store.applyRecStatus(status));
+        }
         return;
       }
 
