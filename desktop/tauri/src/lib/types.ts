@@ -304,6 +304,31 @@ export type AudioDiagnostics = {
   channels: number;
 };
 
+export type TopCollaborator = {
+  name: string;
+  role?: string | null;
+  company?: string | null;
+  meeting_count: number;
+};
+
+export type DayStat = {
+  day: string;
+  minutes: number;
+};
+
+export type MeetingAnalytics = {
+  total_meetings: number;
+  total_minutes: number;
+  this_week_minutes: number;
+  last_week_minutes: number;
+  talk_time_me_pct: number;
+  talk_time_others_pct: number;
+  open_commitments: number;
+  completed_commitments: number;
+  top_collaborators: TopCollaborator[];
+  day_breakdown: DayStat[];
+};
+
 export function routeKey(route: Route): string {
   switch (route.kind) {
     case "chat":

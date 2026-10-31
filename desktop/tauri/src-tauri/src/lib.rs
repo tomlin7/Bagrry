@@ -166,6 +166,7 @@ pub fn run() {
             commands::get_audio_diagnostics,
             commands::assign_speaker_name,
             commands::update_segment_speaker,
+            commands::get_meeting_analytics,
             settings_cmds::set_launch_on_login,
             settings_cmds::get_launch_on_login,
             settings_cmds::apply_retention,

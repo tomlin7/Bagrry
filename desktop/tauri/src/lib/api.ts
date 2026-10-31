@@ -17,6 +17,7 @@ import type {
   GlobalSearchResult,
   LocalSttStatus,
   Meeting,
+  MeetingAnalytics,
   Person,
   PersonDossier,
   Profile,
@@ -308,6 +309,7 @@ export const getReferralCode = () => invoke<string>("get_referral_code");
 
 export const listAudioDevices = () => invoke<AudioDeviceInfo[]>("list_audio_devices");
 export const getAudioDiagnostics = () => invoke<AudioDiagnostics>("get_audio_diagnostics");
+export const getMeetingAnalytics = () => invoke<MeetingAnalytics>("get_meeting_analytics");
 
 /* ------------------------------------------------------------------ */
 /* Query keys                                                          */
@@ -346,4 +348,5 @@ export const qk = {
   localSttStatus: () => ["local-stt-status"] as const,
   audioDevices: () => ["audio-devices"] as const,
   audioDiagnostics: () => ["audio-diagnostics"] as const,
+  analytics: () => ["analytics"] as const,
 };

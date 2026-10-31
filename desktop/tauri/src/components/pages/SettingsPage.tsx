@@ -9,7 +9,8 @@ import { ConnectorsTab } from "@/components/settings/ConnectorsTab";
 import { GetHelpTab } from "@/components/settings/GetHelpTab";
 import { BillingTab } from "@/components/settings/BillingTab";
 import { ReferralsTab } from "@/components/settings/ReferralsTab";
-import { AnalyticsTab, MembersTab, SpacesTab, WorkspaceGeneralTab } from "@/components/settings/WorkspaceTabs";
+import { AnalyticsTab } from "@/components/settings/AnalyticsTab";
+import { MembersTab, SpacesTab, WorkspaceGeneralTab } from "@/components/settings/WorkspaceTabs";
 
 export function SettingsPage({ tab }: { tab: SettingsTab }) {
   return (
