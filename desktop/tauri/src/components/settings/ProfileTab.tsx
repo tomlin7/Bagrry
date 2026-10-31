@@ -60,6 +60,12 @@ export function ProfileTab() {
     onError: (e) => toast.error(e),
   });
 
+  const exportVault = useMutation({
+    mutationFn: () => api.exportWorkspaceVault(null),
+    onSuccess: (res) => toast.success("Obsidian Vault exported ($(.total_files) notes across $(.total_folders) folders)", res.vault_path),
+    onError: (e) => toast.error(e),
+  });
+
   const wipe = useMutation({
     mutationFn: api.deleteAllData,
     onSuccess: () => {
@@ -163,6 +169,21 @@ export function ProfileTab() {
           }
         />
         <SettingRow
+          title="Export Obsidian Markdown Vault"
+          description="1-Click export of your entire workspace to an Obsidian/Logseq vault with YAML frontmatter, action checkboxes, and citation links."
+          control={
+            <Button
+              variant="solid"
+              size="sm"
+              shape="square"
+              loading={exportVault.isPending}
+              onClick={() => exportVault.mutate()}
+            >
+              Export Vault
+            </Button>
+          }
+        />
+        <SettingRow
           title="Export historical data"
           description="Download a CSV of your notes and attendees to your Downloads folder."
           control={
@@ -206,3 +227,5 @@ export function ProfileTab() {
     </>
   );
 }
+
+

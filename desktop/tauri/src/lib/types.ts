@@ -329,6 +329,12 @@ export type MeetingAnalytics = {
   day_breakdown: DayStat[];
 };
 
+export type VaultExportResult = {
+  vault_path: string;
+  total_files: number;
+  total_folders: number;
+};
+
 export function routeKey(route: Route): string {
   switch (route.kind) {
     case "chat":

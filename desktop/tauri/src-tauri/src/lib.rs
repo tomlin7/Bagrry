@@ -175,6 +175,7 @@ pub fn run() {
             settings_cmds::get_launch_on_login,
             settings_cmds::apply_retention,
             settings_cmds::export_csv,
+            settings_cmds::export_workspace_markdown_vault,
             settings_cmds::import_notes,
             settings_cmds::delete_all_data,
             settings_cmds::list_api_keys,

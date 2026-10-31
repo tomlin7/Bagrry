@@ -26,6 +26,7 @@ import type {
   ShareInfo,
   Template,
   TranscriptSeg,
+  VaultExportResult,
 } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -304,6 +305,8 @@ export const setLaunchOnLogin = (enable: boolean) =>
 export const getLaunchOnLogin = () => invoke<boolean>("get_launch_on_login");
 export const applyRetention = () => invoke<number>("apply_retention");
 export const exportCsv = () => invoke<string>("export_csv");
+export const exportWorkspaceVault = (destinationPath?: string | null) =>
+  invoke<VaultExportResult>("export_workspace_markdown_vault", { destinationPath: destinationPath ?? null });
 export const importNotes = (notes: { title: string; body: string; date?: string | null }[]) =>
   invoke<number>("import_notes", { notes });
 export const deleteAllData = () => invoke<void>("delete_all_data");

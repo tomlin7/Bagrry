@@ -6,7 +6,7 @@ use crate::ids::new_id;
 use crate::secrets;
 use crate::AppState;
 use rusqlite::params;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_autostart::ManagerExt;
 
@@ -155,6 +155,270 @@ fn chrono_free_timestamp() -> String {
     let mo = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = if mo <= 2 { y + 1 } else { y };
     format!("{y:04}{mo:02}{d:02}-{h:02}{m:02}{s:02}")
+}
+
+// ---------------------------------------------------------------------------
+// Markdown Vault Export (Obsidian / Logseq Compatible)
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultExportResult {
+    pub vault_path: String,
+    pub total_files: usize,
+    pub total_folders: usize,
+}
+
+#[tauri::command]
+pub fn export_workspace_markdown_vault(
+    app: AppHandle,
+    state: State<AppState>,
+    destination_path: Option<String>,
+) -> Result<VaultExportResult, String> {
+    let conn = state.conn()?;
+
+    // 1. Determine destination root
+    let root_dir = if let Some(dest) = destination_path.filter(|p| !p.trim().is_empty()) {
+        std::path::PathBuf::from(dest)
+    } else {
+        let base = app
+            .path()
+            .download_dir()
+            .or_else(|_| app.path().document_dir())
+            .or_else(|_| app.path().app_data_dir())
+            .map_err(|e| format!("no writable destination directory: {e}"))?;
+        let stamp = chrono_free_timestamp();
+        base.join(format!("Bagrry-Obsidian-Vault-{stamp}"))
+    };
+
+    std::fs::create_dir_all(&root_dir).map_err(|e| format!("Failed to create vault root: {e}"))?;
+
+    // 2. Query all folders
+    let mut folder_map = std::collections::HashMap::new();
+    let mut total_folders = 0;
+    {
+        let mut stmt = conn
+            .prepare("SELECT id, name FROM folders")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .map_err(|e| e.to_string())?;
+        for row in rows.flatten() {
+            let safe_folder: String = row
+                .1
+                .chars()
+                .map(|c| {
+                    if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' {
+                        c
+                    } else {
+                        '_'
+                    }
+                })
+                .collect();
+            let folder_dir = root_dir.join(&safe_folder);
+            let _ = std::fs::create_dir_all(&folder_dir);
+            folder_map.insert(row.0, (row.1, folder_dir));
+            total_folders += 1;
+        }
+    }
+
+    // General folder for unassigned meetings
+    let general_dir = root_dir.join("General");
+    let _ = std::fs::create_dir_all(&general_dir);
+
+    // 3. Query all meetings
+    let mut stmt = conn
+        .prepare(
+            "SELECT m.id, m.title, m.date, ifnull(m.duration_ms, 0), ifnull(m.scratchpad_raw, ''),
+                    m.enhanced_notes_json, m.folder_id,
+                    (SELECT group_concat(a.name, '; ') FROM attendees a
+                     JOIN meeting_attendees ma ON ma.attendee_id = a.id
+                     WHERE ma.meeting_id = m.id) as attendees
+             FROM meetings m
+             ORDER BY m.date DESC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let meetings_rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, Option<String>>(6)?,
+                row.get::<_, Option<String>>(7)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut total_files = 0;
+
+    for row in meetings_rows.flatten() {
+        let (id, title, date, duration_ms, scratchpad, enh_json, folder_id, attendees_str) = row;
+
+        let (folder_name, target_dir) =
+            if let Some(fid) = folder_id.and_then(|id| folder_map.get(&id)) {
+                (fid.0.clone(), fid.1.clone())
+            } else {
+                ("General".to_string(), general_dir.clone())
+            };
+
+        let mut action_items = Vec::new();
+        if let Ok(mut act_stmt) =
+            conn.prepare("SELECT task, owner, deadline, done FROM action_items WHERE meeting_id=?1")
+        {
+            if let Ok(act_rows) = act_stmt.query_map(params![&id], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                    r.get::<_, i64>(3)? != 0,
+                ))
+            }) {
+                for act in act_rows.flatten() {
+                    action_items.push(act);
+                }
+            }
+        }
+
+        let attendees: Vec<String> = attendees_str
+            .map(|s| {
+                s.split("; ")
+                    .map(|p| p.trim().to_string())
+                    .filter(|p| !p.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let safe_title: String = title
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        let safe_name = safe_title.trim();
+        let file_name = if safe_name.is_empty() {
+            format!("Meeting-{id}.md")
+        } else {
+            format!("{safe_name}.md")
+        };
+        let file_path = target_dir.join(file_name);
+
+        let mut md = String::new();
+        md.push_str("---\n");
+        md.push_str(&format!("title: \"{}\"\n", title.replace('"', "\\\"")));
+        md.push_str(&format!("date: \"{}\"\n", date));
+        md.push_str(&format!("folder: \"{}\"\n", folder_name));
+        md.push_str(&format!("duration_minutes: {}\n", duration_ms / 60_000));
+        if !attendees.is_empty() {
+            md.push_str("attendees:\n");
+            for a in &attendees {
+                md.push_str(&format!("  - \"[[{}]]\"\n", a.replace('"', "\\\"")));
+            }
+        }
+        md.push_str("tags:\n  - meeting\n  - bagrry\n");
+        md.push_str("---\n\n");
+
+        md.push_str(&format!("# {}\n\n", title));
+        md.push_str(&format!(
+            "**Date:** {} · **Folder:** [[{}]] · **Duration:** {}m\n\n",
+            date,
+            folder_name,
+            duration_ms / 60_000
+        ));
+
+        if !attendees.is_empty() {
+            md.push_str("**Attendees:** ");
+            let attendee_links: Vec<String> =
+                attendees.iter().map(|a| format!("[[{}]]", a)).collect();
+            md.push_str(&attendee_links.join(", "));
+            md.push_str("\n\n");
+        }
+
+        if !action_items.is_empty() {
+            md.push_str("## Action Items & Commitments\n\n");
+            for (task, owner, deadline, done) in action_items {
+                let checkbox = if done { "[x]" } else { "[ ]" };
+                let mut line = format!("- {} {}", checkbox, task);
+                if let Some(o) = owner {
+                    line.push_str(&format!(" (Owner: [[{o}]])"));
+                }
+                if let Some(d) = deadline {
+                    line.push_str(&format!(" (Due: {d})"));
+                }
+                md.push_str(&line);
+                md.push('\n');
+            }
+            md.push('\n');
+        }
+
+        if let Some(enh) = enh_json {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&enh) {
+                if let Some(sections) = val.get("sections").and_then(|s| s.as_array()) {
+                    md.push_str("## Executive Summary\n\n");
+                    for sec in sections {
+                        if let Some(sec_title) = sec.get("section_title").and_then(|t| t.as_str()) {
+                            md.push_str(&format!("### {}\n\n", sec_title));
+                        }
+                        if let Some(bullets) = sec.get("bullet_points").and_then(|b| b.as_array()) {
+                            for b in bullets {
+                                if let Some(txt) = b.get("text").and_then(|t| t.as_str()) {
+                                    let mut bullet_line = format!("- {}", txt);
+                                    if let Some(cits) =
+                                        b.get("citation_ids").and_then(|c| c.as_array())
+                                    {
+                                        if !cits.is_empty() {
+                                            let nums: Vec<String> = cits
+                                                .iter()
+                                                .filter_map(|c| {
+                                                    c.as_u64().map(|n| format!("[^{}]", n))
+                                                })
+                                                .collect();
+                                            bullet_line.push(' ');
+                                            bullet_line.push_str(&nums.join(" "));
+                                        }
+                                    }
+                                    md.push_str(&bullet_line);
+                                    md.push('\n');
+                                }
+                            }
+                            md.push('\n');
+                        }
+                    }
+                }
+            }
+        }
+
+        if !scratchpad.trim().is_empty() {
+            md.push_str("## Scratchpad Notes\n\n");
+            md.push_str(&scratchpad);
+            md.push_str("\n\n");
+        }
+
+        md.push_str("\n---\n*Exported by Bagrry · Zero meeting bots · Local SQLite*\n");
+
+        if std::fs::write(&file_path, md).is_ok() {
+            total_files += 1;
+        }
+    }
+
+    let readme = format!(
+        "# Bagrry Markdown Vault\n\nThis vault contains {} meeting notes across {} folders exported from Bagrry.\n\nAll notes include YAML frontmatter, [[wiki-links]] for attendees and folders, and Obsidian checkbox action items.\n",
+        total_files,
+        total_folders + 1
+    );
+    let _ = std::fs::write(root_dir.join("README.md"), readme);
+
+    Ok(VaultExportResult {
+        vault_path: root_dir.to_string_lossy().into_owned(),
+        total_files,
+        total_folders: total_folders + 1,
+    })
 }
 
 // ---------------------------------------------------------------------------
