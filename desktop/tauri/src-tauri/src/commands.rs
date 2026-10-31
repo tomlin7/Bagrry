@@ -662,17 +662,20 @@ pub fn ask_bagrry(
             matched_meetings.push(m);
         }
     } else {
-        let mut matched_ids: Vec<String> = pipeline::search_semantic(&conn, &query, folder_id.as_deref())
-            .unwrap_or_default()
-            .into_iter()
-            .take(6)
-            .map(|(id, _)| id)
-            .collect();
+        let mut matched_ids: Vec<String> =
+            pipeline::search_semantic(&conn, &query, folder_id.as_deref())
+                .unwrap_or_default()
+                .into_iter()
+                .take(6)
+                .map(|(id, _)| id)
+                .collect();
 
         let like_query = format!("%{query}%");
 
         // Search meetings table by title / scratchpad
-        if let Ok(mut stmt) = conn.prepare("SELECT id FROM meetings WHERE title LIKE ?1 OR scratchpad_raw LIKE ?1 LIMIT 6") {
+        if let Ok(mut stmt) = conn.prepare(
+            "SELECT id FROM meetings WHERE title LIKE ?1 OR scratchpad_raw LIKE ?1 LIMIT 6",
+        ) {
             if let Ok(rows) = stmt.query_map(params![like_query], |r| r.get::<_, String>(0)) {
                 for id in rows.flatten() {
                     if !matched_ids.contains(&id) {
@@ -683,7 +686,9 @@ pub fn ask_bagrry(
         }
 
         // Search transcript segments
-        if let Ok(mut stmt) = conn.prepare("SELECT DISTINCT meeting_id FROM transcript_segments WHERE text LIKE ?1 LIMIT 6") {
+        if let Ok(mut stmt) = conn.prepare(
+            "SELECT DISTINCT meeting_id FROM transcript_segments WHERE text LIKE ?1 LIMIT 6",
+        ) {
             if let Ok(rows) = stmt.query_map(params![like_query], |r| r.get::<_, String>(0)) {
                 for id in rows.flatten() {
                     if !matched_ids.contains(&id) {
@@ -706,7 +711,8 @@ pub fn ask_bagrry(
 
         // If still empty, fetch the most recent meetings
         if matched_ids.is_empty() {
-            if let Ok(mut stmt) = conn.prepare("SELECT id FROM meetings ORDER BY date DESC LIMIT 4") {
+            if let Ok(mut stmt) = conn.prepare("SELECT id FROM meetings ORDER BY date DESC LIMIT 4")
+            {
                 if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
                     for id in rows.flatten() {
                         matched_ids.push(id);
@@ -760,7 +766,10 @@ pub fn ask_bagrry(
                 ));
 
                 if !transcript_snippets.is_empty() {
-                    context.push_str(&format!("Transcript Highlights:\n{}\n", transcript_snippets));
+                    context.push_str(&format!(
+                        "Transcript Highlights:\n{}\n",
+                        transcript_snippets
+                    ));
                 }
 
                 matched_meetings.push(m);
@@ -791,7 +800,8 @@ STRICT INSTRUCTIONS:
         Ok("No matching meetings, transcripts, or attendees found for your query. Try searching with different keywords.".into())
     } else {
         let count = matched_meetings.len();
-        let mut synthesis = format!("Based on your workspace notes and transcripts across {count} meetings:\n\n");
+        let mut synthesis =
+            format!("Based on your workspace notes and transcripts across {count} meetings:\n\n");
         for m in &matched_meetings {
             synthesis.push_str(&format!("• In [[meeting:{}:{}]]:\n", m.id, m.title));
             let raw = m.scratchpad_raw.trim();
@@ -807,7 +817,9 @@ STRICT INSTRUCTIONS:
                 synthesis.push_str("  Summary available in enhanced record.\n\n");
             }
         }
-        synthesis.push_str(&format!("[Confidence: High (92%) · Grounded across {count} meetings]"));
+        synthesis.push_str(&format!(
+            "[Confidence: High (92%) · Grounded across {count} meetings]"
+        ));
         Ok(synthesis)
     }
 }
