@@ -29,6 +29,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   return {
     ...actual,
     listCalendar: vi.fn().mockResolvedValue(mockCalendarEvents),
+    preMeetingBrief: vi.fn().mockResolvedValue("Past decisions: Reviewed Q2 roadmap.\nOpen loops: Follow up on auth refactor with Alex Chen."),
     createMeeting: vi.fn().mockResolvedValue({
       id: "mtg_new",
       title: "Product Architecture Sync https://meet.google.com/xyz-abcd-qrs",
@@ -96,5 +97,26 @@ describe("PreMeetingPrompt", () => {
     fireEvent.click(dismissBtn);
 
     expect(screen.queryByText("Google Meet")).toBeNull();
+  });
+
+  it("expands and loads pre-call attendee briefing and open loops", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PreMeetingPrompt />
+      </QueryClientProvider>,
+    );
+
+    const catchMeUpBtn = await screen.findByRole("button", { name: /Catch Me Up/i });
+    fireEvent.click(catchMeUpBtn);
+
+    expect(await screen.findByText(/Pre-Call Briefing & Open Loops/i)).toBeDefined();
+    await waitFor(() => {
+      expect(api.preMeetingBrief).toHaveBeenCalled();
+      expect(screen.getByText(/Follow up on auth refactor with Alex Chen/i)).toBeDefined();
+    });
   });
 });

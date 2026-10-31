@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, Users, Link2, Sparkles } from "lucide-react";
+import { CalendarPlus, Users, Link2, Sparkles, Zap, Bot } from "lucide-react";
 import * as api from "@/lib/api";
 import { pickTextFile } from "@/lib/open";
 import { useBoolSetting } from "@/hooks/useSetting";
@@ -15,6 +15,7 @@ export function CalendarTab() {
   const { data: events = [] } = useQuery({ queryKey: api.qk.calendar(), queryFn: api.listCalendar });
   const [emptyEvents, setEmptyEvents] = useBoolSetting("calendar_show_empty_events", true);
   const [calendarOn, setCalendarOn] = useBoolSetting("calendar_primary_visible", true);
+  const [autoRecord, setAutoRecord] = useBoolSetting("calendar_auto_record", false);
   const [subUrl, setSubUrl] = useState("");
   const email = profile?.email || "Local calendar";
 
@@ -104,6 +105,21 @@ export function CalendarTab() {
           title="Show events with no participants"
           description="'Coming up' will include events without participants."
           control={<Switch checked={emptyEvents} onCheckedChange={setEmptyEvents} />}
+        />
+      </SettingsCard>
+
+      <SettingsCard title="Automation & Pre-Call Intelligence">
+        <SettingRow
+          icon={<Zap className="text-accent" />}
+          title="Auto-record scheduled meetings"
+          description="Automatically initiate local recording when a calendar meeting start time is reached."
+          control={<Switch checked={autoRecord} onCheckedChange={setAutoRecord} />}
+        />
+        <SettingRow
+          icon={<Bot />}
+          title="5-minute pre-call briefings"
+          description="Surface attendee context, past decisions, and open loops on desktop before meetings."
+          control={<span className="font-mono text-xs text-accent">Active</span>}
         />
       </SettingsCard>
 

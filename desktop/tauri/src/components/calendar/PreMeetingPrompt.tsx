@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -8,6 +8,11 @@ import {
   Radio,
   ExternalLink,
   Users,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Zap,
 } from "lucide-react";
 import * as api from "@/lib/api";
 import { parseDbDate, formatTime } from "@/lib/format";
@@ -15,17 +20,23 @@ import type { CalendarEvent } from "@/lib/types";
 import { extractConferenceUrl, parseAttendeesList, isEventStartingSoonOrActive } from "@/lib/calendar";
 import { useCreateNote } from "@/hooks/useCreateNote";
 import { useAppStore } from "@/store/app";
+import { useBoolSetting } from "@/hooks/useSetting";
 import { Button } from "@/components/ui/button";
 
 export function PreMeetingPrompt() {
   const createNote = useCreateNote();
   const recState = useAppStore((s) => s.recState);
+  const [autoRecord] = useBoolSetting("calendar_auto_record", false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set());
   const [now, setNow] = useState(Date.now());
+  const [briefingOpen, setBriefingOpen] = useState(false);
+  const [briefingText, setBriefingText] = useState<string | null>(null);
+  const [loadingBrief, setLoadingBrief] = useState(false);
+  const [autoTriggeredId, setAutoTriggeredId] = useState<string | null>(null);
 
-  // Poll clock every 15s to update prompts
+  // Poll clock every 10s to update prompts
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 15000);
+    const id = setInterval(() => setNow(Date.now()), 10000);
     return () => clearInterval(id);
   }, []);
 
@@ -35,9 +46,8 @@ export function PreMeetingPrompt() {
     refetchInterval: 30000,
   });
 
-  // Find the most urgent upcoming or active event
+  // Find the most urgent upcoming or active event within a 5-minute window
   const candidateEvent = useMemo(() => {
-    // If user is already recording, don't nag with join prompts
     if (recState === "recording") return null;
 
     for (const ev of events) {
@@ -46,7 +56,7 @@ export function PreMeetingPrompt() {
       if (!start) continue;
       const end = parseDbDate(ev.end_at);
 
-      const check = isEventStartingSoonOrActive(start, end, now, 2);
+      const check = isEventStartingSoonOrActive(start, end, now, 5);
       if (check.status === "starting_soon" || check.status === "ongoing") {
         return {
           event: ev,
@@ -61,27 +71,64 @@ export function PreMeetingPrompt() {
     return null;
   }, [events, dismissedIds, now, recState]);
 
+  const handleRecord = useCallback((eventToRecord?: CalendarEvent, confUrl?: string | null) => {
+    const targetEvent = eventToRecord || candidateEvent?.event;
+    if (!targetEvent) return;
+
+    setDismissedIds((prev) => new Set(prev).add(targetEvent.id));
+
+    // Create note, link attendees and start recording
+    createNote.mutate({
+      title: targetEvent.title,
+      record: true,
+    });
+
+    const url = confUrl !== undefined ? confUrl : candidateEvent?.conference.url;
+    if (url) {
+      window.open(url, "_blank");
+    }
+  }, [candidateEvent, createNote]);
+
+  // Automated trigger when auto-record is enabled
+  useEffect(() => {
+    if (!autoRecord || !candidateEvent || recState !== "idle") return;
+    if (autoTriggeredId === candidateEvent.event.id) return;
+
+    // Trigger auto-record if ongoing or starting in <= 10s
+    if (
+      candidateEvent.status === "ongoing" ||
+      (candidateEvent.status === "starting_soon" && candidateEvent.deltaMs <= 10000)
+    ) {
+      setAutoTriggeredId(candidateEvent.event.id);
+      handleRecord(candidateEvent.event, candidateEvent.conference.url);
+    }
+  }, [autoRecord, candidateEvent, recState, autoTriggeredId, handleRecord]);
+
   if (!candidateEvent) return null;
 
   const { event, start, status, deltaMs, conference, attendees } = candidateEvent;
 
-  const handleRecord = async () => {
-    setDismissedIds((prev) => new Set(prev).add(event.id));
-
-    // Create note, link attendees and start recording
-    createNote.mutate({
-      title: event.title,
-      record: true,
-    });
-
-    // If conference link exists, open it in browser as well
-    if (conference.url) {
-      window.open(conference.url, "_blank");
-    }
-  };
-
   const handleDismiss = () => {
     setDismissedIds((prev) => new Set(prev).add(event.id));
+  };
+
+  const handleToggleBriefing = async () => {
+    if (briefingOpen) {
+      setBriefingOpen(false);
+      return;
+    }
+    setBriefingOpen(true);
+    if (!briefingText) {
+      setLoadingBrief(true);
+      try {
+        const brief = await api.preMeetingBrief(event.attendees_json || "[]");
+        setBriefingText(brief || "No previous meeting records or open commitments found for attendees.");
+      } catch {
+        setBriefingText("Unable to generate briefing at this time.");
+      } finally {
+        setLoadingBrief(false);
+      }
+    }
   };
 
   const timeLabel =
@@ -111,6 +158,12 @@ export function PreMeetingPrompt() {
                     ? "Microsoft Teams"
                     : "Scheduled Sync"}
             </span>
+            {autoRecord && (
+              <span className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium bg-accent/15 text-accent">
+                <Zap className="size-2.5" />
+                Auto-record on
+              </span>
+            )}
           </div>
 
           <button
@@ -139,22 +192,61 @@ export function PreMeetingPrompt() {
           </div>
 
           {attendees.length > 0 && (
-            <div className="flex items-center gap-1 text-[11px] text-subtle pt-0.5">
-              <Users className="size-3 text-subtle" />
-              <span className="truncate">
-                {attendees.map((a) => a.name).slice(0, 3).join(", ")}
-                {attendees.length > 3 ? ` +${attendees.length - 3}` : ""}
-              </span>
+            <div className="flex items-center justify-between text-[11px] text-subtle pt-0.5">
+              <div className="flex items-center gap-1 truncate max-w-[240px]">
+                <Users className="size-3 text-subtle shrink-0" />
+                <span className="truncate">
+                  {attendees.map((a) => a.name).slice(0, 3).join(", ")}
+                  {attendees.length > 3 ? ` +${attendees.length - 3}` : ""}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleBriefing}
+                className="flex items-center gap-1 text-[10px] text-accent font-medium hover:underline cursor-pointer"
+              >
+                <Sparkles className="size-3" />
+                <span>{briefingOpen ? "Hide Brief" : "Catch Me Up"}</span>
+                {briefingOpen ? <ChevronUp className="size-2.5" /> : <ChevronDown className="size-2.5" />}
+              </button>
             </div>
           )}
         </div>
+
+        {/* Attendee Intelligence & Catch Me Up Drawer */}
+        <AnimatePresence>
+          {briefingOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="mt-2.5 overflow-hidden rounded-xl border border-border/70 bg-surface-2/80 p-3 text-xs"
+            >
+              <div className="flex items-center gap-1.5 pb-1 font-mono text-[10px] uppercase font-semibold text-accent">
+                <Sparkles className="size-3" />
+                <span>Pre-Call Briefing & Open Loops</span>
+              </div>
+              {loadingBrief ? (
+                <div className="flex items-center gap-2 py-3 text-muted">
+                  <Loader2 className="size-3.5 animate-spin text-accent" />
+                  <span>Synthesizing past decisions & open loops...</span>
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap leading-relaxed text-text/90 text-[11px]">
+                  {briefingText}
+                </p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Action Buttons */}
         <div className="mt-3.5 flex items-center gap-2 pt-1 border-t border-border/60">
           <Button
             variant="solid"
             size="sm"
-            onClick={handleRecord}
+            onClick={() => handleRecord()}
             className="flex-1 gap-1.5 cursor-pointer shadow-sm text-xs"
           >
             <Radio className="size-3.5 text-white animate-pulse" />
