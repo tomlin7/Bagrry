@@ -2,7 +2,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnalyticsTab } from "./AnalyticsTab";
-import * as api from "@/lib/api";
 
 const { mockAnalytics } = vi.hoisted(() => ({
   mockAnalytics: {

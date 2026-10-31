@@ -4,11 +4,8 @@ import {
   Mic,
   Users2,
   CheckCircle2,
-  ListTodo,
   TrendingUp,
   Sparkles,
-  ArrowUpRight,
-  UserCheck,
 } from "lucide-react";
 import * as api from "@/lib/api";
 import { TabHeading } from "./shared";
@@ -16,14 +13,13 @@ import { SettingsCard } from "@/components/ui/controls";
 import type { MeetingAnalytics } from "@/lib/types";
 
 export function AnalyticsTab() {
-  const { data: analytics, isLoading } = useQuery<MeetingAnalytics>({
+  const { data: analytics } = useQuery<MeetingAnalytics>({
     queryKey: api.qk.analytics(),
     queryFn: api.getMeetingAnalytics,
   });
 
   const totalHours = ((analytics?.total_minutes ?? 0) / 60).toFixed(1);
   const thisWeekHours = ((analytics?.this_week_minutes ?? 0) / 60).toFixed(1);
-  const lastWeekHours = ((analytics?.last_week_minutes ?? 0) / 60).toFixed(1);
 
   const weekDiff = (analytics?.this_week_minutes ?? 0) - (analytics?.last_week_minutes ?? 0);
   const weekTrend = weekDiff >= 0 ? `+${(weekDiff / 60).toFixed(1)}h` : `${(weekDiff / 60).toFixed(1)}h`;
@@ -58,7 +54,6 @@ export function AnalyticsTab() {
           label="This Week"
           value={`${thisWeekHours}h`}
           subtext={`${weekTrend} vs last week`}
-          trendPositive={weekDiff <= 0} // less meeting time is often positive
           icon={<TrendingUp className="size-4 text-emerald-400" />}
         />
         <MetricCard
@@ -182,13 +177,11 @@ function MetricCard({
   value,
   subtext,
   icon,
-  trendPositive,
 }: {
   label: string;
   value: string;
   subtext: string;
   icon: React.ReactNode;
-  trendPositive?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-border/80 bg-surface-1/90 p-3.5 shadow-sm space-y-2">
