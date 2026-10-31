@@ -3622,3 +3622,42 @@ pub fn get_audio_diagnostics() -> Result<AudioDiagnostics, String> {
         channels: 2,
     })
 }
+
+#[tauri::command]
+pub fn assign_speaker_name(
+    state: State<AppState>,
+    meeting_id: String,
+    speaker_source: String,
+    speaker_name: String,
+) -> Result<Vec<TranscriptSeg>, String> {
+    let conn = state.conn()?;
+    let name_opt = if speaker_name.trim().is_empty() {
+        None
+    } else {
+        Some(speaker_name.trim().to_string())
+    };
+
+    conn.execute(
+        "UPDATE transcript_segments SET speaker_name = ?1 WHERE meeting_id = ?2 AND speaker = ?3",
+        params![name_opt, &meeting_id, &speaker_source],
+    )
+    .map_err(|e| e.to_string())?;
+
+    pipeline::load_segments(&conn, &meeting_id)
+}
+
+#[tauri::command]
+pub fn update_segment_speaker(
+    state: State<AppState>,
+    segment_id: String,
+    speaker_name: Option<String>,
+) -> Result<(), String> {
+    let conn = state.conn()?;
+    let name_opt = speaker_name.filter(|s| !s.trim().is_empty());
+    conn.execute(
+        "UPDATE transcript_segments SET speaker_name = ?1 WHERE id = ?2",
+        params![name_opt, &segment_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}

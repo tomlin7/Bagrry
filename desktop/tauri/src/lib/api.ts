@@ -78,6 +78,10 @@ export const transcribePending = (meetingId: string) =>
   invoke<TranscriptSeg[]>("transcribe_pending", { meetingId });
 export const listSegments = (meetingId: string) =>
   invoke<TranscriptSeg[]>("list_segments", { meetingId });
+export const assignSpeakerName = (meetingId: string, speakerSource: string, speakerName: string) =>
+  invoke<TranscriptSeg[]>("assign_speaker_name", { meetingId, speakerSource, speakerName });
+export const updateSegmentSpeaker = (segmentId: string, speakerName?: string | null) =>
+  invoke<void>("update_segment_speaker", { segmentId, speakerName: speakerName ?? null });
 
 /* ------------------------------------------------------------------ */
 /* AI                                                                  */

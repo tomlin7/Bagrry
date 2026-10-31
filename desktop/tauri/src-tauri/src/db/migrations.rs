@@ -411,6 +411,11 @@ ALTER TABLE shares ADD COLUMN revoked INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE shares ADD COLUMN views_count INTEGER NOT NULL DEFAULT 0;
 "#;
 
+const V12: &str = r#"
+-- Add speaker attribution to transcript segments
+ALTER TABLE transcript_segments ADD COLUMN speaker_name TEXT;
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -535,6 +540,16 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("record v11: {e}"))?;
+    }
+
+    if current < 12 {
+        conn.execute_batch(V12)
+            .map_err(|e| format!("migration v12: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (12)",
+            [],
+        )
+        .map_err(|e| format!("record v12: {e}"))?;
     }
 
     if vec_enabled {

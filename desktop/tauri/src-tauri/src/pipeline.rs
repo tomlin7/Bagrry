@@ -17,6 +17,8 @@ pub struct TranscriptSeg {
     pub text: String,
     pub sentence_index: i64,
     pub sentence_id: String,
+    #[serde(default)]
+    pub speaker_name: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -235,6 +237,7 @@ fn push_channel(
                     text: sentence,
                     sentence_index: 0,
                     sentence_id: String::new(),
+                    speaker_name: None,
                 });
             }
         }
@@ -256,6 +259,7 @@ fn push_channel(
                 text: sentence,
                 sentence_index: 0,
                 sentence_id: String::new(),
+                speaker_name: None,
             });
         }
     }
@@ -320,7 +324,7 @@ pub fn validate_citations(doc: &mut groq::EnhancedDoc, segs: &[TranscriptSeg]) {
 pub fn load_segments(conn: &Connection, meeting_id: &str) -> Result<Vec<TranscriptSeg>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, speaker, start_ms, end_ms, text, sentence_index, sentence_id
+            "SELECT id, speaker, start_ms, end_ms, text, sentence_index, sentence_id, speaker_name
              FROM transcript_segments WHERE meeting_id = ?1 ORDER BY sentence_index",
         )
         .map_err(|e| e.to_string())?;
@@ -334,6 +338,7 @@ pub fn load_segments(conn: &Connection, meeting_id: &str) -> Result<Vec<Transcri
                 text: row.get(4)?,
                 sentence_index: row.get(5)?,
                 sentence_id: row.get(6)?,
+                speaker_name: row.get(7).ok(),
             })
         })
         .map_err(|e| e.to_string())?;

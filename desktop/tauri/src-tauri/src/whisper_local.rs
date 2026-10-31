@@ -222,6 +222,7 @@ pub fn transcribe_local_pcm_files(
             text: synthetic_text,
             sentence_index: idx as i64,
             sentence_id: format!("s_{:03}", idx + 1),
+            speaker_name: None,
         });
     }
 
@@ -236,6 +237,7 @@ pub fn transcribe_local_pcm_files(
                 .to_string(),
             sentence_index: 0,
             sentence_id: "s_001".to_string(),
+            speaker_name: None,
         });
     }
 

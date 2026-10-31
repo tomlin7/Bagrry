@@ -98,6 +98,7 @@ export type EnhancedDoc = { sections: Section[] };
 export type TranscriptSeg = {
   id: string;
   speaker: Speaker | string;
+  speaker_name?: string | null;
   start_ms: number;
   end_ms: number;
   text: string;

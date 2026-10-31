@@ -164,6 +164,8 @@ pub fn run() {
             commands::delete_action_item,
             commands::list_audio_devices,
             commands::get_audio_diagnostics,
+            commands::assign_speaker_name,
+            commands::update_segment_speaker,
             settings_cmds::set_launch_on_login,
             settings_cmds::get_launch_on_login,
             settings_cmds::apply_retention,

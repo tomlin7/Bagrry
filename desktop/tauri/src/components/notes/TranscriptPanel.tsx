@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Copy, Minus, Search, ThumbsDown, X, Play, Pause } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Copy, Minus, Search, ThumbsDown, X, Play, Pause, UserCheck } from "lucide-react";
 import * as api from "@/lib/api";
 import { formatElapsed } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,14 @@ import { useAppStore } from "@/store/app";
 import { useAudioPlayerStore } from "@/store/audio";
 import { toast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { RecordingControls } from "./RecordingControls";
 import { AnimatePresence, motion } from "framer-motion";
 import { snappy } from "@/lib/motion";
@@ -38,6 +46,22 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [speakerTags] = useBoolSetting("speaker_tags", true);
   const [pulseId, setPulseId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: attendees = [] } = useQuery({
+    queryKey: api.qk.attendees(noteId),
+    queryFn: () => api.listMeetingAttendees(noteId),
+  });
+
+  const assignSpeakerMutation = useMutation({
+    mutationFn: ({ speakerSource, speakerName }: { speakerSource: string; speakerName: string }) =>
+      api.assignSpeakerName(noteId, speakerSource, speakerName),
+    onSuccess: (_, vars) => {
+      void queryClient.invalidateQueries({ queryKey: api.qk.segments(noteId) });
+      toast.success(`Attributed spoken turns to ${vars.speakerName}`);
+    },
+    onError: (e) => toast.error(e),
+  });
 
   const { data: segments = [] } = useQuery({
     queryKey: api.qk.segments(noteId),
@@ -86,7 +110,7 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
 
   useEffect(() => {
     if (!query && !highlightSentenceId) {
-      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+      scrollRef.current?.scrollTo?.({ top: scrollRef.current.scrollHeight });
     }
   }, [filtered.length, query, highlightSentenceId]);
 
@@ -265,16 +289,76 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
                           )}
                         </button>
 
-                        {/* Speaker tag */}
+                        {/* Speaker tag with Attribution Popover */}
                         {speakerTags && (
-                          <span
-                            className={cn(
-                              "shrink-0 pt-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider",
-                              segment.speaker === "me" ? "text-accent" : "text-subtle",
-                            )}
-                          >
-                            {segment.speaker === "me" ? "Me" : "Them"}
-                          </span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className={cn(
+                                  "shrink-0 pt-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider transition-colors hover:underline cursor-pointer",
+                                  segment.speaker_name
+                                    ? "text-blue-500 dark:text-blue-400 font-bold"
+                                    : segment.speaker === "me"
+                                      ? "text-accent"
+                                      : "text-subtle hover:text-text",
+                                )}
+                                title="Click to attribute speaker turn"
+                                aria-label={`Attribute speaker ${segment.speaker_name || (segment.speaker === "me" ? "Me" : "Them")}`}
+                              >
+                                {segment.speaker_name || (segment.speaker === "me" ? "Me" : "Them")}
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="min-w-[13rem]">
+                              <DropdownMenuLabel>Attribute Speaker</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  assignSpeakerMutation.mutate({
+                                    speakerSource: segment.speaker,
+                                    speakerName: "Me",
+                                  })
+                                }
+                              >
+                                <span className="font-semibold text-accent">Me (Host)</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {attendees.length > 0 && (
+                                <>
+                                  <DropdownMenuLabel className="text-[10px] text-subtle">
+                                    Meeting Attendees
+                                  </DropdownMenuLabel>
+                                  {attendees.map((att) => (
+                                    <DropdownMenuItem
+                                      key={att.id}
+                                      onSelect={() =>
+                                        assignSpeakerMutation.mutate({
+                                          speakerSource: segment.speaker,
+                                          speakerName: att.name,
+                                        })
+                                      }
+                                    >
+                                      <UserCheck className="mr-2 size-3 text-subtle" />
+                                      <span>{att.name}</span>
+                                    </DropdownMenuItem>
+                                  ))}
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  const customName = window.prompt("Enter speaker name (e.g. Sarah Connor):");
+                                  if (customName && customName.trim()) {
+                                    assignSpeakerMutation.mutate({
+                                      speakerSource: segment.speaker,
+                                      speakerName: customName.trim(),
+                                    });
+                                  }
+                                }}
+                              >
+                                <span>Custom Speaker…</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
 
                         {/* Text Content */}
