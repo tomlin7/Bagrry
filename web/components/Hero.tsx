@@ -24,8 +24,8 @@ export function Hero() {
               Bagrry captures your meeting context and never lets you miss your commitments.
             </p>
 
-            {/* Primary CTA Button for Windows */}
-            <div className="flex items-center gap-4">
+            {/* Primary CTA Button for Windows & Interactive Demo */}
+            <div className="flex flex-wrap items-center gap-3">
               <a href="/download">
                 <button className="h-[54px] px-8 rounded-[9px] bg-black hover:bg-neutral-800 text-white font-medium text-[19px] transition-all flex items-center justify-center gap-3 cursor-pointer">
                   {/* Clean Windows Icon */}
@@ -33,6 +33,11 @@ export function Hero() {
                     <path d="M0 12.402l35.687-4.86.016 34.423-35.67.243zm35.67 33.529l.028 34.453L.028 75.48.016 45.7zm4.326-39.027L87.914 0v41.527l-47.918.375zm47.918 45.023L40.024 88l-.028-34.195 47.918.303z"/>
                   </svg>
                   <span>Download for Windows</span>
+                </button>
+              </a>
+              <a href="#interactive-demo">
+                <button className="h-[54px] px-6 rounded-[9px] bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-medium text-[17px] transition-all flex items-center justify-center gap-2 cursor-pointer border border-neutral-300/80">
+                  <span>Try Interactive Demo</span>
                 </button>
               </a>
             </div>

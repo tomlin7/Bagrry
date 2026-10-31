@@ -4,6 +4,7 @@ import React from 'react'
 import { Navbar } from '@/components/Navbar'
 import { Hero } from '@/components/Hero'
 import { SocialProof } from '@/components/SocialProof'
+import { InteractiveSandbox } from '@/components/InteractiveSandbox'
 import { WorksLikeMagic } from '@/components/WorksLikeMagic'
 import { OwnYourMemory } from '@/components/OwnYourMemory'
 import { ContextSwitch } from '@/components/ContextSwitch'
@@ -19,6 +20,7 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
+        <InteractiveSandbox />
         <SocialProof />
         <WorksLikeMagic />
         <OwnYourMemory />

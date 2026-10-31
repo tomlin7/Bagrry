@@ -7,6 +7,7 @@ import { Footer } from '@/components/Footer'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { InteractiveSandbox } from '@/components/InteractiveSandbox'
 
 export default function DownloadPage() {
   const [platform, setPlatform] = useState<'windows' | 'mac'>('windows')
@@ -88,17 +89,31 @@ export default function DownloadPage() {
             </div>
           </div>
 
-          <a href="#" download className="block">
-            <Button variant="accent" size="lg" className="w-full gap-2 rounded-2xl shadow-md text-sm font-semibold">
+          <a
+            href={
+              platform === 'windows'
+                ? 'https://github.com/tomlin7/Bagrry/releases/download/v1.0.0/Bagrry_1.0.0_x64-setup.nsis.zip'
+                : 'https://github.com/tomlin7/Bagrry/releases/latest'
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
+            <Button variant="accent" size="lg" className="w-full gap-2 rounded-2xl shadow-md text-sm font-semibold cursor-pointer">
               <Download className="w-4 h-4" />
-              <span>{platform === 'windows' ? 'Download Installer (.exe)' : 'Download Disk Image (.dmg)'}</span>
+              <span>{platform === 'windows' ? 'Download for Windows (.exe NSIS)' : 'Download Disk Image (.dmg)'}</span>
             </Button>
           </a>
 
           <p className="text-center text-[11px] text-neutral-400 mt-4">
-            SHA-256 verified build · Zero telemetry
+            SHA-256 verified build · Zero telemetry · 100% Confidential
           </p>
         </Card>
+
+        {/* Interactive Sandbox Embedded */}
+        <div className="mt-8 mb-12 text-left">
+          <InteractiveSandbox />
+        </div>
 
         {/* Quick Developer Build alternative */}
         <div className="max-w-xl mx-auto text-left p-6 rounded-2xl bg-neutral-100/70 dark:bg-neutral-800/40 border border-black/[0.05] dark:border-white/[0.05]">
