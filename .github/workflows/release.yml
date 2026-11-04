@@ -29,9 +29,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: desktop/tauri/package-lock.json
+          node-version: 22
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -44,7 +47,7 @@ jobs:
       - name: Install desktop dependencies
         run: |
           cd desktop/tauri
-          npm ci
+          bun install --frozen-lockfile
 
       - name: Build Tauri Desktop App
         uses: tauri-apps/tauri-action@v0
