@@ -1,9 +1,10 @@
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MeetingTeleprompterHud } from "./MeetingTeleprompterHud";
 import { useAppStore } from "@/store/app";
 import * as api from "@/lib/api";
+import type { SubtitleEvent } from "@/lib/types";
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -15,6 +16,13 @@ vi.mock("@/lib/api", async (importOriginal) => {
     pauseRecording: vi.fn(),
     stopRecording: vi.fn(),
     onVoiceCommand: vi.fn().mockResolvedValue(() => {}),
+    getSupportedLanguages: vi.fn().mockResolvedValue([
+      { code: "off", name: "Disabled", nativeName: "Original" },
+      { code: "es", name: "Spanish", nativeName: "Español" },
+    ]),
+    getActiveTranslationLanguage: vi.fn().mockResolvedValue("es"),
+    setActiveTranslationLanguage: vi.fn().mockResolvedValue(undefined),
+    onSubtitle: vi.fn().mockResolvedValue(() => {}),
   };
 });
 
@@ -140,5 +148,43 @@ describe("MeetingTeleprompterHud (#44)", () => {
 
     expect(await screen.findByText(/Hey Bagrry:/i)).toBeDefined();
     expect(screen.getByText(/Follow up with Sarah regarding API documentation/i)).toBeDefined();
+  });
+
+  it("renders live subtitle language selector and real-time translated subtitles (#64)", async () => {
+    let capturedSubtitleCb: ((event: SubtitleEvent) => void) | null = null;
+    vi.mocked(api.onSubtitle).mockImplementation((cb) => {
+      capturedSubtitleCb = cb;
+      return Promise.resolve(() => {});
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MeetingTeleprompterHud open={true} onClose={vi.fn()} onMinimizeToPill={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    const select = await screen.findByLabelText(/Live translation language/i);
+    expect(select).toBeDefined();
+    await screen.findByRole("option", { name: /Spanish/i });
+
+    fireEvent.change(select, { target: { value: "es" } });
+    await waitFor(() => {
+      expect(api.setActiveTranslationLanguage).toHaveBeenCalledWith("es");
+    });
+
+    expect(capturedSubtitleCb).not.toBeNull();
+    act(() => {
+      capturedSubtitleCb!({
+        meetingId: "m_test_101",
+        sourceText: "We need to finalize the roadmap.",
+        targetLang: "es",
+        translatedText: "Necesitamos finalizar la hoja de ruta.",
+        speaker: "attendees",
+        timestampMs: 14000,
+      });
+    });
+
+    expect(await screen.findByText(/Necesitamos finalizar la hoja de ruta/i)).toBeDefined();
+    expect(screen.getByText(/\[es\]:/i)).toBeDefined();
   });
 });

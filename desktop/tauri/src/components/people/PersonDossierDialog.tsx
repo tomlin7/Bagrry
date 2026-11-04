@@ -11,6 +11,7 @@ import {
   EyeOff,
   GitMerge,
   Mail,
+  Mic,
   RefreshCw,
   Sparkles,
   Trash2,
@@ -23,6 +24,7 @@ import { useAppStore } from "@/store/app";
 import { formatDayLabel, formatDuration } from "@/lib/format";
 import { Avatar, EmptyState, Skeleton } from "@/components/ui/misc";
 import type { ActionItem, Meeting } from "@/lib/types";
+import { EnrollVoiceModal } from "./EnrollVoiceModal";
 
 export function PersonDossierDialog({
   personId,
@@ -40,6 +42,7 @@ export function PersonDossierDialog({
   const [isEditing, setIsEditing] = useState(false);
   const [showMerge, setShowMerge] = useState(false);
   const [selectedMergeId, setSelectedMergeId] = useState<string>("");
+  const [enrollVoiceOpen, setEnrollVoiceOpen] = useState(false);
 
   // Edit form state
   const [editName, setEditName] = useState("");
@@ -202,6 +205,15 @@ export function PersonDossierDialog({
                 >
                   <GitMerge className="size-3.5" />
                   Merge
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEnrollVoiceOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-subtle transition-colors hover:bg-hover hover:text-text"
+                  title="Enroll acoustic voiceprint"
+                >
+                  <Mic className="size-3.5 text-accent" />
+                  Voiceprint
                 </button>
               </div>
             </div>
@@ -557,6 +569,14 @@ export function PersonDossierDialog({
           </div>
         )}
       </DialogContent>
+      {person && (
+        <EnrollVoiceModal
+          open={enrollVoiceOpen}
+          onClose={() => setEnrollVoiceOpen(false)}
+          personId={person.id}
+          personName={person.name}
+        />
+      )}
     </Dialog>
   );
 }

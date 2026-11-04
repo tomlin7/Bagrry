@@ -15,6 +15,7 @@ import {
   Plus,
   Search,
   Settings,
+  Sparkles,
   Sun,
   User,
   Users,
@@ -40,6 +41,13 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [searchMode, setSearchMode] = useState<"standard" | "semantic">("standard");
+
+  const { data: semanticResults = [], isLoading: isSemanticLoading } = useQuery({
+    queryKey: api.qk.semanticSearch(debounced),
+    queryFn: () => api.searchHybrid(debounced),
+    enabled: open && debounced.length > 0 && searchMode === "semantic",
+  });
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(query.trim()), 100);
@@ -112,6 +120,18 @@ export function CommandPalette() {
             <span className="flex items-center gap-1 text-subtle font-medium mr-1">
               <Filter className="size-3" /> Filters:
             </span>
+            <button
+              type="button"
+              onClick={() => setSearchMode(searchMode === "semantic" ? "standard" : "semantic")}
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium transition-colors ${
+                searchMode === "semantic"
+                  ? "bg-accent text-accent-fg font-semibold shadow-sm"
+                  : "bg-surface border border-border text-subtle hover:bg-hover hover:text-text"
+              }`}
+            >
+              <Sparkles className={`size-3 ${searchMode === "semantic" ? "text-accent-fg" : "text-amber-400"} ${isSemanticLoading ? "animate-spin" : ""}`} />
+              <span>{isSemanticLoading ? "Searching..." : "Semantic Search"}</span>
+            </button>
             <button
               type="button"
               onClick={() => toggleFilter("has_loop", "has:loop")}
@@ -190,6 +210,31 @@ export function CommandPalette() {
                     <span className="text-[10px] text-subtle shrink-0">
                       {person.note_count} {person.note_count === 1 ? "meeting" : "meetings"}
                     </span>
+                  </Item>
+                ))}
+              </Command.Group>
+            )}
+
+            {/* Hybrid Semantic Search Results */}
+            {searchMode === "semantic" && semanticResults.length > 0 && (
+              <Command.Group
+                heading={`Semantic AI Matches (${semanticResults.length})`}
+                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-subtle"
+              >
+                {semanticResults.map((res) => (
+                  <Item key={res.meetingId} onSelect={() => run(() => openNote(res.meetingId))}>
+                    <div className="grid size-7 place-items-center rounded-lg bg-accent/15 border border-accent/25 shrink-0 text-accent">
+                      <Sparkles className="size-3.5" />
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-text truncate">{res.title}</span>
+                        <span className="text-[10px] font-semibold text-accent rounded bg-accent/15 px-1.5 py-0.5 shrink-0">
+                          {Math.round(res.hybridScore * 100)}% match
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-subtle truncate mt-0.5">{res.matchedSnippet}</p>
+                    </div>
                   </Item>
                 ))}
               </Command.Group>

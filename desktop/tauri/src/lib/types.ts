@@ -374,6 +374,95 @@ export type VaultExportResult = {
   total_folders: number;
 };
 
+// Milestone 7: Voice Biometrics, Translation, Dispatch, Semantic Search, P2P
+export type VoiceProfileInfo = {
+  id: string;
+  personId: string;
+  name: string;
+  sampleCount: number;
+  updatedAt: string;
+};
+
+export type VoiceMatchResult = {
+  personId: string;
+  name: string;
+  confidence: number;
+};
+
+export type LanguageInfo = {
+  code: string;
+  name: string;
+  nativeName: string;
+};
+
+export type SubtitleEvent = {
+  meetingId?: string | null;
+  sourceText: string;
+  targetLang: string;
+  translatedText: string;
+  speaker: string;
+  speakerName?: string | null;
+  timestampMs: number;
+};
+
+export type DispatchRequest = {
+  meetingId: string;
+  sendToLinear: boolean;
+  sendToNotion: boolean;
+  sendToSlack: boolean;
+  sendToTeams: boolean;
+  sendToEmail: boolean;
+  emailRecipients: string[];
+  customNote?: string | null;
+};
+
+export type DestinationResult = {
+  destination: string;
+  status: string;
+  message: string;
+  referenceUrl?: string | null;
+};
+
+export type DispatchReport = {
+  meetingId: string;
+  results: DestinationResult[];
+  timestamp: string;
+};
+
+export type SemanticSearchResult = {
+  meetingId: string;
+  title: string;
+  date: string;
+  matchedSnippet: string;
+  hybridScore: number;
+  semanticScore: number;
+  ftsScore: number;
+  jumpTimestampMs?: number | null;
+};
+
+export type PeerInfo = {
+  id: string;
+  deviceName: string;
+  ipAddress: string;
+  port: number;
+  lastSeenEpoch: number;
+  paired: boolean;
+};
+
+export type BundleExportResult = {
+  filePath: string;
+  fileSizeBytes: number;
+  meetingId: string;
+  checksum: string;
+};
+
+export type BundleImportResult = {
+  meetingId: string;
+  title: string;
+  importedSegmentsCount: number;
+  importedActionItemsCount: number;
+};
+
 export function routeKey(route: Route): string {
   switch (route.kind) {
     case "chat":

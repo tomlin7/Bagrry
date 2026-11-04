@@ -10,7 +10,7 @@ use crate::whisper_local;
 use crate::AppState;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 #[derive(Serialize)]
 pub struct DbStatus {
@@ -4199,4 +4199,152 @@ pub fn get_meeting_analytics(state: State<AppState>) -> Result<MeetingAnalytics,
         top_collaborators,
         day_breakdown,
     })
+}
+
+// =========================================================================
+// Milestone 7: Voice Biometrics, Translation, Dispatch, Semantic Search, P2P
+// =========================================================================
+
+#[tauri::command]
+pub fn enroll_voice_profile(
+    state: tauri::State<'_, AppState>,
+    person_id: String,
+    name: String,
+    sample_pcm: Option<Vec<f32>>,
+) -> Result<crate::audio::voice_biometrics::VoiceProfileInfo, String> {
+    let conn = state.conn()?;
+    let pcm = sample_pcm.unwrap_or_else(|| {
+        let mut synth = vec![0.0f32; 16000];
+        for (i, v) in synth.iter_mut().enumerate() {
+            *v = (i as f32 * 0.04).sin() * 0.5;
+        }
+        synth
+    });
+    crate::audio::voice_biometrics::enroll_voice(&conn, &person_id, &name, &pcm)
+}
+
+#[tauri::command]
+pub fn list_voice_profiles(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<crate::audio::voice_biometrics::VoiceProfileInfo>, String> {
+    let conn = state.conn()?;
+    crate::audio::voice_biometrics::list_profiles(&conn)
+}
+
+#[tauri::command]
+pub fn delete_voice_profile(
+    state: tauri::State<'_, AppState>,
+    person_id: String,
+) -> Result<(), String> {
+    let conn = state.conn()?;
+    crate::audio::voice_biometrics::delete_profile(&conn, &person_id)
+}
+
+#[tauri::command]
+pub fn match_voice_sample(
+    state: tauri::State<'_, AppState>,
+    sample_pcm: Vec<f32>,
+) -> Result<Option<crate::audio::voice_biometrics::VoiceMatchResult>, String> {
+    let conn = state.conn()?;
+    crate::audio::voice_biometrics::match_pcm(&conn, &sample_pcm)
+}
+
+#[tauri::command]
+pub fn get_supported_languages() -> Vec<crate::translation::LanguageInfo> {
+    crate::translation::get_supported_languages()
+}
+
+#[tauri::command]
+pub fn get_active_translation_language(
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let conn = state.conn()?;
+    Ok(crate::translation::get_active_target_lang(&conn))
+}
+
+#[tauri::command]
+pub fn set_active_translation_language(
+    state: tauri::State<'_, AppState>,
+    target_lang: String,
+) -> Result<(), String> {
+    let conn = state.conn()?;
+    crate::translation::set_active_target_lang(&conn, &target_lang)
+}
+
+#[tauri::command]
+pub fn translate_text(text: String, target_lang: String) -> Result<String, String> {
+    crate::translation::translate_text(&text, &target_lang)
+}
+
+#[tauri::command]
+pub fn dispatch_meeting(
+    state: tauri::State<'_, AppState>,
+    request: crate::dispatch::DispatchRequest,
+) -> Result<crate::dispatch::DispatchReport, String> {
+    let conn = state.conn()?;
+    crate::dispatch::execute_dispatch(&conn, &request)
+}
+
+#[tauri::command]
+pub fn get_dispatch_history(
+    state: tauri::State<'_, AppState>,
+    meeting_id: String,
+) -> Result<Vec<crate::dispatch::DestinationResult>, String> {
+    let conn = state.conn()?;
+    crate::dispatch::get_dispatch_logs(&conn, &meeting_id)
+}
+
+#[tauri::command]
+pub fn search_hybrid(
+    state: tauri::State<'_, AppState>,
+    query: String,
+    limit: Option<usize>,
+) -> Result<Vec<crate::semantic_search::SemanticSearchResult>, String> {
+    let conn = state.conn()?;
+    crate::semantic_search::search_hybrid(&conn, &query, limit.unwrap_or(10))
+}
+
+#[tauri::command]
+pub fn index_meeting_embeddings(
+    state: tauri::State<'_, AppState>,
+    meeting_id: String,
+) -> Result<usize, String> {
+    let conn = state.conn()?;
+    crate::semantic_search::index_meeting(&conn, &meeting_id)
+}
+
+#[tauri::command]
+pub fn export_meeting_bundle(
+    state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+    meeting_id: String,
+    password: Option<String>,
+) -> Result<crate::p2p_sync::BundleExportResult, String> {
+    let conn = state.conn()?;
+    let out_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("bundles");
+    let _ = std::fs::create_dir_all(&out_dir);
+    crate::p2p_sync::export_bundle(&conn, &meeting_id, &out_dir, password.as_deref())
+}
+
+#[tauri::command]
+pub fn import_meeting_bundle(
+    state: tauri::State<'_, AppState>,
+    bundle_path: String,
+    password: Option<String>,
+) -> Result<crate::p2p_sync::BundleImportResult, String> {
+    let conn = state.conn()?;
+    crate::p2p_sync::import_bundle(
+        &conn,
+        std::path::Path::new(&bundle_path),
+        password.as_deref(),
+    )
+}
+
+#[tauri::command]
+pub fn list_local_peers() -> Vec<crate::p2p_sync::PeerInfo> {
+    crate::p2p_sync::list_local_peers()
 }

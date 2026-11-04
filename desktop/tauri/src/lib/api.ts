@@ -30,6 +30,17 @@ import type {
   Template,
   TranscriptSeg,
   VaultExportResult,
+  BundleExportResult,
+  BundleImportResult,
+  DestinationResult,
+  DispatchReport,
+  DispatchRequest,
+  LanguageInfo,
+  PeerInfo,
+  SemanticSearchResult,
+  SubtitleEvent,
+  VoiceMatchResult,
+  VoiceProfileInfo,
 } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -370,6 +381,53 @@ export async function onVoiceCommand(
 }
 
 /* ------------------------------------------------------------------ */
+/* Milestone 7: Voice Biometrics, Translation, Dispatch, Search, P2P   */
+/* ------------------------------------------------------------------ */
+
+export const enrollVoiceProfile = (personId: string, name: string, samplePcm?: number[]) =>
+  invoke<VoiceProfileInfo>("enroll_voice_profile", { personId, name, samplePcm: samplePcm ?? null });
+export const listVoiceProfiles = () => invoke<VoiceProfileInfo[]>("list_voice_profiles");
+export const deleteVoiceProfile = (personId: string) =>
+  invoke<void>("delete_voice_profile", { personId });
+export const matchVoiceSample = (samplePcm: number[]) =>
+  invoke<VoiceMatchResult | null>("match_voice_sample", { samplePcm });
+
+export const getSupportedLanguages = () => invoke<LanguageInfo[]>("get_supported_languages");
+export const getActiveTranslationLanguage = () =>
+  invoke<string>("get_active_translation_language");
+export const setActiveTranslationLanguage = (targetLang: string) =>
+  invoke<void>("set_active_translation_language", { targetLang });
+export const translateText = (text: string, targetLang: string) =>
+  invoke<string>("translate_text", { text, targetLang });
+
+export async function onSubtitle(cb: (event: SubtitleEvent) => void): Promise<() => void> {
+  if (typeof window === "undefined") return () => {};
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    const unlisten = await listen<SubtitleEvent>("live-subtitle", (e) => cb(e.payload));
+    return unlisten;
+  } catch {
+    return () => {};
+  }
+}
+
+export const dispatchMeeting = (request: DispatchRequest) =>
+  invoke<DispatchReport>("dispatch_meeting", { request });
+export const getDispatchHistory = (meetingId: string) =>
+  invoke<DestinationResult[]>("get_dispatch_history", { meetingId });
+
+export const searchHybrid = (query: string, limit?: number) =>
+  invoke<SemanticSearchResult[]>("search_hybrid", { query, limit: limit ?? null });
+export const indexMeetingEmbeddings = (meetingId: string) =>
+  invoke<number>("index_meeting_embeddings", { meetingId });
+
+export const exportMeetingBundle = (meetingId: string, password?: string) =>
+  invoke<BundleExportResult>("export_meeting_bundle", { meetingId, password: password ?? null });
+export const importMeetingBundle = (bundlePath: string, password?: string) =>
+  invoke<BundleImportResult>("import_meeting_bundle", { bundlePath, password: password ?? null });
+export const listLocalPeers = () => invoke<PeerInfo[]>("list_local_peers");
+
+/* ------------------------------------------------------------------ */
 /* Query keys                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -410,4 +468,10 @@ export const qk = {
   audioDevices: () => ["audio-devices"] as const,
   audioDiagnostics: () => ["audio-diagnostics"] as const,
   analytics: () => ["analytics"] as const,
+  voiceProfiles: () => ["voice-profiles"] as const,
+  translationLanguages: () => ["translation-languages"] as const,
+  activeTranslationLang: () => ["active-translation-lang"] as const,
+  dispatchHistory: (id: string) => ["dispatch-history", id] as const,
+  semanticSearch: (query: string) => ["semantic-search", query] as const,
+  localPeers: () => ["local-peers"] as const,
 };

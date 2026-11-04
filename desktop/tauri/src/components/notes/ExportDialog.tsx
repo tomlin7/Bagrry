@@ -10,6 +10,7 @@ import {
   FileText,
   Hash,
   Printer,
+  Shield,
 } from "lucide-react";
 import * as api from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +28,18 @@ export function ExportDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [copiedFormat, setCopiedFormat] = useState<string | null>(null);
+  const [bundleExported, setBundleExported] = useState(false);
+
+  const bundleMutation = useMutation({
+    mutationFn: () => api.exportMeetingBundle(meetingId),
+    onSuccess: (res) => {
+      setBundleExported(true);
+      toast.success(`Encrypted bundle created (${Math.round(res.fileSizeBytes / 1024)} KB)`);
+    },
+    onError: (err) => {
+      toast.error(typeof err === "string" ? err : "Bundle export failed");
+    },
+  });
 
   const notionMutation = useMutation({
     mutationFn: () => api.exportToNotion(meetingId),
@@ -238,6 +251,35 @@ export function ExportDialog({
               <span className="text-xs text-subtle">Exporting...</span>
             ) : (
               <ExternalLink className="size-3.5 text-subtle opacity-60 group-hover:opacity-100" />
+            )}
+          </button>
+
+          {/* 6. Encrypted .bgry Meeting Bundle */}
+          <button
+            type="button"
+            disabled={bundleMutation.isPending}
+            onClick={() => bundleMutation.mutate()}
+            className="group flex items-center justify-between rounded-xl border border-border/80 bg-surface-raised/40 p-3.5 transition-all hover:border-accent/40 hover:bg-hover text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-lg bg-surface border border-border text-subtle group-hover:text-accent">
+                <Shield className="size-4 text-emerald-400" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold text-text group-hover:text-accent transition-colors">
+                  Export Encrypted Bundle (.bgry)
+                </span>
+                <span className="text-[11px] text-subtle">
+                  Hardware/password encrypted bundle for zero-cloud peer exchange
+                </span>
+              </div>
+            </div>
+            {bundleExported ? (
+              <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+                <Check className="size-3.5" /> Saved
+              </span>
+            ) : (
+              <Download className="size-3.5 text-subtle opacity-60 group-hover:opacity-100" />
             )}
           </button>
         </div>

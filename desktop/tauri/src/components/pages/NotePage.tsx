@@ -12,6 +12,7 @@ import {
   Loader2,
   MoreHorizontal,
   RotateCcw,
+  Send,
   Share2,
   X,
   Sparkles,
@@ -30,6 +31,7 @@ import { AudioPlayerBar } from "@/components/notes/AudioPlayerBar";
 import { FollowUpDialog } from "@/components/action-items/FollowUpDialog";
 import { ShareDialog } from "@/components/notes/ShareDialog";
 import { ExportDialog } from "@/components/notes/ExportDialog";
+import { DispatchFollowUpDialog } from "@/components/notes/DispatchFollowUpDialog";
 import {
   TemplateDialog,
   getTemplateIcon,
@@ -81,6 +83,7 @@ export function NotePage({ noteId }: { noteId: string }) {
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [dispatchOpen, setDispatchOpen] = useState(false);
   const editorRef = useRef<NoteEditorHandle>(null);
   const splitContainerRef = useRef<HTMLDivElement>(null);
 
@@ -547,6 +550,10 @@ export function NotePage({ noteId }: { noteId: string }) {
                   <Download className="size-3.5" />
                   Export note…
                 </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDispatchOpen(true)}>
+                  <Send className="size-3.5" />
+                  Dispatch follow-up…
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => webhook.mutate()}>
                   <Webhook className="size-3.5" />
                   Send to webhook
@@ -936,6 +943,13 @@ export function NotePage({ noteId }: { noteId: string }) {
       <ExportDialog
         open={exportOpen}
         onOpenChange={setExportOpen}
+        meetingId={noteId}
+        meetingTitle={note?.title ?? ""}
+      />
+
+      <DispatchFollowUpDialog
+        open={dispatchOpen}
+        onClose={() => setDispatchOpen(false)}
         meetingId={noteId}
         meetingTitle={note?.title ?? ""}
       />

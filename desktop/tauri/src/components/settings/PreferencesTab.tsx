@@ -20,6 +20,7 @@ import { AccentLink, TabHeading } from "./shared";
 import { LocalLlmCard } from "./LocalLlmCard";
 import { LocalWhisperCard } from "./LocalWhisperCard";
 import { AudioHardwareCard } from "./AudioHardwareCard";
+import { PeerSyncCard } from "./PeerSyncCard";
 import { CHAT_MODELS, DEFAULT_CHAT_MODEL, DEFAULT_STT_MODEL, STT_MODELS } from "@/lib/models";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
@@ -164,6 +165,8 @@ export function PreferencesTab() {
       <LocalLlmCard />
 
       <AudioHardwareCard />
+
+      <PeerSyncCard />
 
       <SettingsCard title="Appearance">
         <SettingRow

@@ -416,6 +416,53 @@ const V12: &str = r#"
 ALTER TABLE transcript_segments ADD COLUMN speaker_name TEXT;
 "#;
 
+const V13: &str = r#"
+-- Milestone 7: Voice biometrics, live translations, dispatch logs, and dense embeddings
+CREATE TABLE IF NOT EXISTS voice_profiles (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES attendees(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  sample_count INTEGER NOT NULL DEFAULT 1,
+  embedding_blob BLOB NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_voice_profiles_person ON voice_profiles(person_id);
+
+CREATE TABLE IF NOT EXISTS meeting_translations (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  target_lang TEXT NOT NULL,
+  source_text TEXT NOT NULL,
+  translated_text TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_meeting_translations_meeting ON meeting_translations(meeting_id, target_lang);
+
+CREATE TABLE IF NOT EXISTS dispatch_logs (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  destination TEXT NOT NULL,
+  status TEXT NOT NULL,
+  external_ref TEXT,
+  payload_json TEXT,
+  error_message TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_dispatch_logs_meeting ON dispatch_logs(meeting_id);
+
+CREATE TABLE IF NOT EXISTS dense_embeddings (
+  id TEXT PRIMARY KEY,
+  item_type TEXT NOT NULL,
+  item_id TEXT NOT NULL,
+  meeting_id TEXT NOT NULL,
+  content TEXT NOT NULL,
+  embedding_blob BLOB NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_dense_embeddings_meeting ON dense_embeddings(meeting_id);
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -550,6 +597,16 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("record v12: {e}"))?;
+    }
+
+    if current < 13 {
+        conn.execute_batch(V13)
+            .map_err(|e| format!("migration v13: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (13)",
+            [],
+        )
+        .map_err(|e| format!("record v13: {e}"))?;
     }
 
     if vec_enabled {

@@ -3,6 +3,7 @@ pub mod resample;
 pub mod ring_buffer;
 pub mod sink;
 pub mod vad;
+pub mod voice_biometrics;
 pub mod voice_commands;
 pub mod wav;
 
@@ -548,12 +549,52 @@ fn spawn_live_stt(
                     continue;
                 };
                 match pipeline::transcribe_pcm_chunk(&key, &mic, &sys, &opts, start) {
-                    Ok(segments) if !segments.is_empty() => {
+                    Ok(mut segments) if !segments.is_empty() => {
+                        // Check enrolled voice profiles to auto-attribute attendee names
+                        let state = app.state::<AppState>();
+                        if let Ok(conn) = state.conn() {
+                            for seg in &mut segments {
+                                if seg.speaker != "me" && seg.speaker_name.is_none() {
+                                    if let Ok(Some(matched)) =
+                                        voice_biometrics::match_i16(&conn, &sys)
+                                    {
+                                        seg.speaker_name = Some(matched.name);
+                                    }
+                                }
+                            }
+                        }
+
                         voice_commands::process_voice_commands(
                             &app,
                             meeting_id.as_deref(),
                             &segments,
                         );
+
+                        // Emit live translated subtitles if language translation is active
+                        if let Ok(conn) = state.conn() {
+                            let target_lang = crate::translation::get_active_target_lang(&conn);
+                            if target_lang != "off" && !target_lang.is_empty() {
+                                for seg in &segments {
+                                    if let Ok(translated) =
+                                        crate::translation::translate_text(&seg.text, &target_lang)
+                                    {
+                                        let _ = app.emit(
+                                            "live-subtitle",
+                                            crate::translation::SubtitleEvent {
+                                                meeting_id: meeting_id.clone(),
+                                                source_text: seg.text.clone(),
+                                                target_lang: target_lang.clone(),
+                                                translated_text: translated,
+                                                speaker: seg.speaker.clone(),
+                                                speaker_name: seg.speaker_name.clone(),
+                                                timestamp_ms: seg.start_ms,
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
                         let _ = app.emit(
                             "live-transcript",
                             LiveTranscriptBatch {

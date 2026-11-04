@@ -4,14 +4,18 @@
 mod audio;
 mod commands;
 mod db;
+pub mod dispatch;
 mod groq;
 mod http;
 mod ids;
 pub mod local_llm;
+pub mod p2p_sync;
 mod pipeline;
 mod secrets;
 pub mod security;
+pub mod semantic_search;
 mod settings_cmds;
+pub mod translation;
 mod tray;
 pub mod whisper_local;
 use db::{PooledConn, SharedPool};
@@ -185,6 +189,21 @@ pub fn run() {
             commands::get_security_status,
             commands::set_database_encryption,
             commands::rotate_security_key,
+            commands::enroll_voice_profile,
+            commands::list_voice_profiles,
+            commands::delete_voice_profile,
+            commands::match_voice_sample,
+            commands::get_supported_languages,
+            commands::get_active_translation_language,
+            commands::set_active_translation_language,
+            commands::translate_text,
+            commands::dispatch_meeting,
+            commands::get_dispatch_history,
+            commands::search_hybrid,
+            commands::index_meeting_embeddings,
+            commands::export_meeting_bundle,
+            commands::import_meeting_bundle,
+            commands::list_local_peers,
             settings_cmds::set_launch_on_login,
             settings_cmds::get_launch_on_login,
             settings_cmds::apply_retention,

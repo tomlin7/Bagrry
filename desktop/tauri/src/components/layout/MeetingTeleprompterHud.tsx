@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Bot,
+  Globe,
   GripVertical,
   Loader2,
   Minimize2,
@@ -17,6 +18,7 @@ import {
   Zap,
 } from "lucide-react";
 import * as api from "@/lib/api";
+import type { SubtitleEvent } from "@/lib/types";
 import { useAppStore } from "@/store/app";
 import { Elapsed } from "@/components/notes/TranscriptPanel";
 import { DualChannelVuMeter } from "@/components/notes/DualChannelVuMeter";
@@ -47,6 +49,39 @@ export function MeetingTeleprompterHud({
   const [scratchpadText, setScratchpadText] = useState("");
   const [isPinned, setIsPinned] = useState(true);
   const [voiceAlert, setVoiceAlert] = useState<{ command_type: string; payload: string } | null>(null);
+  const [liveSubtitle, setLiveSubtitle] = useState<SubtitleEvent | null>(null);
+
+  const { data: languages = [] } = useQuery({
+    queryKey: api.qk.translationLanguages(),
+    queryFn: api.getSupportedLanguages,
+    enabled: open,
+  });
+
+  const { data: activeLang = "off" } = useQuery({
+    queryKey: api.qk.activeTranslationLang(),
+    queryFn: api.getActiveTranslationLanguage,
+    enabled: open,
+  });
+
+  const langMutation = useMutation({
+    mutationFn: (targetLang: string) => api.setActiveTranslationLanguage(targetLang),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: api.qk.activeTranslationLang() });
+    },
+  });
+
+  // Listen for live translated subtitles
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void api.onSubtitle((sub) => {
+      setLiveSubtitle(sub);
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
 
@@ -255,6 +290,26 @@ export function MeetingTeleprompterHud({
         </div>
       )}
 
+      {/* Live Translation Subtitle Control Bar */}
+      <div className="flex items-center justify-between border-b border-border/40 bg-surface-2/40 px-3 py-1 text-[11px] text-subtle">
+        <div className="flex items-center gap-1.5">
+          <Globe className="size-3 text-accent" />
+          <span>Live Subtitles:</span>
+        </div>
+        <select
+          value={activeLang}
+          onChange={(e) => langMutation.mutate(e.target.value)}
+          aria-label="Live translation language"
+          className="rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] text-text focus:border-accent focus:outline-none"
+        >
+          {languages.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.name} {l.code !== "off" ? `(${l.nativeName})` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Tab Selector */}
       <div className="flex border-b border-border/40 text-[11px] font-medium bg-surface/60">
         <button
@@ -377,6 +432,19 @@ export function MeetingTeleprompterHud({
           </div>
         )}
       </div>
+
+      {/* Live Subtitle Overlay */}
+      {liveSubtitle && activeLang !== "off" && (
+        <div className="flex items-start gap-2 border-t border-accent/25 bg-accent/10 px-3 py-1.5 text-[11px] text-text">
+          <Globe className="size-3.5 shrink-0 text-accent mt-0.5" />
+          <div className="min-w-0">
+            <span className="mr-1.5 font-bold uppercase tracking-wider text-[10px] text-accent">
+              [{liveSubtitle.targetLang}]:
+            </span>
+            <span className="leading-snug">{liveSubtitle.translatedText}</span>
+          </div>
+        </div>
+      )}
 
       {/* Footer Finish & Actions */}
       <div className="flex items-center justify-between border-t border-border/60 bg-surface-2/40 px-3 py-2">

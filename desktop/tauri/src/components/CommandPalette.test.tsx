@@ -55,6 +55,18 @@ vi.mock("@/lib/api", async (importOriginal) => {
     ...actual,
     searchGlobal: vi.fn().mockResolvedValue(mockGlobalResult),
     listMeetings: vi.fn().mockResolvedValue(mockRecentMeetings),
+    searchHybrid: vi.fn().mockResolvedValue([
+      {
+        meetingId: "mtg_pricing",
+        title: "Northwind pricing review",
+        date: "2026-10-28",
+        matchedSnippet: "Quarterly true-ups and series B evaluation discussion",
+        hybridScore: 0.92,
+        semanticScore: 0.95,
+        ftsScore: 0.88,
+        jumpTimestampMs: null,
+      },
+    ]),
   };
 });
 
@@ -127,5 +139,27 @@ describe("CommandPalette", () => {
 
     expect(await screen.findByText("People & Attendees")).toBeInTheDocument();
     expect(screen.getByText("(Head of Infrastructure)")).toBeInTheDocument();
+  });
+
+  it("toggles Semantic Search mode and renders hybrid matches (#66)", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <CommandPalette />
+      </QueryClientProvider>
+    );
+
+    const semBtn = screen.getByRole("button", { name: /Semantic Search/i });
+    fireEvent.click(semBtn);
+
+    const input = screen.getByPlaceholderText(/Search notes, transcripts, people/i);
+    fireEvent.change(input, { target: { value: "fundraising and valuation" } });
+
+    await waitFor(() => {
+      expect(api.searchHybrid).toHaveBeenCalledWith("fundraising and valuation");
+    });
+
+    expect(await screen.findByText(/Semantic AI Matches/i)).toBeInTheDocument();
+    expect(screen.getByText(/92% match/i)).toBeInTheDocument();
+    expect(screen.getByText(/Quarterly true-ups and series B evaluation discussion/i)).toBeInTheDocument();
   });
 });
