@@ -104,7 +104,7 @@ function AppSidebar() {
   const sharedFolders = folders.filter((f) => f.is_shared);
 
   return (
-    <aside className="flex h-full shrink-0 flex-col border-r border-border bg-sidebar" style={{ width: SIDEBAR_WIDTH }}>
+    <aside className="flex h-full shrink-0 flex-col border-r border-border bg-sidebar backdrop-blur-2xl" style={{ width: SIDEBAR_WIDTH }}>
       {/* Brand row doubles as the drag handle for the sidebar column. */}
       <div data-tauri-drag-region className="flex h-11 items-center px-3">
         <button

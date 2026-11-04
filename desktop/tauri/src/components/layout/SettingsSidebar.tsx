@@ -19,7 +19,7 @@ export function SettingsSidebar({ tab }: { tab: SettingsTab }) {
   };
 
   return (
-    <aside className="flex h-full shrink-0 flex-col border-r border-border bg-sidebar" style={{ width: SIDEBAR_WIDTH }}>
+    <aside className="flex h-full shrink-0 flex-col border-r border-border bg-sidebar backdrop-blur-2xl" style={{ width: SIDEBAR_WIDTH }}>
       <div data-tauri-drag-region className="flex items-center gap-2.5 px-3 py-3">
         <Avatar name={profile?.name || "You"} size={32} />
         <div className="min-w-0">
