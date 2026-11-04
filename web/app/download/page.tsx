@@ -19,7 +19,7 @@ export default function DownloadPage() {
       <main className="max-w-4xl mx-auto px-6 pt-36 pb-24 text-center">
         <div className="flex justify-center mb-6">
           <Badge variant="dot" className="px-4 py-1.5 text-xs font-medium">
-            Release v1.0.0 · Native GPUIX Desktop Engine
+            Release v1.2.0 · Native GPUIX Desktop Engine
           </Badge>
         </div>
 
@@ -66,7 +66,7 @@ export default function DownloadPage() {
                 {platform === 'windows' ? 'Bagrry for Windows 10 & 11' : 'Bagrry for macOS (Apple Silicon & Intel)'}
               </h3>
               <p className="text-xs text-neutral-500 font-mono mt-1">
-                Version 1.0.0 (x64 / arm64) · 48.2 MB
+                Version 1.2.0 (x64 / arm64) · 48.2 MB
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-[#c3dd4f]/20 border border-[#c3dd4f]/40 flex items-center justify-center text-[#4e6006] dark:text-[#c3dd4f]">
@@ -92,7 +92,7 @@ export default function DownloadPage() {
           <a
             href={
               platform === 'windows'
-                ? 'https://github.com/tomlin7/Bagrry/releases/download/v1.0.0/Bagrry_1.0.0_x64-setup.nsis.zip'
+                ? 'https://github.com/tomlin7/Bagrry/releases/download/v1.2.0/Bagrry_1.2.0_x64-setup.nsis.zip'
                 : 'https://github.com/tomlin7/Bagrry/releases/latest'
             }
             target="_blank"
@@ -133,3 +133,4 @@ export default function DownloadPage() {
     </div>
   )
 }
+

@@ -55,6 +55,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Bagrry v__VERSION__'
           releaseBody: 'See full changelog and release notes for Bagrry desktop.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
