@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AudioLines,
   CalendarDays,
   Mail,
   Check,
@@ -54,7 +55,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { snappy } from "@/lib/motion";
 
-export type ViewMode = "split" | "notes" | "enhanced";
+export type ViewMode = "split" | "notes" | "enhanced" | "transcript";
 
 export function NotePage({ noteId }: { noteId: string }) {
   const queryClient = useQueryClient();
@@ -253,7 +254,7 @@ export function NotePage({ noteId }: { noteId: string }) {
     onError: (e) => toast.error(e),
   });
 
-  // Global Keyboard Shortcuts: Ctrl+1 (Split), Ctrl+2 (Notes), Ctrl+3 (Enhanced), Ctrl+Enter (Enhance)
+  // Global Keyboard Shortcuts: Ctrl+1 (Split), Ctrl+2 (Notes), Ctrl+3 (Enhanced), Ctrl+4 (Transcript), Ctrl+T (Toggle Panel), Ctrl+Enter (Enhance)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isCtrl = e.ctrlKey || e.metaKey;
@@ -269,6 +270,13 @@ export function NotePage({ noteId }: { noteId: string }) {
         e.preventDefault();
         setViewMode("enhanced");
         localStorage.setItem("bagrry:note-view-mode", "enhanced");
+      } else if (isCtrl && e.key === "4") {
+        e.preventDefault();
+        setViewMode("transcript");
+        localStorage.setItem("bagrry:note-view-mode", "transcript");
+      } else if (isCtrl && (e.key === "t" || e.key === "T") && !e.shiftKey) {
+        e.preventDefault();
+        setTranscriptOpen(!transcriptOpen);
       } else if (isCtrl && e.key === "Enter" && !e.shiftKey) {
         if (!enhance.isPending) {
           e.preventDefault();
@@ -278,7 +286,7 @@ export function NotePage({ noteId }: { noteId: string }) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [enhance]);
+  }, [enhance, transcriptOpen, setTranscriptOpen]);
 
   // Handle divider dragging
   const handleMouseDownResize = (e: React.MouseEvent) => {
@@ -447,7 +455,50 @@ export function NotePage({ noteId }: { noteId: string }) {
                   <span>Enhanced</span>
                 </button>
               </Tooltip>
+              <Tooltip label="Verbatim transcript (Ctrl+4)">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("transcript");
+                    localStorage.setItem("bagrry:note-view-mode", "transcript");
+                  }}
+                  className={cn(
+                    "flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium transition-all cursor-pointer",
+                    viewMode === "transcript"
+                      ? "bg-bg text-text shadow-xs"
+                      : "text-muted hover:text-text",
+                  )}
+                >
+                  <AudioLines className="size-3 text-accent" />
+                  <span>Transcript</span>
+                  {segments.length > 0 && (
+                    <span className="font-mono text-[9.5px] opacity-70">({segments.length})</span>
+                  )}
+                </button>
+              </Tooltip>
             </div>
+
+            <Tooltip label={transcriptOpen ? "Hide floating transcript (Ctrl+T)" : "Show floating transcript (Ctrl+T)"}>
+              <Button
+                variant={transcriptOpen ? "solid" : "outline"}
+                size="xs"
+                onClick={() => setTranscriptOpen(!transcriptOpen)}
+                className="h-7 gap-1.5 text-[11px] cursor-pointer"
+              >
+                <AudioLines className="size-3 text-accent" />
+                <span>Transcript</span>
+                {segments.length > 0 && (
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.2 font-mono text-[9.5px]",
+                      transcriptOpen ? "bg-accent-foreground/20 text-accent-foreground" : "bg-hover text-subtle",
+                    )}
+                  >
+                    {segments.length}
+                  </span>
+                )}
+              </Button>
+            </Tooltip>
 
             <Button
               variant="outline"
@@ -824,6 +875,17 @@ export function NotePage({ noteId }: { noteId: string }) {
                         </Button>
                       </div>
                     )
+                  ) : viewMode === "transcript" ? (
+                    <div className="h-[calc(100vh-220px)] min-h-[500px] w-full">
+                      <TranscriptPanel
+                        noteId={noteId}
+                        variant="full"
+                        onCloseFull={() => {
+                          setViewMode("split");
+                          localStorage.setItem("bagrry:note-view-mode", "split");
+                        }}
+                      />
+                    </div>
                   ) : (
                     <NoteEditor
                       ref={editorRef}
@@ -900,27 +962,52 @@ export function NotePage({ noteId }: { noteId: string }) {
               exit={{ opacity: 0, y: 6 }}
               transition={snappy}
             >
-              <TranscriptPanel noteId={noteId} />
+              <TranscriptPanel
+                noteId={noteId}
+                onExpandFull={() => {
+                  setTranscriptOpen(false);
+                  setViewMode("transcript");
+                  localStorage.setItem("bagrry:note-view-mode", "transcript");
+                }}
+              />
             </motion.div>
-          ) : (
+          ) : viewMode !== "transcript" ? (
             <motion.div
               key="askbar"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 6 }}
               transition={snappy}
-              className="pointer-events-auto mx-auto flex w-full max-w-[640px] items-center gap-2"
+              className="pointer-events-auto mx-auto flex w-full max-w-[720px] items-center gap-2"
             >
-              <AskBar
-                busy={recState !== "idle" || ask.isPending}
-                onSubmit={(q: string) => ask.mutate(q)}
-                onAttach={async (file) => {
-                  await api.saveAttachmentText(noteId, file.name, file.text);
-                  toast.success(`Attached ${file.name}`);
-                }}
-              />
+              <div className="flex-1">
+                <AskBar
+                  busy={recState !== "idle" || ask.isPending}
+                  onSubmit={(q: string) => ask.mutate(q)}
+                  onAttach={async (file) => {
+                    await api.saveAttachmentText(noteId, file.name, file.text);
+                    toast.success(`Attached ${file.name}`);
+                  }}
+                />
+              </div>
+              <Tooltip label="Open verbatim transcript card (Ctrl+T)">
+                <button
+                  type="button"
+                  aria-label="Open verbatim transcript card"
+                  onClick={() => setTranscriptOpen(true)}
+                  className="flex h-11 items-center gap-1.5 rounded-2xl border border-border bg-surface px-3.5 text-xs text-muted shadow-sm transition-all hover:border-accent hover:text-text hover:shadow-md cursor-pointer shrink-0"
+                >
+                  <AudioLines className="size-4 text-accent" />
+                  <span className="font-medium hidden sm:inline">Transcript</span>
+                  {segments.length > 0 && (
+                    <span className="rounded-full bg-hover px-1.5 py-0.5 font-mono text-[10px] text-subtle">
+                      {segments.length}
+                    </span>
+                  )}
+                </button>
+              </Tooltip>
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Copy, Minus, Search, ThumbsDown, X, Play, Pause, UserCheck } from "lucide-react";
+import { Columns2, Copy, Maximize2, Minus, Search, ThumbsDown, X, Play, Pause, UserCheck } from "lucide-react";
 import * as api from "@/lib/api";
 import { formatElapsed } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,17 @@ import { useBoolSetting } from "@/hooks/useSetting";
  * The floating transcript card that sits over the editor while a note is live or viewed.
  * Supports deep-link sentence jumping with animated highlighting and audio scrubbing.
  */
-export function TranscriptPanel({ noteId }: { noteId: string }) {
+export function TranscriptPanel({
+  noteId,
+  variant = "floating",
+  onExpandFull,
+  onCloseFull,
+}: {
+  noteId: string;
+  variant?: "floating" | "full";
+  onExpandFull?: () => void;
+  onCloseFull?: () => void;
+}) {
   const recState = useAppStore((s) => s.recState);
   const minimized = useAppStore((s) => s.transcriptMinimized);
   const setMinimized = useAppStore((s) => s.setTranscriptMinimized);
@@ -130,6 +140,215 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
     }
   };
 
+  if (variant === "full") {
+    return (
+      <div
+        data-testid="transcript-panel-full"
+        className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-xs"
+      >
+        <div className="flex items-center gap-2 border-b border-border/60 bg-hover/20 px-6 py-3">
+          {searching ? (
+            <input
+              autoFocus
+              value={query}
+              placeholder="Search transcript by keyword or sentence..."
+              onChange={(e) => setQuery(e.target.value)}
+              onBlur={() => !query && setSearching(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setQuery("");
+                  setSearching(false);
+                }
+              }}
+              className="h-7 flex-1 bg-transparent text-xs text-text outline-none placeholder:text-subtle"
+            />
+          ) : (
+            <>
+              <button
+                type="button"
+                aria-label="Search transcript"
+                onClick={() => setSearching(true)}
+                className="grid size-6 place-items-center rounded text-subtle transition-colors hover:bg-hover hover:text-text cursor-pointer"
+              >
+                <Search className="size-3.5" />
+              </button>
+              <span className="font-display text-[13px] font-semibold text-text">
+                Verbatim Transcript
+              </span>
+              <span className="font-mono text-[11px] text-subtle">
+                ({filtered.length} {filtered.length === 1 ? "line" : "lines"})
+              </span>
+              <div className="flex-1" />
+            </>
+          )}
+
+          <PanelAction
+            label="Report a problem"
+            icon={ThumbsDown}
+            onClick={() => toast.info("Thanks — feedback noted")}
+          />
+          <PanelAction
+            label="Copy transcript with timestamps"
+            icon={Copy}
+            onClick={() => void copyAll()}
+          />
+          {onCloseFull && (
+            <PanelAction
+              label="Switch to split view (Ctrl+1)"
+              icon={Columns2}
+              onClick={onCloseFull}
+            />
+          )}
+        </div>
+
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-1.5">
+          {filtered.length === 0 ? (
+            <div className="grid h-full place-items-center text-center p-8">
+              <p className="text-[13px] text-subtle">
+                {query
+                  ? "No matching transcript lines found"
+                  : recState === "recording" || recState === "paused"
+                    ? "Listening… speech will appear shortly with sentence citations"
+                    : "Nothing transcribed yet"}
+              </p>
+            </div>
+          ) : (
+            filtered.map((segment) => {
+              const isSentenceHighlighted =
+                pulseId === segment.sentence_id || pulseId === segment.id;
+
+              const isAudioOnThisSeg =
+                isAudioPlaying &&
+                audioActiveMeetingId === noteId &&
+                audioCurrentTimeMs >= segment.start_ms &&
+                audioCurrentTimeMs <= segment.end_ms;
+
+              return (
+                <div
+                  id={`seg-${segment.sentence_id}`}
+                  key={segment.id || segment.sentence_id}
+                  className={cn(
+                    "group/row relative flex items-start gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] leading-relaxed transition-all duration-300",
+                    isSentenceHighlighted
+                      ? "bg-accent/20 ring-2 ring-accent"
+                      : isAudioOnThisSeg
+                        ? "bg-accent/10 border-l-2 border-accent"
+                        : "hover:bg-hover/40",
+                  )}
+                >
+                  <button
+                    type="button"
+                    aria-label={`Play sentence ${segment.sentence_id}`}
+                    onClick={() => {
+                      if (isAudioOnThisSeg) {
+                        pauseAudio();
+                      } else {
+                        playFrom(noteId, segment.start_ms, segment.sentence_id, maxDurationMs);
+                      }
+                    }}
+                    className={cn(
+                      "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full transition-opacity cursor-pointer",
+                      isAudioOnThisSeg
+                        ? "bg-accent text-white opacity-100"
+                        : "text-subtle hover:bg-hover hover:text-text opacity-0 group-hover/row:opacity-100",
+                    )}
+                  >
+                    {isAudioOnThisSeg ? (
+                      <Pause className="size-2.5 fill-current" />
+                    ) : (
+                      <Play className="ml-0.5 size-2.5 fill-current" />
+                    )}
+                  </button>
+
+                  {speakerTags && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            "shrink-0 pt-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider transition-colors hover:underline cursor-pointer",
+                            segment.speaker_name
+                              ? "text-blue-500 dark:text-blue-400 font-bold"
+                              : segment.speaker === "me"
+                                ? "text-accent"
+                                : "text-subtle hover:text-text",
+                          )}
+                          title="Click to attribute speaker turn"
+                          aria-label={`Attribute speaker ${segment.speaker_name || (segment.speaker === "me" ? "Me" : "Them")}`}
+                        >
+                          {segment.speaker_name || (segment.speaker === "me" ? "Me" : "Them")}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="min-w-[13rem]">
+                        <DropdownMenuLabel>Attribute Speaker</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            assignSpeakerMutation.mutate({
+                              speakerSource: segment.speaker,
+                              speakerName: "Me",
+                            })
+                          }
+                        >
+                          <span className="font-semibold text-accent">Me (Host)</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {attendees.length > 0 && (
+                          <>
+                            <DropdownMenuLabel className="text-[10px] text-subtle">
+                              Meeting Attendees
+                            </DropdownMenuLabel>
+                            {attendees.map((att) => (
+                              <DropdownMenuItem
+                                key={att.id}
+                                onSelect={() =>
+                                  assignSpeakerMutation.mutate({
+                                    speakerSource: segment.speaker,
+                                    speakerName: att.name,
+                                  })
+                                }
+                              >
+                                <UserCheck className="mr-2 size-3 text-subtle" />
+                                <span>{att.name}</span>
+                              </DropdownMenuItem>
+                            ))}
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            const customName = window.prompt("Enter speaker name (e.g. Sarah Connor):");
+                            if (customName && customName.trim()) {
+                              assignSpeakerMutation.mutate({
+                                speakerSource: segment.speaker,
+                                speakerName: customName.trim(),
+                              });
+                            }
+                          }}
+                        >
+                          <span>Custom Speaker…</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+
+                  <span className="flex-1 text-text">{segment.text}</span>
+
+                  <span className="shrink-0 pt-0.5 font-mono text-[10px] text-subtle opacity-70 group-hover/row:opacity-100">
+                    {formatElapsed(segment.start_ms)}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="border-t border-border px-6 py-3 bg-surface/50">
+          <RecordingControls noteId={noteId} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pointer-events-auto mx-auto w-full max-w-[620px]">
       <AnimatePresence mode="wait" initial={false}>
@@ -222,10 +441,22 @@ export function TranscriptPanel({ noteId }: { noteId: string }) {
                   icon={Copy}
                   onClick={() => void copyAll()}
                 />
+                {onExpandFull && (
+                  <PanelAction
+                    label="Expand to full view (Ctrl+4)"
+                    icon={Maximize2}
+                    onClick={onExpandFull}
+                  />
+                )}
                 <PanelAction
                   label="Minimise"
                   icon={Minus}
                   onClick={() => setMinimized(true)}
+                />
+                <PanelAction
+                  label="Close transcript"
+                  icon={X}
+                  onClick={() => setOpen(false)}
                 />
               </div>
 

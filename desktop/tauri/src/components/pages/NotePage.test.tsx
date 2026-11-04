@@ -143,4 +143,33 @@ describe("NotePage Dual-Pane Editor & Templates", () => {
       expect(api.enhanceMeeting).toHaveBeenCalled();
     });
   });
+
+  it("supports toggling transcript floating panel and switching to full transcript view", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <TooltipProvider>
+        <QueryClientProvider client={queryClient}>
+          <NotePage noteId="note_123" />
+        </QueryClientProvider>
+      </TooltipProvider>,
+    );
+
+    // Initial render
+    expect(await screen.findByText("Raw Scratchpad")).toBeDefined();
+
+    // Toggle transcript panel via Ctrl+T
+    fireEvent.keyDown(window, { key: "t", ctrlKey: true });
+    expect(await screen.findByText("Verbatim Transcript")).toBeDefined();
+
+    // Switch to full transcript mode via Ctrl+4
+    fireEvent.keyDown(window, { key: "4", ctrlKey: true });
+    expect(await screen.findByTestId("transcript-panel-full")).toBeDefined();
+
+    // Switch back to split view via Ctrl+1
+    fireEvent.keyDown(window, { key: "1", ctrlKey: true });
+    expect(await screen.findByText("Raw Scratchpad")).toBeDefined();
+  });
 });
