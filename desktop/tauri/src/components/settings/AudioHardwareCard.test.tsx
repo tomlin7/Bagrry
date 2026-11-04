@@ -53,6 +53,8 @@ describe("AudioHardwareCard (#43)", () => {
     expect(screen.getByText(/Meeting audio output/i)).toBeDefined();
     expect(await screen.findByText(/WASAPI Dual-Channel Active/i)).toBeDefined();
     expect(screen.getByText(/16 kHz Whisper Optimized/i)).toBeDefined();
+    expect(screen.getByText(/Continuous Rolling Meeting Buffer:/i)).toBeDefined();
+    expect(screen.getByText(/Ctrl\+Alt\+R/i)).toBeDefined();
   });
 
   it("toggles audio input test meter when button is clicked", async () => {

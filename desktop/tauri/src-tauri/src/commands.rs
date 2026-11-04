@@ -2,8 +2,10 @@ use crate::audio;
 use crate::db;
 use crate::groq;
 use crate::ids::new_id;
+use crate::local_llm;
 use crate::pipeline::{self, TranscriptSeg};
 use crate::secrets;
+use crate::security;
 use crate::whisper_local;
 use crate::AppState;
 use rusqlite::params;
@@ -2923,6 +2925,100 @@ pub fn download_local_model(app: AppHandle, model_id: String) -> Result<(), Stri
 #[tauri::command]
 pub fn delete_local_model(app: AppHandle, model_id: String) -> Result<(), String> {
     whisper_local::delete_model(&app, &model_id)
+}
+
+#[tauri::command]
+pub fn get_local_llm_status(
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<local_llm::LocalLlmStatus, String> {
+    let conn = state.conn()?;
+    local_llm::get_status(&conn, &app)
+}
+
+#[tauri::command]
+pub fn set_local_llm_engine(state: State<AppState>, engine: String) -> Result<(), String> {
+    let conn = state.conn()?;
+    local_llm::set_engine(&conn, &engine)
+}
+
+#[tauri::command]
+pub fn set_active_local_llm_model(state: State<AppState>, model_id: String) -> Result<(), String> {
+    let conn = state.conn()?;
+    local_llm::set_active_model(&conn, &model_id)
+}
+
+#[tauri::command]
+pub fn set_llm_cloud_fallback(state: State<AppState>, enable: bool) -> Result<(), String> {
+    let conn = state.conn()?;
+    local_llm::set_cloud_fallback(&conn, enable)
+}
+
+#[tauri::command]
+pub fn download_local_llm_model(app: AppHandle, model_id: String) -> Result<(), String> {
+    local_llm::download_model(&app, &model_id)
+}
+
+#[tauri::command]
+pub fn delete_local_llm_model(app: AppHandle, model_id: String) -> Result<(), String> {
+    local_llm::delete_model(&app, &model_id)
+}
+
+#[tauri::command]
+pub fn query_local_llm(
+    question: String,
+    context: String,
+    model_id: Option<String>,
+) -> Result<String, String> {
+    let model = model_id.unwrap_or_else(|| "qwen2.5-0.5b".to_string());
+    local_llm::query_local_llm(&question, &context, &model)
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RetroBufferStatus {
+    pub enabled: bool,
+    pub buffered_seconds: f32,
+    pub capacity_seconds: usize,
+    pub memory_mb: f32,
+}
+
+#[tauri::command]
+pub fn get_retro_buffer_status(state: State<AppState>) -> Result<RetroBufferStatus, String> {
+    let buffered = state.recorder.retro_buffer.buffered_seconds();
+    Ok(RetroBufferStatus {
+        enabled: true,
+        buffered_seconds: buffered,
+        capacity_seconds: 300,
+        memory_mb: 19.2,
+    })
+}
+
+#[tauri::command]
+pub fn start_retroactive_recording(
+    app: AppHandle,
+    meeting_id: Option<String>,
+    duration_secs: Option<u32>,
+) -> Result<audio::RecStatus, String> {
+    audio::start_retroactive(&app, meeting_id, duration_secs)
+}
+
+#[tauri::command]
+pub fn get_security_status(state: State<AppState>) -> Result<security::SecurityStatus, String> {
+    let conn = state.conn()?;
+    security::get_security_status(&conn)
+}
+
+#[tauri::command]
+pub fn set_database_encryption(state: State<AppState>, enabled: bool) -> Result<(), String> {
+    let conn = state.conn()?;
+    security::set_encryption_enabled(&conn, enabled)
+}
+
+#[tauri::command]
+pub fn rotate_security_key(state: State<AppState>) -> Result<String, String> {
+    let conn = state.conn()?;
+    security::rotate_key(&conn)
 }
 
 #[tauri::command]

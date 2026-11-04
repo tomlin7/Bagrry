@@ -14,6 +14,7 @@ import {
   Sparkles,
   Tv,
   X,
+  Zap,
 } from "lucide-react";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/app";
@@ -45,8 +46,25 @@ export function MeetingTeleprompterHud({
   const [copilotBusy, setCopilotBusy] = useState(false);
   const [scratchpadText, setScratchpadText] = useState("");
   const [isPinned, setIsPinned] = useState(true);
+  const [voiceAlert, setVoiceAlert] = useState<{ command_type: string; payload: string } | null>(null);
 
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
+
+  // Listen for in-meeting voice commands ("Hey Bagrry")
+  useEffect(() => {
+    let unlistenFn: (() => void) | undefined;
+    void api.onVoiceCommand((event) => {
+      setVoiceAlert(event);
+      setTimeout(() => {
+        setVoiceAlert((curr) => (curr?.payload === event.payload ? null : curr));
+      }, 4500);
+    }).then((unsub) => {
+      unlistenFn = unsub;
+    });
+    return () => {
+      if (unlistenFn) unlistenFn();
+    };
+  }, []);
 
   // Fetch meeting title and scratchpad if noteId exists
   const { data: meeting } = useQuery({
@@ -227,6 +245,15 @@ export function MeetingTeleprompterHud({
           </button>
         </div>
       </div>
+
+      {/* In-Meeting Voice Command Indicator ("Hey Bagrry") */}
+      {voiceAlert && (
+        <div className="flex items-center gap-2 border-b border-accent/30 bg-accent/15 px-3 py-1.5 text-[11px] text-accent">
+          <Zap className="size-3.5 shrink-0" />
+          <span className="font-semibold uppercase tracking-wider text-[10px]">Hey Bagrry:</span>
+          <span className="truncate text-text font-medium">{voiceAlert.payload}</span>
+        </div>
+      )}
 
       {/* Tab Selector */}
       <div className="flex border-b border-border/40 text-[11px] font-medium bg-surface/60">

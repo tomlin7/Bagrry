@@ -3,6 +3,7 @@ pub mod resample;
 pub mod ring_buffer;
 pub mod sink;
 pub mod vad;
+pub mod voice_commands;
 pub mod wav;
 
 use crate::groq;
@@ -66,6 +67,97 @@ impl PendingAudio {
     }
 }
 
+pub const RETRO_BUFFER_SECONDS: usize = 300; // 5 minutes
+pub const RETRO_BUFFER_SAMPLES: usize = TARGET_HZ as usize * RETRO_BUFFER_SECONDS; // 4,800,000 samples
+
+pub struct RetroAudioBuffer {
+    mic: Mutex<Vec<i16>>,
+    sys: Mutex<Vec<i16>>,
+    enabled: AtomicBool,
+}
+
+impl RetroAudioBuffer {
+    pub fn new() -> Self {
+        Self {
+            mic: Mutex::new(Vec::with_capacity(16_000 * 60)),
+            sys: Mutex::new(Vec::with_capacity(16_000 * 60)),
+            enabled: AtomicBool::new(true),
+        }
+    }
+
+    pub fn push_mic(&self, samples: &[i16]) {
+        if !self.enabled.load(Ordering::Relaxed) {
+            return;
+        }
+        if let Ok(mut buf) = self.mic.lock() {
+            buf.extend_from_slice(samples);
+            if buf.len() > RETRO_BUFFER_SAMPLES {
+                let excess = buf.len() - RETRO_BUFFER_SAMPLES;
+                buf.drain(0..excess);
+            }
+        }
+    }
+
+    pub fn push_sys(&self, samples: &[i16]) {
+        if !self.enabled.load(Ordering::Relaxed) {
+            return;
+        }
+        if let Ok(mut buf) = self.sys.lock() {
+            buf.extend_from_slice(samples);
+            if buf.len() > RETRO_BUFFER_SAMPLES {
+                let excess = buf.len() - RETRO_BUFFER_SAMPLES;
+                buf.drain(0..excess);
+            }
+        }
+    }
+
+    pub fn extract(&self, duration_secs: Option<u32>) -> (Vec<i16>, Vec<i16>) {
+        let max_samples = duration_secs
+            .map(|s| (s as usize * TARGET_HZ as usize).min(RETRO_BUFFER_SAMPLES))
+            .unwrap_or(RETRO_BUFFER_SAMPLES);
+
+        let mic = if let Ok(buf) = self.mic.lock() {
+            if buf.len() > max_samples {
+                buf[buf.len() - max_samples..].to_vec()
+            } else {
+                buf.clone()
+            }
+        } else {
+            Vec::new()
+        };
+
+        let sys = if let Ok(buf) = self.sys.lock() {
+            if buf.len() > max_samples {
+                buf[buf.len() - max_samples..].to_vec()
+            } else {
+                buf.clone()
+            }
+        } else {
+            Vec::new()
+        };
+
+        (mic, sys)
+    }
+
+    pub fn buffered_seconds(&self) -> f32 {
+        let mic_len = self.mic.lock().map(|b| b.len()).unwrap_or(0);
+        let sys_len = self.sys.lock().map(|b| b.len()).unwrap_or(0);
+        (mic_len.max(sys_len) as f32) / (TARGET_HZ as f32)
+    }
+
+    pub fn set_enabled(&self, enabled: bool) {
+        self.enabled.store(enabled, Ordering::Relaxed);
+        if !enabled {
+            if let Ok(mut b) = self.mic.lock() {
+                b.clear();
+            }
+            if let Ok(mut b) = self.sys.lock() {
+                b.clear();
+            }
+        }
+    }
+}
+
 pub struct Recorder {
     pub state: Mutex<RecState>,
     pub pending: Mutex<Option<PendingAudio>>,
@@ -73,6 +165,7 @@ pub struct Recorder {
     pub meeting_id: Mutex<Option<String>>,
     pub last_error: Mutex<Option<String>>,
     session: Mutex<Option<LiveSession>>,
+    pub retro_buffer: Arc<RetroAudioBuffer>,
 }
 
 struct LiveSession {
@@ -97,6 +190,7 @@ impl Recorder {
             meeting_id: Mutex::new(None),
             last_error: Mutex::new(None),
             session: Mutex::new(None),
+            retro_buffer: Arc::new(RetroAudioBuffer::new()),
         }
     }
 }
@@ -213,6 +307,40 @@ pub fn start(app: &AppHandle, meeting_id: Option<String>) -> Result<RecStatus, S
     );
     let status = status_of(recorder)?;
     let _ = app.emit("recording-state", status.clone());
+    Ok(status)
+}
+
+pub fn start_retroactive(
+    app: &AppHandle,
+    meeting_id: Option<String>,
+    duration_secs: Option<u32>,
+) -> Result<RecStatus, String> {
+    let state = recorder_of(app);
+    let recorder = &state.recorder;
+    let (retro_mic, retro_sys) = recorder.retro_buffer.extract(duration_secs);
+
+    let status = start(app, meeting_id)?;
+
+    if let Ok(guard) = recorder.session.lock() {
+        if let Some(session) = guard.as_ref() {
+            if !retro_mic.is_empty() {
+                session.mic_sink.push(&retro_mic);
+            }
+            if !retro_sys.is_empty() {
+                session.sys_sink.push(&retro_sys);
+            }
+        }
+    }
+
+    crate::tray::notify(
+        app,
+        "Bagrry Retroactive Capture",
+        &format!(
+            "Captured past {}s of meeting dialogue and resumed live capture.",
+            duration_secs.unwrap_or(300)
+        ),
+    );
+
     Ok(status)
 }
 
@@ -421,6 +549,11 @@ fn spawn_live_stt(
                 };
                 match pipeline::transcribe_pcm_chunk(&key, &mic, &sys, &opts, start) {
                     Ok(segments) if !segments.is_empty() => {
+                        voice_commands::process_voice_commands(
+                            &app,
+                            meeting_id.as_deref(),
+                            &segments,
+                        );
                         let _ = app.emit(
                             "live-transcript",
                             LiveTranscriptBatch {

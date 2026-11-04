@@ -7,8 +7,10 @@ mod db;
 mod groq;
 mod http;
 mod ids;
+pub mod local_llm;
 mod pipeline;
 mod secrets;
+pub mod security;
 mod settings_cmds;
 mod tray;
 pub mod whisper_local;
@@ -171,6 +173,18 @@ pub fn run() {
             commands::assign_speaker_name,
             commands::update_segment_speaker,
             commands::get_meeting_analytics,
+            commands::get_local_llm_status,
+            commands::set_local_llm_engine,
+            commands::set_active_local_llm_model,
+            commands::set_llm_cloud_fallback,
+            commands::download_local_llm_model,
+            commands::delete_local_llm_model,
+            commands::query_local_llm,
+            commands::get_retro_buffer_status,
+            commands::start_retroactive_recording,
+            commands::get_security_status,
+            commands::set_database_encryption,
+            commands::rotate_security_key,
             settings_cmds::set_launch_on_login,
             settings_cmds::get_launch_on_login,
             settings_cmds::apply_retention,
@@ -215,15 +229,16 @@ fn register_first_available(
 }
 
 fn register_recording_shortcuts(app: &tauri::AppHandle) {
-    register_first_available(
-        app,
-        &["super+shift+r", "ctrl+shift+r", "ctrl+alt+r"],
-        |handle| {
-            if let Err(e) = audio::toggle(handle) {
-                eprintln!("toggle recording: {e}");
-            }
-        },
-    );
+    register_first_available(app, &["super+shift+r", "ctrl+shift+r"], |handle| {
+        if let Err(e) = audio::toggle(handle) {
+            eprintln!("toggle recording: {e}");
+        }
+    });
+    register_first_available(app, &["super+alt+r", "ctrl+alt+r"], |handle| {
+        if let Err(e) = audio::start_retroactive(handle, None, Some(300)) {
+            eprintln!("start retroactive recording: {e}");
+        }
+    });
     register_first_available(
         app,
         &["super+shift+p", "ctrl+shift+p", "ctrl+alt+p"],

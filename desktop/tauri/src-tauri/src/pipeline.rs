@@ -420,9 +420,12 @@ pub fn enhance(
             }
         }
     }
-    Ok(local_enhance(scratchpad, segs, structure))
+    Ok(crate::local_llm::enhance_with_local_llm(
+        scratchpad, segs, structure, ctx,
+    ))
 }
 
+#[allow(dead_code)]
 fn local_enhance(scratchpad: &str, segs: &[TranscriptSeg], structure: &str) -> EnhancedDoc {
     let sections: Vec<String> = serde_json::from_str::<serde_json::Value>(structure)
         .ok()
@@ -503,6 +506,7 @@ fn local_enhance(scratchpad: &str, segs: &[TranscriptSeg], structure: &str) -> E
     }
 }
 
+#[allow(dead_code)]
 fn best_citations(text: &str, segs: &[TranscriptSeg], n: usize) -> Vec<String> {
     let words: Vec<String> = text
         .to_lowercase()

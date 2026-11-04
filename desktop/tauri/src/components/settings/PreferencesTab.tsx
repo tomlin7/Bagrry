@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/controls";
 import { toast } from "@/components/ui/toast";
 import { AccentLink, TabHeading } from "./shared";
+import { LocalLlmCard } from "./LocalLlmCard";
 import { LocalWhisperCard } from "./LocalWhisperCard";
 import { AudioHardwareCard } from "./AudioHardwareCard";
 import { CHAT_MODELS, DEFAULT_CHAT_MODEL, DEFAULT_STT_MODEL, STT_MODELS } from "@/lib/models";
@@ -159,6 +160,8 @@ export function PreferencesTab() {
       </SettingsCard>
 
       <LocalWhisperCard />
+
+      <LocalLlmCard />
 
       <AudioHardwareCard />
 

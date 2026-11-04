@@ -6,7 +6,8 @@ import { useSetting } from "@/hooks/useSetting";
 import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
-import { SettingRow, SettingsCard } from "@/components/ui/controls";
+import { Lock, Shield, KeyRound, RefreshCw } from "lucide-react";
+import { SettingRow, SettingsCard, Switch } from "@/components/ui/controls";
 import { toast } from "@/components/ui/toast";
 import { SettingsField, TabHeading } from "./shared";
 import { quietField } from "./helpers";
@@ -72,6 +73,29 @@ export function ProfileTab() {
       void queryClient.invalidateQueries();
       setConfirmDelete("");
       toast.success("All notes and data deleted");
+    },
+    onError: (e) => toast.error(e),
+  });
+
+  const { data: securityStatus } = useQuery({
+    queryKey: api.qk.securityStatus(),
+    queryFn: api.getSecurityStatus,
+  });
+
+  const toggleEncryption = useMutation({
+    mutationFn: (enable: boolean) => api.setDatabaseEncryption(enable),
+    onSuccess: (_, enable) => {
+      void queryClient.invalidateQueries({ queryKey: api.qk.securityStatus() });
+      toast.success(enable ? "Database encryption enabled" : "Database encryption disabled");
+    },
+    onError: (e) => toast.error(e),
+  });
+
+  const rotateKey = useMutation({
+    mutationFn: api.rotateSecurityKey,
+    onSuccess: (epoch) => {
+      void queryClient.invalidateQueries({ queryKey: api.qk.securityStatus() });
+      toast.success(`Security master key rotated (${epoch})`);
     },
     onError: (e) => toast.error(e),
   });
@@ -150,6 +174,54 @@ export function ProfileTab() {
             placeholder="What does your company do?"
           />
         </SettingsField>
+      </SettingsCard>
+
+      <SettingsCard title="Enterprise Security & Database Encryption" dashed>
+        <div className="flex items-center justify-between px-4 pt-3 pb-1">
+          <div className="flex items-center gap-2">
+            <Shield className="size-4 text-emerald-500" />
+            <span className="text-xs font-semibold text-text">
+              {securityStatus?.provider || "Windows DPAPI (Hardware TPM Bound)"}
+            </span>
+          </div>
+          <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 font-mono text-[10.5px] font-semibold text-emerald-500">
+            {securityStatus?.vaultStatus || "Encrypted & Secure"}
+          </span>
+        </div>
+        <p className="px-4 text-xs text-muted leading-relaxed">
+          Protects your local SQLite meeting transcripts, attendee dossiers, and vector embeddings with hardware-bound AES-256-GCM encryption.
+        </p>
+
+        <SettingRow
+          icon={<Lock className="size-4 text-accent" />}
+          title="Hardware-bound encryption at rest"
+          description="Encrypts local transcripts with your current OS login master key."
+          control={
+            <Switch
+              checked={securityStatus?.encryptionEnabled ?? true}
+              onCheckedChange={(checked) => toggleEncryption.mutate(checked)}
+            />
+          }
+        />
+
+        <SettingRow
+          icon={<KeyRound className="size-4 text-accent" />}
+          title="Rotate master security key"
+          description={`Last rotated: ${securityStatus?.lastRotated || "Initial Provisioning"}`}
+          control={
+            <Button
+              variant="outline"
+              size="sm"
+              shape="square"
+              loading={rotateKey.isPending}
+              onClick={() => rotateKey.mutate()}
+              className="gap-1.5"
+            >
+              <RefreshCw className="size-3" />
+              <span>Rotate Key</span>
+            </Button>
+          }
+        />
       </SettingsCard>
 
       <SettingsCard title="Account management" dashed>

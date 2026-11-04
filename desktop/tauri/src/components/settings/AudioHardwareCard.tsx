@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, CheckCircle2, Headphones, Mic, Volume2 } from "lucide-react";
+import { Activity, CheckCircle2, Headphones, History, Mic, Volume2 } from "lucide-react";
 import * as api from "@/lib/api";
 import { useSetting } from "@/hooks/useSetting";
 import {
@@ -27,6 +27,11 @@ export function AudioHardwareCard() {
   const { data: diagnostics } = useQuery({
     queryKey: api.qk.audioDiagnostics(),
     queryFn: api.getAudioDiagnostics,
+  });
+
+  const { data: retroBuffer } = useQuery({
+    queryKey: api.qk.retroBuffer(),
+    queryFn: api.getRetroBufferStatus,
   });
 
   const inputDevices = devices.filter((d) => d.kind === "input");
@@ -116,6 +121,24 @@ export function AudioHardwareCard() {
               <Activity className="size-3 text-accent" />
               <span>{testing ? "Stop Test" : "Test Audio Input"}</span>
             </button>
+          </div>
+        </div>
+
+        {/* 5-Minute Retroactive Rolling Audio Buffer Status */}
+        <div className="mt-3 flex items-center justify-between rounded-lg border border-border/60 bg-surface-2/40 px-3 py-2 text-[11px]">
+          <div className="flex items-center gap-2">
+            <History className="size-3.5 text-accent" />
+            <span className="font-medium text-text">Continuous Rolling Meeting Buffer:</span>
+            <span className="text-emerald-500 font-medium">
+              {retroBuffer?.enabled ? "Active" : "Disabled"}
+            </span>
+            <span className="text-subtle font-mono text-[10.5px]">
+              ({retroBuffer?.capacitySeconds ? `${retroBuffer.capacitySeconds / 60}m` : "5m"} / ~{retroBuffer?.memoryMb || 19.2} MB RAM)
+            </span>
+          </div>
+          <div className="flex items-center gap-2 font-mono text-[10px] text-subtle">
+            <span>Shortcut:</span>
+            <kbd className="rounded bg-hover px-1.5 py-0.5 text-text">Ctrl+Alt+R</kbd>
           </div>
         </div>
 

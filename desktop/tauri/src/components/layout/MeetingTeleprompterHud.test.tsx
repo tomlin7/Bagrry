@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MeetingTeleprompterHud } from "./MeetingTeleprompterHud";
@@ -14,6 +14,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
     saveScratchpad: vi.fn(),
     pauseRecording: vi.fn(),
     stopRecording: vi.fn(),
+    onVoiceCommand: vi.fn().mockResolvedValue(() => {}),
   };
 });
 
@@ -114,5 +115,30 @@ describe("MeetingTeleprompterHud (#44)", () => {
     fireEvent.submit(input.closest("form")!);
 
     expect(await screen.findByText(/The attendees agreed to review launch dates on Friday/i)).toBeDefined();
+  });
+
+  it("surfaces in-meeting voice command indicator when Hey Bagrry is detected", async () => {
+    let capturedCallback: ((payload: { command_type: string; payload: string }) => void) | null = null;
+    vi.mocked(api.onVoiceCommand).mockImplementation((cb) => {
+      capturedCallback = cb;
+      return Promise.resolve(() => {});
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MeetingTeleprompterHud open={true} onClose={vi.fn()} onMinimizeToPill={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    expect(capturedCallback).not.toBeNull();
+    act(() => {
+      capturedCallback!({
+        command_type: "action",
+        payload: "Follow up with Sarah regarding API documentation",
+      });
+    });
+
+    expect(await screen.findByText(/Hey Bagrry:/i)).toBeDefined();
+    expect(screen.getByText(/Follow up with Sarah regarding API documentation/i)).toBeDefined();
   });
 });

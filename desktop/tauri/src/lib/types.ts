@@ -184,6 +184,45 @@ export type LocalSttStatus = {
   models: LocalModelInfo[];
 };
 
+export type LocalLlmModelInfo = {
+  id: string;
+  name: string;
+  sizeMb: number;
+  downloaded: boolean;
+  active: boolean;
+  sha256: string;
+  speedFactor: string;
+  description: string;
+  parameters: string;
+  quantization: string;
+};
+
+export type LocalLlmStatus = {
+  engine: "local" | "cloud";
+  activeModel: string;
+  hardwareBackend: string;
+  cpuThreads: number;
+  contextTokens: number;
+  cloudFallback: boolean;
+  models: LocalLlmModelInfo[];
+};
+
+export type RetroBufferStatus = {
+  enabled: boolean;
+  bufferedSeconds: number;
+  capacitySeconds: number;
+  memoryMb: number;
+};
+
+export type SecurityStatus = {
+  encryptionEnabled: boolean;
+  provider: string;
+  algorithm: string;
+  vaultStatus: string;
+  keyStorage: string;
+  lastRotated: string;
+};
+
 export type Company = {
   id: string;
   name: string;

@@ -25,6 +25,16 @@ vi.mock("@/lib/api", async (importOriginal) => {
     setProfile: vi.fn().mockResolvedValue(undefined),
     exportWorkspaceVault: vi.fn().mockResolvedValue(mockVaultResult),
     exportCsv: vi.fn().mockResolvedValue("C:/Users/BIT/Downloads/bagrry-notes.csv"),
+    getSecurityStatus: vi.fn().mockResolvedValue({
+      encryptionEnabled: true,
+      provider: "Windows DPAPI (Hardware TPM Bound)",
+      algorithm: "AES-256-GCM + PBKDF2",
+      vaultStatus: "Encrypted & Secure",
+      keyStorage: "OS Native Secure Credential Vault",
+      lastRotated: "Epoch 1730000000",
+    }),
+    setDatabaseEncryption: vi.fn().mockResolvedValue(undefined),
+    rotateSecurityKey: vi.fn().mockResolvedValue("Epoch 1730500000"),
   };
 });
 
@@ -59,6 +69,21 @@ describe("ProfileTab & Obsidian Vault Export (#51)", () => {
 
     await waitFor(() => {
       expect(api.exportWorkspaceVault).toHaveBeenCalledWith(null);
+    });
+  });
+
+  it("renders enterprise database encryption status and rotates master security key", async () => {
+    renderWithClient(<ProfileTab />);
+
+    expect(await screen.findByText("Enterprise Security & Database Encryption")).toBeDefined();
+    expect(screen.getByText("Windows DPAPI (Hardware TPM Bound)")).toBeDefined();
+    expect(screen.getByText("Encrypted & Secure")).toBeDefined();
+
+    const rotateBtn = screen.getByRole("button", { name: /Rotate master security key/i });
+    fireEvent.click(rotateBtn);
+
+    await waitFor(() => {
+      expect(api.rotateSecurityKey).toHaveBeenCalled();
     });
   });
 });

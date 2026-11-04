@@ -15,6 +15,7 @@ import type {
   Folder,
   FormattedExport,
   GlobalSearchResult,
+  LocalLlmStatus,
   LocalSttStatus,
   Meeting,
   MeetingAnalytics,
@@ -23,6 +24,8 @@ import type {
   Profile,
   Recipe,
   RecStatus,
+  RetroBufferStatus,
+  SecurityStatus,
   ShareInfo,
   Template,
   TranscriptSeg,
@@ -300,6 +303,32 @@ export const downloadLocalModel = (modelId: string) =>
 export const deleteLocalModel = (modelId: string) =>
   invoke<void>("delete_local_model", { modelId });
 
+export const getLocalLlmStatus = () => invoke<LocalLlmStatus>("get_local_llm_status");
+export const setLocalLlmEngine = (engine: "local" | "cloud") =>
+  invoke<void>("set_local_llm_engine", { engine });
+export const setActiveLocalLlmModel = (modelId: string) =>
+  invoke<void>("set_active_local_llm_model", { modelId });
+export const setLlmCloudFallback = (enable: boolean) =>
+  invoke<void>("set_llm_cloud_fallback", { enable });
+export const downloadLocalLlmModel = (modelId: string) =>
+  invoke<void>("download_local_llm_model", { modelId });
+export const deleteLocalLlmModel = (modelId: string) =>
+  invoke<void>("delete_local_llm_model", { modelId });
+export const queryLocalLlm = (question: string, context: string, modelId?: string) =>
+  invoke<string>("query_local_llm", { question, context, modelId: modelId ?? null });
+
+export const getRetroBufferStatus = () => invoke<RetroBufferStatus>("get_retro_buffer_status");
+export const startRetroactiveRecording = (meetingId?: string, durationSecs?: number) =>
+  invoke<RecStatus>("start_retroactive_recording", {
+    meetingId: meetingId ?? null,
+    durationSecs: durationSecs ?? 300,
+  });
+
+export const getSecurityStatus = () => invoke<SecurityStatus>("get_security_status");
+export const setDatabaseEncryption = (enabled: boolean) =>
+  invoke<void>("set_database_encryption", { enabled });
+export const rotateSecurityKey = () => invoke<string>("rotate_security_key");
+
 export const setLaunchOnLogin = (enable: boolean) =>
   invoke<boolean>("set_launch_on_login", { enable });
 export const getLaunchOnLogin = () => invoke<boolean>("get_launch_on_login");
@@ -321,6 +350,24 @@ export const getReferralCode = () => invoke<string>("get_referral_code");
 export const listAudioDevices = () => invoke<AudioDeviceInfo[]>("list_audio_devices");
 export const getAudioDiagnostics = () => invoke<AudioDiagnostics>("get_audio_diagnostics");
 export const getMeetingAnalytics = () => invoke<MeetingAnalytics>("get_meeting_analytics");
+
+export async function onVoiceCommand(
+  cb: (payload: { command_type: string; payload: string; meeting_id?: string }) => void
+): Promise<() => void> {
+  if (typeof window === "undefined") return () => {};
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    const unlisten = await listen<{ command_type: string; payload: string; meeting_id?: string }>(
+      "voice-command-detected",
+      (event) => {
+        cb(event.payload);
+      }
+    );
+    return unlisten;
+  } catch {
+    return () => {};
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Query keys                                                          */
@@ -357,6 +404,9 @@ export const qk = {
   referral: () => ["referral"] as const,
   autostart: () => ["autostart"] as const,
   localSttStatus: () => ["local-stt-status"] as const,
+  localLlmStatus: () => ["local-llm-status"] as const,
+  retroBuffer: () => ["retro-buffer-status"] as const,
+  securityStatus: () => ["security-status"] as const,
   audioDevices: () => ["audio-devices"] as const,
   audioDiagnostics: () => ["audio-diagnostics"] as const,
   analytics: () => ["analytics"] as const,
