@@ -138,15 +138,15 @@ function NoteRow({ note }: { note: Meeting }) {
       onKeyDown={(e) => {
         if (e.key === "Enter") openNote(note.id);
       }}
-      className="group flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-hover"
+      className="group flex w-full cursor-pointer items-center gap-3.5 rounded-xl px-3 py-2 text-left transition-colors hover:bg-hover"
     >
-      <div className="grid size-7 shrink-0 place-items-center rounded-lg border border-border bg-surface text-subtle">
-        <FileText className="size-3.5" />
+      <div className="grid size-8 shrink-0 place-items-center rounded-xl border border-border/80 bg-surface text-subtle">
+        <FileText className="size-4" />
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="truncate text-[13px] font-medium text-text">{note.title || "Untitled"}</span>
+          <span className="truncate text-sm font-medium text-text">{note.title || "Untitled"}</span>
           {isRecording && (
             <span className="flex items-center gap-1 text-[10px] font-semibold text-danger">
               <span className="size-1.5 rounded-full bg-danger animate-pulse-ring" />
@@ -154,7 +154,7 @@ function NoteRow({ note }: { note: Meeting }) {
             </span>
           )}
         </div>
-        <div className="truncate text-xs text-subtle">{preview || "Me"}</div>
+        <div className="truncate text-xs text-subtle mt-0.5">{preview || "Me"}</div>
       </div>
 
       <span className="shrink-0 text-[11px] text-subtle tabular">

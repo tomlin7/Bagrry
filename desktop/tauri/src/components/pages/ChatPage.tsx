@@ -47,10 +47,13 @@ function ChatLanding() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto w-full max-w-[640px] px-6 pb-16 pt-16">
-        <h1 className="font-display mb-5 text-[26px] font-semibold text-text">
-          Hi {firstName}, ask anything
-        </h1>
+      <div className="mx-auto w-full max-w-[760px] px-6 pb-20 pt-16">
+        <div className="text-center mb-7">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-text">
+            Hi {firstName}, ask anything
+          </h1>
+          <p className="text-sm text-subtle mt-1.5 font-normal">What should we work on today?</p>
+        </div>
 
         <AskBar
           autoFocus
@@ -59,34 +62,51 @@ function ChatLanding() {
           onSubmit={(value) => void send(value)}
         />
 
-        <section className="mt-8">
-          <h2 className="px-1 pb-2 text-[11px] font-semibold text-subtle">
+        {/* Quick prompt shortcut pills */}
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          {["Summarize this week's decisions", "List open action items", "Upcoming client follow-ups"].map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => void send(prompt)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs text-subtle transition-colors hover:border-border-strong hover:bg-hover hover:text-text cursor-pointer"
+            >
+              <Sparkles className="size-3 text-accent" />
+              <span>{prompt}</span>
+            </button>
+          ))}
+        </div>
+
+        <section className="mt-10">
+          <h2 className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">
             Cross-Meeting Intelligence
           </h2>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {CROSS_MEETING_PROMPTS.map((prompt) => (
               <button
                 key={prompt}
                 type="button"
                 onClick={() => void send(prompt)}
-                className="flex items-start gap-2.5 rounded-xl border border-border bg-surface p-3 text-left transition-colors hover:border-accent/40 hover:bg-hover"
+                className="flex items-start gap-3 rounded-2xl border border-border bg-surface p-3.5 text-left transition-colors hover:border-border-strong hover:bg-hover cursor-pointer shadow-xs"
               >
-                <Sparkles className="mt-0.5 size-3.5 shrink-0 text-accent" />
-                <span className="text-[12px] leading-relaxed text-text">{prompt}</span>
+                <div className="grid size-6 shrink-0 place-items-center rounded-lg bg-surface-2 text-accent mt-0.5">
+                  <Sparkles className="size-3.5" />
+                </div>
+                <span className="text-[13px] leading-relaxed text-text font-normal">{prompt}</span>
               </button>
             ))}
           </div>
         </section>
 
         {sessions.length > 0 && (
-          <section className="mt-8">
-            <h2 className="px-1 pb-1 text-[11px] font-semibold text-subtle">Recents</h2>
+          <section className="mt-10">
+            <h2 className="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">Recents</h2>
             {sessions.slice(0, 8).map((session) => (
               <div key={session.id} className="group flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => navigate({ kind: "chat", sessionId: session.id })}
-                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-hover"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-hover cursor-pointer"
                 >
                   <div className="grid size-7 shrink-0 place-items-center rounded-lg border border-border bg-surface text-subtle">
                     <MessageSquare className="size-3.5" />
@@ -101,7 +121,7 @@ function ChatLanding() {
                 <button
                   type="button"
                   aria-label="Delete chat"
-                  className="grid size-7 place-items-center rounded-md text-subtle opacity-0 transition-opacity hover:bg-hover hover:text-danger group-hover:opacity-100"
+                  className="grid size-7 place-items-center rounded-md text-subtle opacity-0 transition-opacity hover:bg-hover hover:text-danger group-hover:opacity-100 cursor-pointer"
                   onClick={() => {
                     void api.deleteChatSession(session.id).then(
                       () => {
@@ -119,8 +139,8 @@ function ChatLanding() {
           </section>
         )}
 
-        <section className="mt-8">
-          <h2 className="px-1 pb-2 text-[11px] font-semibold text-subtle">Recipes</h2>
+        <section className="mt-10">
+          <h2 className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Recipes</h2>
           <RecipeChips limit={6} onPick={(prompt) => void send(prompt)} />
         </section>
       </div>
@@ -146,8 +166,13 @@ function ChatThread({ sessionId }: { sessionId: string }) {
   return (
     <div className="flex h-full flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[640px] space-y-5 px-6 py-6">
-          {isLoading && <Skeleton className="h-16 w-full rounded-xl" />}
+        <div className="mx-auto w-full max-w-[760px] space-y-6 px-6 py-8">
+          {isLoading && (
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-4/5 rounded-full" />
+              <Skeleton className="h-4 w-3/5 rounded-full" />
+            </div>
+          )}
 
           {messages.map((message) =>
             message.role === "user" ? (
@@ -164,8 +189,8 @@ function ChatThread({ sessionId }: { sessionId: string }) {
         </div>
       </div>
 
-      <div className="shrink-0 px-6 pb-5">
-        <div className="mx-auto w-full max-w-[640px]">
+      <div className="shrink-0 px-6 pb-6 pt-2">
+        <div className="mx-auto w-full max-w-[760px]">
           <AskBar autoFocus placeholder="Ask across meetings…" busy={pending} onSubmit={(v) => void send(v)} />
         </div>
       </div>
@@ -176,7 +201,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
 function UserBubble({ content }: { content: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl bg-surface-2 px-3.5 py-2 text-[13px] text-text">
+      <div className="max-w-[78%] whitespace-pre-wrap rounded-[24px] bg-surface text-text px-4 py-2.5 text-[14px] leading-relaxed shadow-xs border border-border/60">
         {content}
       </div>
     </div>
@@ -234,11 +259,11 @@ export function AssistantMessage({ content }: { content: string }) {
   };
 
   return (
-    <div className="group rounded-2xl border border-border/60 bg-surface/80 p-4 shadow-sm transition-colors hover:border-border">
+    <div className="group rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm transition-colors hover:border-border">
       {/* Confidence Header Badge */}
       {confidenceText && (
         <div className="mb-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
             <ShieldCheck className="size-3.5" />
             <span>Confidence: {confidenceText}</span>
           </span>
@@ -246,28 +271,28 @@ export function AssistantMessage({ content }: { content: string }) {
       )}
 
       {/* Answer Body with Inline Citation Pills */}
-      <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-text">
+      <div className="whitespace-pre-wrap text-[14px] leading-[1.75] text-text font-normal">
         {renderInlineCitations(contentWithoutConf, (id) => navigate({ kind: "note", noteId: id }))}
       </div>
 
       {/* Sources and Grounding Footnote Tray */}
       {citedMeetings.length > 0 && (
-        <div className="mt-4 rounded-xl border border-border/80 bg-surface-2/60 p-3">
+        <div className="mt-4 rounded-2xl border border-border/80 bg-surface-2 p-3.5">
           <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-subtle">
             <Sparkles className="size-3 text-accent" />
             <span>Referenced Sources ({citedMeetings.length})</span>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {citedMeetings.map((src) => (
               <button
                 key={src.id}
                 type="button"
                 onClick={() => navigate({ kind: "note", noteId: src.id })}
-                className="group/pill inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1 text-[12px] font-medium text-text transition-colors hover:border-accent hover:bg-hover hover:text-accent"
+                className="group/pill inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-[12px] font-medium text-text transition-colors hover:border-border-strong hover:bg-hover"
               >
-                <FileText className="size-3 text-subtle group-hover/pill:text-accent" />
+                <FileText className="size-3 text-subtle group-hover/pill:text-text" />
                 <span className="max-w-[200px] truncate">{src.title}</span>
-                <ExternalLink className="size-2.5 text-subtle group-hover/pill:text-accent" />
+                <ExternalLink className="size-2.5 text-subtle group-hover/pill:text-text" />
               </button>
             ))}
           </div>
@@ -280,10 +305,10 @@ export function AssistantMessage({ content }: { content: string }) {
           <button
             type="button"
             onClick={handleCopy}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 transition-colors hover:bg-hover hover:text-text"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-hover hover:text-text cursor-pointer"
             aria-label="Copy answer"
           >
-            {copied ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+            {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
             <span>{copied ? "Copied" : "Copy"}</span>
           </button>
         </div>

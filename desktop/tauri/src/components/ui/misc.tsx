@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { initials as toInitials } from "@/lib/format";
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("skeleton rounded-md", className)} />;
+  return <div className={cn("skeleton rounded-full", className)} />;
 }
 
 export function Separator({ className, vertical }: { className?: string; vertical?: boolean }) {
@@ -19,7 +19,7 @@ export function Kbd({ children, className }: { children: React.ReactNode; classN
   return (
     <kbd
       className={cn(
-        "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-border bg-hover px-1 font-sans text-[10px] font-medium text-muted",
+        "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-md border border-border/80 bg-surface-2 px-1.5 font-sans text-[10px] font-medium text-subtle",
         className,
       )}
     >

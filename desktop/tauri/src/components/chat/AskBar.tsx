@@ -52,8 +52,8 @@ export function AskBar({
   return (
     <div
       className={cn(
-        "rounded-2xl border bg-surface px-3 py-2 transition-[border-color,box-shadow]",
-        focused ? "border-accent shadow-md ring-2 ring-accent/20" : "border-border shadow-sm",
+        "rounded-[26px] border bg-surface px-4 py-3 transition-[border-color,box-shadow]",
+        focused ? "border-border-strong shadow-md ring-1 ring-border-strong" : "border-border shadow-sm",
         className,
       )}
       onClick={() => inputRef.current?.focus()}
@@ -72,15 +72,15 @@ export function AskBar({
             submit();
           }
         }}
-        className="py-1"
+        className="py-1 text-[15px] leading-relaxed"
       />
 
-      <div className="mt-1 flex items-center gap-1">
+      <div className="mt-2 flex items-center gap-1.5">
         <Tooltip label="Attach a file">
           <button
             type="button"
             aria-label="Attach a file"
-            className="grid size-6 place-items-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-text"
+            className="grid size-8 place-items-center rounded-full text-subtle transition-colors hover:bg-hover hover:text-text cursor-pointer"
             onClick={() => {
               if (!onAttach) return;
               const input = document.createElement("input");
@@ -94,7 +94,7 @@ export function AskBar({
               input.click();
             }}
           >
-            <Paperclip className="size-3.5" />
+            <Paperclip className="size-4" />
           </button>
         </Tooltip>
 
@@ -103,10 +103,10 @@ export function AskBar({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] text-muted transition-colors hover:bg-hover hover:text-text"
+                className="flex h-7 items-center gap-1.5 rounded-full border border-border/80 bg-surface-2 px-3 text-[12px] font-medium text-text transition-colors hover:bg-hover cursor-pointer"
               >
-                {CHAT_MODELS.find((m) => m.id === model)?.label ?? "Model"}
-                <ChevronDown className="size-3" />
+                <span>{CHAT_MODELS.find((m) => m.id === model)?.label ?? "Model"}</span>
+                <ChevronDown className="size-3 text-subtle" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-[14rem]">
@@ -129,9 +129,9 @@ export function AskBar({
           <button
             type="button"
             aria-label="Dictate"
-            className="grid size-6 place-items-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-text"
+            className="grid size-8 place-items-center rounded-full text-subtle transition-colors hover:bg-hover hover:text-text cursor-pointer"
           >
-            <Mic className="size-3.5" />
+            <Mic className="size-4" />
           </button>
         </Tooltip>
 
@@ -141,13 +141,13 @@ export function AskBar({
           onClick={submit}
           disabled={!value.trim() || busy}
           className={cn(
-            "grid size-6 place-items-center rounded-full transition-all",
+            "grid size-8 place-items-center rounded-full transition-all",
             value.trim() && !busy
-              ? "bg-solid text-solid-fg hover:bg-solid-hover"
-              : "bg-hover text-subtle",
+              ? "bg-solid text-solid-fg hover:opacity-90 shadow-xs cursor-pointer"
+              : "bg-surface-2 border border-border/60 text-subtle/50 cursor-not-allowed",
           )}
         >
-          <ArrowUp className="size-3.5" />
+          <ArrowUp className="size-4" />
         </button>
       </div>
     </div>

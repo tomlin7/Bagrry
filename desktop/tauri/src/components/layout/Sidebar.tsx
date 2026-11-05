@@ -106,14 +106,15 @@ function AppSidebar() {
   return (
     <aside className="flex h-full shrink-0 flex-col border-r border-border bg-sidebar backdrop-blur-2xl" style={{ width: SIDEBAR_WIDTH }}>
       {/* Brand row doubles as the drag handle for the sidebar column. */}
-      <div data-tauri-drag-region className="flex h-11 items-center px-3">
+      <div data-tauri-drag-region className="flex h-11 items-center justify-between px-3">
         <button
           type="button"
           onClick={() => navigate({ kind: "home" })}
-          className="flex size-6 items-center justify-center rounded-md border border-border-strong text-[11px] font-semibold text-muted transition-colors hover:bg-hover hover:text-text"
+          className="flex items-center gap-1.5 text-[14px] font-semibold text-text hover:text-white transition-colors cursor-pointer"
           aria-label="Bagrry home"
         >
-          <span className="font-display italic leading-none">B</span>
+          <span className="font-display italic font-bold">Bagrry</span>
+          <ChevronDown className="size-3 text-subtle" />
         </button>
       </div>
 
@@ -121,7 +122,7 @@ function AppSidebar() {
         <button
           type="button"
           onClick={() => setPaletteOpen(true)}
-          className="mb-2 flex h-8 w-full items-center gap-2 rounded-lg border border-border bg-surface px-2 text-[13px] text-muted transition-colors hover:border-border-strong hover:text-text"
+          className="mb-2.5 flex h-9 w-full items-center gap-2.5 rounded-xl border border-border/80 bg-surface px-2.5 text-[13px] text-subtle transition-colors hover:border-border-strong hover:text-text cursor-pointer"
         >
           <Search className="size-3.5" />
           <span className="flex-1 text-left">Search</span>
@@ -273,8 +274,8 @@ function NavItem({
   return (
     <div
       className={cn(
-        "group relative flex h-8 items-center rounded-lg transition-colors",
-        active ? "bg-selected" : "hover:bg-hover",
+        "group relative flex h-9 items-center rounded-xl transition-colors",
+        active ? "bg-hover/80 text-text font-medium" : "hover:bg-hover/50 text-muted hover:text-text",
       )}
     >
       {expanded !== undefined && (
@@ -491,14 +492,17 @@ function SidebarFooter({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex h-9 w-full items-center gap-2 rounded-lg px-1.5 text-left transition-colors hover:bg-hover"
+            className="flex h-10 w-full items-center gap-2.5 rounded-xl px-2 text-left transition-colors hover:bg-hover cursor-pointer"
           >
-            <Avatar name={workspace} size={18} className="rounded-md" />
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-text">{name}</span>
+            <Avatar name={name || workspace} size={22} className="rounded-full" />
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="truncate text-[13px] font-semibold text-text">{name}</span>
+              <span className="text-[10px] text-subtle font-medium">Plus</span>
+            </div>
             <ChevronsUpDown className="size-3.5 shrink-0 text-subtle" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="top" className="w-60">
+        <DropdownMenuContent align="start" side="top" className="w-64 rounded-2xl border border-border bg-elevated p-1.5 shadow-2xl">
           <div className="flex items-center gap-2 px-2 py-2">
             <Avatar name={workspace} size={26} className="rounded-lg" />
             <div className="min-w-0">

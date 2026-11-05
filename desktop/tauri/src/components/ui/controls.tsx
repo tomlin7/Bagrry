@@ -49,9 +49,9 @@ export const SelectTrigger = React.forwardRef<
     <SelectPrimitive.Trigger
       ref={ref}
       className={cn(
-        "inline-flex h-8 items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 text-[13px] text-text outline-none transition-colors",
+        "inline-flex h-9 items-center justify-between gap-2 rounded-xl border border-border bg-surface-2 px-3 text-[13px] text-text outline-none transition-colors",
         "hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer",
         className,
       )}
       {...props}
@@ -162,12 +162,12 @@ export function SettingRow({
           : undefined
       }
       className={cn(
-        "flex items-center gap-3 px-4 py-3 transition-colors",
+        "flex items-center gap-3.5 px-4.5 py-3.5 transition-colors",
         interactive && "cursor-pointer hover:bg-hover",
       )}
     >
       {icon && (
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-hover text-muted [&_svg]:size-4">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-hover text-muted [&_svg]:size-4">
           {icon}
         </div>
       )}
@@ -210,8 +210,8 @@ export function SettingsCard({
       )}
       <div
         className={cn(
-          "overflow-hidden rounded-xl border",
-          danger ? "border-danger/35 bg-danger/[0.06]" : "border-border bg-surface",
+          "overflow-hidden rounded-2xl border",
+          danger ? "border-danger/35 bg-danger/[0.06]" : "border-border bg-surface shadow-xs",
           dashed ? "divide-y divide-dashed divide-border" : "divide-y divide-[color:var(--border)]",
         )}
       >

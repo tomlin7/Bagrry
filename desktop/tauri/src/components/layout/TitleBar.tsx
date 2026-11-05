@@ -16,6 +16,7 @@ import { snappy } from "@/lib/motion";
  */
 export function TitleBar() {
   const route = useAppStore((s) => s.route);
+  const navigate = useAppStore((s) => s.navigate);
   const history = useAppStore((s) => s.history);
   const back = useAppStore((s) => s.back);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
@@ -93,7 +94,34 @@ export function TitleBar() {
         </motion.div>
       )}
 
-      <div data-tauri-drag-region className="h-full flex-1" />
+      <div data-tauri-drag-region className="h-full flex-1 flex items-center justify-center">
+        <div className="flex items-center rounded-full bg-surface-2 p-0.5 border border-border/70 text-xs shadow-xs">
+          <button
+            type="button"
+            onClick={() => navigate({ kind: "chat", sessionId: null })}
+            className={cn(
+              "px-3.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer",
+              route.kind === "chat"
+                ? "bg-surface text-text shadow-xs font-semibold"
+                : "text-subtle hover:text-text",
+            )}
+          >
+            Chat
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate({ kind: "home" })}
+            className={cn(
+              "px-3.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer",
+              route.kind !== "chat"
+                ? "bg-surface text-text shadow-xs font-semibold"
+                : "text-subtle hover:text-text",
+            )}
+          >
+            Notes
+          </button>
+        </div>
+      </div>
 
       {showNewNote && (
         <Button

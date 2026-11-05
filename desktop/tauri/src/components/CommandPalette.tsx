@@ -97,17 +97,17 @@ export function CommandPalette() {
       <DialogContent bare className="max-w-[580px] p-0" aria-label="Command palette">
         <Command
           shouldFilter={false}
-          className="overflow-hidden rounded-2xl border border-border bg-elevated shadow-2xl transition-all"
+          className="overflow-hidden rounded-[24px] border border-border bg-elevated shadow-2xl transition-all"
         >
           {/* Top Search Input Bar */}
-          <div className="flex items-center gap-2 border-b border-border px-3 py-1">
+          <div className="flex items-center gap-2.5 border-b border-border px-4 py-1.5">
             <Search className="size-4 shrink-0 text-subtle" />
             <Command.Input
               autoFocus
               value={query}
               onValueChange={setQuery}
               placeholder="Search notes, transcripts, people, or jump to… (e.g. from:@alex has:loop)"
-              className="h-11 flex-1 bg-transparent text-[13px] text-text outline-none placeholder:text-subtle"
+              className="h-12 flex-1 bg-transparent text-[14px] text-text outline-none placeholder:text-subtle"
             />
             {isLoading && (
               <span className="text-[11px] text-subtle animate-pulse">Searching…</span>
@@ -116,16 +116,16 @@ export function CommandPalette() {
           </div>
 
           {/* Quick Syntax Filter Chips */}
-          <div className="flex items-center gap-1.5 border-b border-border/60 bg-surface/40 px-3 py-1.5 overflow-x-auto text-[11px]">
-            <span className="flex items-center gap-1 text-subtle font-medium mr-1">
+          <div className="flex items-center gap-2 border-b border-border/60 bg-surface/50 px-3.5 py-2 overflow-x-auto text-[11px]">
+            <span className="flex items-center gap-1 text-subtle font-medium mr-0.5">
               <Filter className="size-3" /> Filters:
             </span>
             <button
               type="button"
               onClick={() => setSearchMode(searchMode === "semantic" ? "standard" : "semantic")}
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium transition-colors ${
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors cursor-pointer ${
                 searchMode === "semantic"
-                  ? "bg-accent text-accent-fg font-semibold shadow-sm"
+                  ? "bg-accent text-accent-fg font-semibold shadow-xs"
                   : "bg-surface border border-border text-subtle hover:bg-hover hover:text-text"
               }`}
             >
@@ -135,7 +135,7 @@ export function CommandPalette() {
             <button
               type="button"
               onClick={() => toggleFilter("has_loop", "has:loop")}
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium transition-colors ${
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors cursor-pointer ${
                 query.includes("has:loop")
                   ? "bg-accent text-accent-fg"
                   : "bg-surface border border-border text-subtle hover:bg-hover hover:text-text"
@@ -151,7 +151,7 @@ export function CommandPalette() {
                 const pastWeek = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
                 toggleFilter("recent", `after:${pastWeek}`);
               }}
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium transition-colors ${
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors cursor-pointer ${
                 query.includes("after:")
                   ? "bg-accent text-accent-fg"
                   : "bg-surface border border-border text-subtle hover:bg-hover hover:text-text"
@@ -395,7 +395,7 @@ function Item({ onSelect, children }: { onSelect: () => void; children: React.Re
   return (
     <Command.Item
       onSelect={onSelect}
-      className="flex cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-text outline-none data-[selected=true]:bg-hover transition-colors"
+      className="flex cursor-default select-none items-center gap-3 rounded-xl px-3 py-2.5 text-text outline-none data-[selected=true]:bg-hover transition-colors cursor-pointer"
     >
       {children}
     </Command.Item>
