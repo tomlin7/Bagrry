@@ -7,7 +7,6 @@ import { Footer } from '@/components/Footer'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { InteractiveSandbox } from '@/components/InteractiveSandbox'
 
 export default function DownloadPage() {
   const [platform, setPlatform] = useState<'windows' | 'mac'>('windows')
@@ -109,11 +108,6 @@ export default function DownloadPage() {
             SHA-256 verified build · Zero telemetry · 100% Confidential
           </p>
         </Card>
-
-        {/* Interactive Sandbox Embedded */}
-        <div className="mt-8 mb-12 text-left">
-          <InteractiveSandbox />
-        </div>
 
         {/* Quick Developer Build alternative */}
         <div className="max-w-xl mx-auto text-left p-6 rounded-2xl bg-neutral-100/70 dark:bg-neutral-800/40 border border-black/[0.05] dark:border-white/[0.05]">
