@@ -21,7 +21,7 @@
   --surface: #fbfaf8;
   --surface-2: #ffffff;
   --elevated: #ffffff;
-  --sidebar: #efeeea;
+  --sidebar: rgba(239, 238, 234, 0.75);
   --overlay: rgba(28, 27, 25, 0.32);
 
   /* Lines */

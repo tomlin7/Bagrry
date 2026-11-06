@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { Effect, EffectState } from "@tauri-apps/api/window";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import * as api from "@/lib/api";
@@ -140,9 +141,16 @@ function useSystemThemeSync() {
 function useShowWindowWhenReady() {
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      currentWindow()
-        ?.show()
-        .catch(() => undefined);
+      const win = currentWindow();
+      if (win) {
+        win
+          .setEffects({
+            effects: [Effect.Acrylic, Effect.Mica],
+            state: EffectState.Active,
+          })
+          .catch(() => undefined);
+        win.show().catch(() => undefined);
+      }
     });
     return () => cancelAnimationFrame(frame);
   }, []);

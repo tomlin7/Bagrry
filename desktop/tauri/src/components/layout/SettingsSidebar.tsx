@@ -29,7 +29,7 @@ export function SettingsSidebar({ tab }: { tab: SettingsTab }) {
 
   return (
     <aside
-      className="flex h-full shrink-0 flex-col border-r border-white/5 bg-sidebar backdrop-blur-3xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]"
+      className="flex h-full shrink-0 flex-col border-r border-white/5 bg-sidebar shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]"
       style={{ width: SIDEBAR_WIDTH }}
     >
       <div data-tauri-drag-region className="px-3 pt-3 pb-1">

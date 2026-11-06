@@ -30,6 +30,7 @@ cpal = "0.15"
 ureq = { version = "2.9.7", features = ["json"] }
 tiny_http = "0.12"
 keyring = "2.3.3"
+window-vibrancy = "0.8"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [

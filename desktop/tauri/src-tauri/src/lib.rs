@@ -75,6 +75,30 @@ pub fn run() {
                 eprintln!("tray unavailable: {e}");
             }
             register_recording_shortcuts(app.handle());
+
+            #[cfg(target_os = "windows")]
+            {
+                if let Some(win) = app.get_webview_window("main") {
+                    // Try Windows Acrylic first with translucent charcoal tint; fallback to Mica.
+                    if let Err(e) = window_vibrancy::apply_acrylic(&win, Some((23, 23, 23, 160))) {
+                        eprintln!("acrylic unavailable, applying mica: {e}");
+                        let _ = window_vibrancy::apply_mica(&win, Some(true));
+                    }
+                }
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = window_vibrancy::apply_vibrancy(
+                        &win,
+                        window_vibrancy::NSVisualEffectMaterial::Sidebar,
+                        None,
+                        None,
+                    );
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
