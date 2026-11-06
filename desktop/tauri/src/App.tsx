@@ -44,7 +44,7 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       <TooltipProvider delayDuration={350} skipDelayDuration={200}>
-        <div className="flex h-full w-full overflow-hidden bg-bg text-text">
+        <div className="flex h-full w-full overflow-hidden bg-transparent text-text">
           <SidebarRail open={sidebarOpen}>
             <Sidebar />
           </SidebarRail>

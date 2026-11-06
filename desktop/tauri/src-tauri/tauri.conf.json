@@ -22,7 +22,12 @@
         "resizable": true,
         "center": true,
         "visible": false,
-        "dragDropEnabled": true
+        "dragDropEnabled": true,
+        "transparent": true,
+        "windowEffects": {
+          "effects": ["acrylic"],
+          "state": "active"
+        }
       }
     ],
     "security": {

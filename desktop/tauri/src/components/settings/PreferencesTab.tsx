@@ -75,7 +75,10 @@ export function PreferencesTab() {
 
   return (
     <>
-      <TabHeading title="Preferences" />
+      <TabHeading
+        title="Preferences"
+        description="Configure meeting behavior, AI models, hardware diagnostics, and local retention."
+      />
 
       <SettingsCard title="General">
         <SettingRow

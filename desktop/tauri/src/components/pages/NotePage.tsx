@@ -482,25 +482,31 @@ export function NotePage({ noteId }: { noteId: string }) {
             </div>
 
             <Tooltip label={transcriptOpen ? "Hide floating transcript (Ctrl+T)" : "Show floating transcript (Ctrl+T)"}>
-              <Button
-                variant={transcriptOpen ? "solid" : "outline"}
-                size="xs"
+              <button
+                type="button"
+                aria-label="Toggle transcript"
                 onClick={() => setTranscriptOpen(!transcriptOpen)}
-                className="h-7 gap-1.5 text-[11px] cursor-pointer"
+                className={cn(
+                  "relative grid size-7 place-items-center rounded-full border transition-all cursor-pointer",
+                  transcriptOpen
+                    ? "border-accent bg-accent text-accent-fg shadow-xs scale-105"
+                    : "border-border bg-surface text-subtle hover:border-border-strong hover:text-text hover:bg-hover",
+                )}
               >
-                <AudioLines className="size-3 text-accent" />
-                <span>Transcript</span>
+                <AudioLines className="size-3.5" />
                 {segments.length > 0 && (
                   <span
                     className={cn(
-                      "rounded-full px-1.5 py-0.2 font-mono text-[9.5px]",
-                      transcriptOpen ? "bg-accent-foreground/20 text-accent-foreground" : "bg-hover text-subtle",
+                      "absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 font-mono text-[9px] font-bold shadow-xs",
+                      transcriptOpen
+                        ? "bg-solid text-solid-fg"
+                        : "bg-accent text-accent-fg",
                     )}
                   >
                     {segments.length}
                   </span>
                 )}
-              </Button>
+              </button>
             </Tooltip>
 
             <Button

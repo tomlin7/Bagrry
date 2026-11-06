@@ -49,7 +49,7 @@ export function TitleBar() {
   }
 
   return (
-    <header data-tauri-drag-region className="flex h-11 shrink-0 items-center gap-2 pl-3 pr-0">
+    <header data-tauri-drag-region className="relative flex h-11 shrink-0 items-center gap-2 pl-3 pr-0">
       <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
         <AnimatePresence initial={false}>
           {history.length > 0 && (
@@ -94,8 +94,9 @@ export function TitleBar() {
         </motion.div>
       )}
 
-      <div data-tauri-drag-region className="h-full flex-1 flex items-center justify-center">
-        <div className="flex items-center rounded-full bg-surface-2 p-0.5 border border-border/70 text-xs shadow-xs">
+      {/* Absolutely centered segmented switch — mathematically centered in the window, zero layout shift */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <div className="pointer-events-auto flex items-center rounded-full bg-surface-2 p-0.5 border border-border/70 text-xs shadow-xs">
           <button
             type="button"
             onClick={() => navigate({ kind: "chat", sessionId: null })}
@@ -122,6 +123,8 @@ export function TitleBar() {
           </button>
         </div>
       </div>
+
+      <div data-tauri-drag-region className="h-full flex-1" />
 
       {showNewNote && (
         <Button

@@ -128,7 +128,59 @@ export function ConnectorsTab() {
 
   return (
     <>
-      <TabHeading title="Connectors" />
+      <TabHeading
+        title="Connectors & Plugins"
+        description="Manage direct integrations, webhooks, and Model Context Protocol (MCP) servers."
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => toast.success("Plugin directory coming soon")}
+              className="inline-flex h-8 items-center rounded-full border border-border bg-surface-2 px-3.5 text-xs font-medium text-text transition-colors hover:bg-hover cursor-pointer"
+            >
+              Browse directory
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpenId("mcp")}
+              className="inline-flex h-8 items-center gap-1 rounded-full bg-solid px-3.5 text-xs font-semibold text-solid-fg transition-opacity hover:opacity-90 cursor-pointer"
+            >
+              <span>Add</span>
+              <span className="text-[10px]">▾</span>
+            </button>
+          </div>
+        }
+      />
+
+      {/* Category Filter Pills */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+        <div className="flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            className="rounded-lg bg-surface px-3 py-1 font-semibold text-text shadow-xs cursor-pointer"
+          >
+            All <span className="text-[11px] opacity-70">14</span>
+          </button>
+          <button
+            type="button"
+            className="rounded-lg px-3 py-1 font-medium text-subtle transition-colors hover:text-text cursor-pointer"
+          >
+            Productivity <span className="text-[11px] opacity-70">4</span>
+          </button>
+          <button
+            type="button"
+            className="rounded-lg px-3 py-1 font-medium text-subtle transition-colors hover:text-text cursor-pointer"
+          >
+            Webhooks <span className="text-[11px] opacity-70">4</span>
+          </button>
+          <button
+            type="button"
+            className="rounded-lg px-3 py-1 font-medium text-subtle transition-colors hover:text-text cursor-pointer"
+          >
+            MCP <span className="text-[11px] opacity-70">1</span>
+          </button>
+        </div>
+      </div>
 
       <SettingsCard
         title="Direct Productivity Connectors"

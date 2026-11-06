@@ -22,7 +22,7 @@ export function SettingsPage({ tab }: { tab: SettingsTab }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
           transition={snappy}
-          className="mx-auto w-full max-w-[640px] px-8 pb-16 pt-6"
+          className="mx-auto w-full max-w-[820px] px-10 pb-20 pt-8"
         >
           {tab === "preferences" && <PreferencesTab />}
           {tab === "profile" && <ProfileTab />}
