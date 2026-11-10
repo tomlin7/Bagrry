@@ -41,6 +41,11 @@ import type {
   SubtitleEvent,
   VoiceMatchResult,
   VoiceProfileInfo,
+  VisualFrame,
+  CopilotFlashCard,
+  DetectedTrigger,
+  UpcomingMeetingEvent,
+  MeetingBehavioralReport,
 } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -428,6 +433,58 @@ export const importMeetingBundle = (bundlePath: string, password?: string) =>
 export const listLocalPeers = () => invoke<PeerInfo[]>("list_local_peers");
 
 /* ------------------------------------------------------------------ */
+/* Milestone 8: Visual Perception, Copilot Agent & Behavioral Intel   */
+/* ------------------------------------------------------------------ */
+
+export const listVisualFrames = (meetingId: string) =>
+  invoke<VisualFrame[]>("list_visual_frames", { meetingId });
+export const saveVisualFrame = (
+  meetingId: string,
+  timestampMs: number,
+  ocrText: string,
+  slideTitle?: string,
+  thumbnailPath?: string,
+) =>
+  invoke<VisualFrame>("save_visual_frame", {
+    meetingId,
+    timestampMs,
+    ocrText,
+    slideTitle: slideTitle ?? null,
+    thumbnailPath: thumbnailPath ?? null,
+  });
+export const deleteVisualFrame = (frameId: string) =>
+  invoke<void>("delete_visual_frame", { frameId });
+
+export const listCopilotFlashCards = (meetingId: string) =>
+  invoke<CopilotFlashCard[]>("list_copilot_flash_cards", { meetingId });
+export const createCopilotFlashCard = (
+  meetingId: string,
+  triggerText: string,
+  sourceType: string,
+  title: string,
+  snippet: string,
+  url?: string,
+) =>
+  invoke<CopilotFlashCard>("create_copilot_flash_card", {
+    meetingId,
+    triggerText,
+    sourceType,
+    title,
+    snippet,
+    url: url ?? null,
+  });
+export const dismissCopilotFlashCard = (cardId: string) =>
+  invoke<void>("dismiss_copilot_flash_card", { cardId });
+export const detectCopilotTriggers = (utterance: string) =>
+  invoke<DetectedTrigger[]>("detect_copilot_triggers", { utterance });
+
+export const listUpcomingCalendarEvents = () =>
+  invoke<UpcomingMeetingEvent[]>("list_upcoming_calendar_events");
+
+export const getBehavioralAnalytics = (meetingId: string) =>
+  invoke<MeetingBehavioralReport>("get_behavioral_analytics", { meetingId });
+
+/* ------------------------------------------------------------------ */
 /* Query keys                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -474,4 +531,8 @@ export const qk = {
   dispatchHistory: (id: string) => ["dispatch-history", id] as const,
   semanticSearch: (query: string) => ["semantic-search", query] as const,
   localPeers: () => ["local-peers"] as const,
+  visualFrames: (id: string) => ["visual-frames", id] as const,
+  copilotFlashCards: (id: string) => ["copilot-flash-cards", id] as const,
+  upcomingEvents: () => ["upcoming-events"] as const,
+  behavioralAnalytics: (id: string) => ["behavioral-analytics", id] as const,
 };

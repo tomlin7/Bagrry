@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Activity,
   AudioLines,
   CalendarDays,
   Mail,
@@ -57,7 +58,11 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { snappy } from "@/lib/motion";
 
-export type ViewMode = "split" | "notes" | "enhanced" | "transcript";
+import { VisualTimelineStrip } from "@/components/notes/VisualTimelineStrip";
+import { CopilotFlashCardDrawer } from "@/components/layout/CopilotFlashCardDrawer";
+import { BehavioralAnalyticsCard } from "@/components/notes/BehavioralAnalyticsCard";
+
+export type ViewMode = "split" | "notes" | "enhanced" | "transcript" | "analytics";
 
 export function NotePage({ noteId }: { noteId: string }) {
   const queryClient = useQueryClient();
@@ -479,6 +484,24 @@ export function NotePage({ noteId }: { noteId: string }) {
                   )}
                 </button>
               </Tooltip>
+              <Tooltip label="Speaker dynamics & sentiment">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("analytics");
+                    localStorage.setItem("bagrry:note-view-mode", "analytics");
+                  }}
+                  className={cn(
+                    "flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium transition-all cursor-pointer",
+                    viewMode === "analytics"
+                      ? "bg-bg text-text shadow-xs"
+                      : "text-muted hover:text-text",
+                  )}
+                >
+                  <Activity className="size-3 text-accent" />
+                  <span>Analytics</span>
+                </button>
+              </Tooltip>
             </div>
 
             <Tooltip label={transcriptOpen ? "Hide floating transcript (Ctrl+T)" : "Show floating transcript (Ctrl+T)"}>
@@ -888,6 +911,10 @@ export function NotePage({ noteId }: { noteId: string }) {
                         </Button>
                       </div>
                     )
+                  ) : viewMode === "analytics" ? (
+                    <div className="w-full">
+                      <BehavioralAnalyticsCard meetingId={noteId} />
+                    </div>
                   ) : viewMode === "transcript" ? (
                     <div className="h-[calc(100vh-220px)] min-h-[500px] w-full">
                       <TranscriptPanel
@@ -916,6 +943,22 @@ export function NotePage({ noteId }: { noteId: string }) {
             </div>
           </div>
         )}
+
+        {/* Milestone 8: Visual Screen Perception Timeline & Proactive Copilot Drawer */}
+        <VisualTimelineStrip
+          meetingId={noteId}
+          onInsertOcrText={(ocrSnippet) => {
+            editorRef.current?.insertText(ocrSnippet);
+            toast.success("Inserted slide text into scratchpad");
+          }}
+        />
+        <CopilotFlashCardDrawer
+          meetingId={noteId}
+          onQuoteToNotes={(quoteSnippet) => {
+            editorRef.current?.insertText(quoteSnippet);
+            toast.success("Quoted flash card to notes");
+          }}
+        />
       </div>
 
       {/* Floating Selection AI Toolbar */}

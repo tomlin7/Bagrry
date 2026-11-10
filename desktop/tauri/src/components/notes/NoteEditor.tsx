@@ -33,6 +33,7 @@ export type NoteDraft = {
 
 export type NoteEditorHandle = {
   replaceSelection: (text: string) => void;
+  insertText: (text: string) => void;
 };
 
 function toEditorContent(json: string | null | undefined, raw: string): string | Record<string, unknown> {
@@ -204,6 +205,11 @@ export const NoteEditor = forwardRef<
 
   useImperativeHandle(ref, () => ({
     replaceSelection: (text: string) => {
+      if (!editor) return;
+      editor.chain().focus().insertContent(text.replace(/\n/g, "<br>")).run();
+      persist(editor);
+    },
+    insertText: (text: string) => {
       if (!editor) return;
       editor.chain().focus().insertContent(text.replace(/\n/g, "<br>")).run();
       persist(editor);

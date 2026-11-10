@@ -244,6 +244,8 @@ export type CalendarEvent = {
   title: string;
   start_at: string;
   end_at: string | null;
+  location?: string | null;
+  description?: string | null;
   attendees_json: string | null;
 };
 
@@ -461,6 +463,75 @@ export type BundleImportResult = {
   title: string;
   importedSegmentsCount: number;
   importedActionItemsCount: number;
+};
+
+/* ------------------------------------------------------------------ */
+/* Milestone 8 Types                                                  */
+/* ------------------------------------------------------------------ */
+
+export type VisualFrame = {
+  id: string;
+  meeting_id: string;
+  timestamp_ms: number;
+  ocr_text: string;
+  slide_title: string | null;
+  thumbnail_path: string | null;
+  created_at: string;
+};
+
+export type CopilotFlashCard = {
+  id: string;
+  meeting_id: string;
+  trigger_text: string;
+  source_type: string;
+  title: string;
+  snippet: string;
+  url: string | null;
+  created_at: string;
+};
+
+export type DetectedTrigger = {
+  trigger_text: string;
+  source_type: string;
+  query: string;
+};
+
+export type ConferenceLink = {
+  platform: "zoom" | "google_meet" | "teams" | "webex" | "other" | string;
+  url: string;
+};
+
+export type UpcomingMeetingEvent = {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string | null;
+  conference_link: ConferenceLink | null;
+  attendees_count: number;
+};
+
+export type SpeakerTalkRatio = {
+  speaker: string;
+  duration_ms: number;
+  percentage: number;
+};
+
+export type SentimentPoint = {
+  timestamp_ms: number;
+  speaker: string;
+  sentiment: "positive" | "neutral" | "skeptical" | "hesitant" | string;
+  score: number;
+  text: string;
+};
+
+export type MeetingBehavioralReport = {
+  meeting_id: string;
+  talk_ratios: SpeakerTalkRatio[];
+  longest_monologue_ms: number;
+  longest_monologue_speaker: string;
+  interruption_count: number;
+  sentiment_timeline: SentimentPoint[];
+  overall_engagement_score: number;
 };
 
 export function routeKey(route: Route): string {

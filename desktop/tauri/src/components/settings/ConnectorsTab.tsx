@@ -475,24 +475,36 @@ export function ConnectorsTab() {
 
           <div className="flex flex-col gap-1.5 pt-1">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
-              Exposed MCP Tools
+              Exposed MCP Tools ({`6 active`})
             </span>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-lg border border-border/60 bg-surface p-2.5">
                 <strong className="block font-mono text-[11px] text-text">query_notes</strong>
-                <span className="text-[11px] text-subtle">Semantic & keyword search across meeting notes</span>
+                <span className="text-[11px] text-subtle">FTS5 keyword search across meeting summaries</span>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface p-2.5">
+                <strong className="block font-mono text-[11px] text-text">search_semantic</strong>
+                <span className="text-[11px] text-subtle">Hybrid vector & neural search across meetings</span>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface p-2.5">
+                <strong className="block font-mono text-[11px] text-text">get_live_transcript</strong>
+                <span className="text-[11px] text-subtle">Real-time live call audio & speaker segments</span>
               </div>
               <div className="rounded-lg border border-border/60 bg-surface p-2.5">
                 <strong className="block font-mono text-[11px] text-text">get_meeting_transcript</strong>
-                <span className="text-[11px] text-subtle">Verbatim speaker turns & citations</span>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-surface p-2.5">
-                <strong className="block font-mono text-[11px] text-text">list_open_loops</strong>
-                <span className="text-[11px] text-subtle">Pending tasks, assignees & deadlines</span>
+                <span className="text-[11px] text-subtle">Verbatim speaker turns & timestamped citations</span>
               </div>
               <div className="rounded-lg border border-border/60 bg-surface p-2.5">
                 <strong className="block font-mono text-[11px] text-text">get_contact_context</strong>
                 <span className="text-[11px] text-subtle">Dossier, past meetings & commitments</span>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface p-2.5">
+                <strong className="block font-mono text-[11px] text-text">list_open_loops</strong>
+                <span className="text-[11px] text-subtle">Pending commitments, assignees & deadlines</span>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface p-2.5">
+                <strong className="block font-mono text-[11px] text-text">get_meeting_analytics</strong>
+                <span className="text-[11px] text-subtle">Speaker talk ratios, monologues & sentiment</span>
               </div>
             </div>
           </div>

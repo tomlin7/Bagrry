@@ -750,6 +750,36 @@ fn mcp(conn: &Connection, body: &serde_json::Value) -> serde_json::Value {
                         "type": "object",
                         "properties": {}
                     }
+                },
+                {
+                    "name": "search_semantic",
+                    "description": "Run hybrid dense vector and FTS5 semantic search across meetings",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "query": { "type": "string", "description": "Natural language query" }
+                        },
+                        "required": ["query"]
+                    }
+                },
+                {
+                    "name": "get_live_transcript",
+                    "description": "Retrieve active real-time transcript segments from the ongoing live meeting",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                },
+                {
+                    "name": "get_meeting_analytics",
+                    "description": "Retrieve speaker talk ratios, interruptions, and sentiment timeline for a meeting",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "meeting_id": { "type": "string", "description": "Unique meeting identifier" }
+                        },
+                        "required": ["meeting_id"]
+                    }
                 }
             ]
         }),
@@ -763,6 +793,32 @@ fn mcp(conn: &Connection, body: &serde_json::Value) -> serde_json::Value {
                         .and_then(|v| v.as_str())
                         .unwrap_or_default();
                     mcp_query_notes(conn, q).to_string()
+                }
+                "search_semantic" => {
+                    let q = args.get("query").and_then(|v| v.as_str()).unwrap_or_default();
+                    match crate::semantic_search::search_hybrid(conn, q, 10) {
+                        Ok(res) => serde_json::to_string(&res).unwrap_or_else(|_| "[]".into()),
+                        Err(e) => format!("{{\"error\":\"{e}\"}}"),
+                    }
+                }
+                "get_live_transcript" => {
+                    // Fetch latest live meeting segments
+                    let sql = "SELECT m.id, m.title, m.transcript_json FROM meetings m ORDER BY m.date DESC LIMIT 1";
+                    let row = conn.query_row(sql, [], |r| {
+                        Ok(json!({
+                            "meeting_id": r.get::<_, String>(0)?,
+                            "title": r.get::<_, String>(1)?,
+                            "transcript": serde_json::from_str::<serde_json::Value>(&r.get::<_, Option<String>>(2)?.unwrap_or_default()).unwrap_or(json!([]))
+                        }))
+                    });
+                    row.unwrap_or_else(|_| json!({"status": "no active meeting"})).to_string()
+                }
+                "get_meeting_analytics" => {
+                    let mid = args.get("meeting_id").and_then(|v| v.as_str()).unwrap_or_default();
+                    match crate::behavioral_analytics::get_or_compute_analytics(conn, mid) {
+                        Ok(rep) => serde_json::to_string(&rep).unwrap_or_else(|_| "{}".into()),
+                        Err(e) => format!("{{\"error\":\"{e}\"}}"),
+                    }
                 }
                 "get_meeting_transcript" => {
                     let mid = args

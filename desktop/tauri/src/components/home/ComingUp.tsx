@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { CalendarClock, Settings2 } from "lucide-react";
+import { CalendarClock, Settings2, Video } from "lucide-react";
 import * as api from "@/lib/api";
 import { dayOffset, formatMonth, formatTime, formatWeekday, parseDbDate } from "@/lib/format";
 import type { CalendarEvent } from "@/lib/types";
+import { extractConferenceUrl } from "@/lib/calendar";
 import { Avatar, Skeleton } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -83,6 +84,7 @@ export function ComingUp() {
               {upcoming.map(({ event, start }, i) => {
                 const names = attendeeNames(event);
                 const offset = dayOffset(start);
+                const conf = extractConferenceUrl(event.location || event.description || event.title);
                 return (
                   <motion.div
                     key={event.id}
@@ -93,21 +95,43 @@ export function ComingUp() {
                   >
                     <Avatar name={names[0] ?? event.title} size={30} className="rounded-lg" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-medium text-text">{event.title}</div>
+                      <div className="flex items-center gap-1.5 truncate text-[13px] font-medium text-text">
+                        <span className="truncate">{event.title}</span>
+                        {conf.url && (
+                          <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-[9.5px] font-bold uppercase tracking-wider bg-accent/15 text-accent border border-accent/20">
+                            {conf.provider || "Call"}
+                          </span>
+                        )}
+                      </div>
                       <div className="truncate text-xs text-subtle">
                         {formatTime(start)}
                         {offset === 1 && " · Tomorrow"}
                         {names.length > 0 && ` · ${names.join(", ")}`}
                       </div>
                     </div>
-                    <Button
-                      variant="solid"
-                      size="sm"
-                      className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                      onClick={() => createNote.mutate({ title: event.title, record: true })}
-                    >
-                      Start now
-                    </Button>
+                    {conf.url ? (
+                      <Button
+                        variant="solid"
+                        size="sm"
+                        className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 gap-1"
+                        onClick={() => {
+                          if (conf.url) window.open(conf.url, "_blank");
+                          createNote.mutate({ title: event.title, record: true });
+                        }}
+                      >
+                        <Video className="size-3" />
+                        <span>Join & Record</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="solid"
+                        size="sm"
+                        className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                        onClick={() => createNote.mutate({ title: event.title, record: true })}
+                      >
+                        Start now
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"

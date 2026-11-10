@@ -18,6 +18,10 @@ mod settings_cmds;
 pub mod translation;
 mod tray;
 pub mod whisper_local;
+pub mod behavioral_analytics;
+pub mod calendar_daemon;
+pub mod copilot_agent;
+pub mod visual_perception;
 use db::{PooledConn, SharedPool};
 use tauri::Manager;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
@@ -242,6 +246,15 @@ pub fn run() {
             settings_cmds::import_ics,
             settings_cmds::reset_calendar,
             settings_cmds::get_referral_code,
+            commands::list_visual_frames,
+            commands::save_visual_frame,
+            commands::delete_visual_frame,
+            commands::list_copilot_flash_cards,
+            commands::create_copilot_flash_card,
+            commands::dismiss_copilot_flash_card,
+            commands::detect_copilot_triggers,
+            commands::list_upcoming_calendar_events,
+            commands::get_behavioral_analytics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

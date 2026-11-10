@@ -4348,3 +4348,107 @@ pub fn import_meeting_bundle(
 pub fn list_local_peers() -> Vec<crate::p2p_sync::PeerInfo> {
     crate::p2p_sync::list_local_peers()
 }
+
+/* ------------------------------------------------------------------ */
+/* Milestone 8: Visual Perception, Copilot Agent & Behavioral Intel   */
+/* ------------------------------------------------------------------ */
+
+#[tauri::command]
+pub fn list_visual_frames(
+    state: tauri::State<'_, AppState>,
+    meeting_id: String,
+) -> Result<Vec<crate::visual_perception::VisualFrame>, String> {
+    let conn = state.conn()?;
+    crate::visual_perception::list_visual_frames(&conn, &meeting_id)
+}
+
+#[tauri::command]
+pub fn save_visual_frame(
+    state: tauri::State<'_, AppState>,
+    meeting_id: String,
+    timestamp_ms: i64,
+    ocr_text: String,
+    slide_title: Option<String>,
+    thumbnail_path: Option<String>,
+) -> Result<crate::visual_perception::VisualFrame, String> {
+    let conn = state.conn()?;
+    crate::visual_perception::save_visual_frame(
+        &conn,
+        &meeting_id,
+        timestamp_ms,
+        &ocr_text,
+        slide_title.as_deref(),
+        thumbnail_path.as_deref(),
+    )
+}
+
+#[tauri::command]
+pub fn delete_visual_frame(
+    state: tauri::State<'_, AppState>,
+    frame_id: String,
+) -> Result<(), String> {
+    let conn = state.conn()?;
+    crate::visual_perception::delete_visual_frame(&conn, &frame_id)
+}
+
+#[tauri::command]
+pub fn list_copilot_flash_cards(
+    state: tauri::State<'_, AppState>,
+    meeting_id: String,
+) -> Result<Vec<crate::copilot_agent::CopilotFlashCard>, String> {
+    let conn = state.conn()?;
+    crate::copilot_agent::list_flash_cards(&conn, &meeting_id)
+}
+
+#[tauri::command]
+pub fn create_copilot_flash_card(
+    state: tauri::State<'_, AppState>,
+    meeting_id: String,
+    trigger_text: String,
+    source_type: String,
+    title: String,
+    snippet: String,
+    url: Option<String>,
+) -> Result<crate::copilot_agent::CopilotFlashCard, String> {
+    let conn = state.conn()?;
+    crate::copilot_agent::create_flash_card(
+        &conn,
+        &meeting_id,
+        &trigger_text,
+        &source_type,
+        &title,
+        &snippet,
+        url.as_deref(),
+    )
+}
+
+#[tauri::command]
+pub fn dismiss_copilot_flash_card(
+    state: tauri::State<'_, AppState>,
+    card_id: String,
+) -> Result<(), String> {
+    let conn = state.conn()?;
+    crate::copilot_agent::dismiss_flash_card(&conn, &card_id)
+}
+
+#[tauri::command]
+pub fn detect_copilot_triggers(utterance: String) -> Vec<crate::copilot_agent::DetectedTrigger> {
+    crate::copilot_agent::detect_triggers(&utterance)
+}
+
+#[tauri::command]
+pub fn list_upcoming_calendar_events(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<crate::calendar_daemon::UpcomingMeetingEvent>, String> {
+    let conn = state.conn()?;
+    crate::calendar_daemon::list_upcoming_calendar_events(&conn)
+}
+
+#[tauri::command]
+pub fn get_behavioral_analytics(
+    state: tauri::State<'_, AppState>,
+    meeting_id: String,
+) -> Result<crate::behavioral_analytics::MeetingBehavioralReport, String> {
+    let conn = state.conn()?;
+    crate::behavioral_analytics::get_or_compute_analytics(&conn, &meeting_id)
+}

@@ -463,6 +463,42 @@ CREATE TABLE IF NOT EXISTS dense_embeddings (
 CREATE INDEX IF NOT EXISTS idx_dense_embeddings_meeting ON dense_embeddings(meeting_id);
 "#;
 
+const V14: &str = r#"
+CREATE TABLE IF NOT EXISTS meeting_visual_frames (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  timestamp_ms INTEGER NOT NULL,
+  ocr_text TEXT NOT NULL,
+  slide_title TEXT,
+  thumbnail_path TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_visual_frames_meeting ON meeting_visual_frames(meeting_id, timestamp_ms);
+
+CREATE TABLE IF NOT EXISTS copilot_flash_cards (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  trigger_text TEXT NOT NULL,
+  source_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  snippet TEXT NOT NULL,
+  url TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_copilot_flash_cards_meeting ON copilot_flash_cards(meeting_id);
+
+CREATE TABLE IF NOT EXISTS meeting_behavioral_metrics (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT UNIQUE NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  talk_ratios_json TEXT NOT NULL,
+  longest_monologue_ms INTEGER NOT NULL DEFAULT 0,
+  interruption_count INTEGER NOT NULL DEFAULT 0,
+  sentiment_timeline_json TEXT NOT NULL,
+  computed_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_behavioral_metrics_meeting ON meeting_behavioral_metrics(meeting_id);
+"#;
+
 pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
     let current: i64 = conn
         .query_row(
@@ -607,6 +643,16 @@ pub fn apply(conn: &Connection, vec_enabled: bool) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("record v13: {e}"))?;
+    }
+
+    if current < 14 {
+        conn.execute_batch(V14)
+            .map_err(|e| format!("migration v14: {e}"))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (14)",
+            [],
+        )
+        .map_err(|e| format!("record v14: {e}"))?;
     }
 
     if vec_enabled {
